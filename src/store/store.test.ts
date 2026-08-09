@@ -24,7 +24,7 @@ const stubApi = (over: Partial<MeshApi> = {}): MeshApi => ({
   getService: async (name) =>
     ({
       name,
-      fetchedAtUtc: null,
+      fetchedAtUtc: '2026-07-16T09:15:00Z',
       specJson: null,
       specHash: null,
       previousSpecHash: null,

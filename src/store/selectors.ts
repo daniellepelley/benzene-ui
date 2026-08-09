@@ -59,3 +59,76 @@ function worstOf(counts: Record<Rag, number>): Rag | null {
 }
 
 export const selectExpandedCount = createSelector([selectExpanded], (e) => e.length);
+
+// ── Live plane ──────────────────────────────────────────────────────────────────────────────────
+// Everything below derives from fleetSlice. Note that no selector reads the clock: `now` is state,
+// set by an action, which is what makes staleness testable without faking timers.
+
+import { HEARTBEAT_STALE_MS, type LiveIssue } from './slices/fleetSlice';
+
+export const selectFleetAvailable = (s: RootState) => s.fleet.available;
+export const selectFleetLoad = (s: RootState) => s.fleet.load;
+const selectHeartbeats = (s: RootState) => s.fleet.heartbeats;
+const selectNow = (s: RootState) => s.fleet.now;
+const selectIssues = (s: RootState) => s.fleet.issues;
+
+export type Liveness = 'live' | 'stale' | 'silent';
+
+/**
+ * A service's observed liveness — distinct from its declared status.
+ *
+ * 'silent' means no heartbeat has ever arrived, which is NOT the same as stale: a service that never
+ * reported may simply not have the reporting middleware wired. The UI must not paint that as a fault.
+ */
+export const selectLiveness = createSelector(
+  [selectHeartbeats, selectNow, (_: RootState, service: string) => service],
+  (heartbeats, now, service): Liveness => {
+    const lastSeen = heartbeats[service];
+    if (!lastSeen) return 'silent';
+    const age = now - Date.parse(lastSeen);
+    return age > HEARTBEAT_STALE_MS ? 'stale' : 'live';
+  },
+);
+
+/** Issues for one service, newest first. */
+export const selectIssuesForService = createSelector(
+  [selectIssues, (_: RootState, service: string) => service],
+  (issues, service): LiveIssue[] =>
+    issues
+      .filter((i) => i.service === service)
+      .slice()
+      .sort((a, b) => Date.parse(b.observedAtUtc) - Date.parse(a.observedAtUtc)),
+);
+
+/**
+ * The inbox roll-up. Counts *occurrences*, not distinct issues — one issue seen 400 times is a
+ * bigger problem than four seen once, and the original UI's feed conflated them.
+ */
+export const selectIssueSummary = createSelector([selectIssues], (issues) => {
+  const byClassification: Record<string, number> = {};
+  let occurrences = 0;
+  for (const issue of issues) {
+    byClassification[issue.classification] = (byClassification[issue.classification] ?? 0) + issue.count;
+    occurrences += issue.count;
+  }
+  return { distinct: issues.length, occurrences, byClassification };
+});
+
+/**
+ * Services that say they are healthy but have gone quiet. The single most useful thing the live
+ * plane adds, and impossible to express while the two planes share one slice.
+ */
+export const selectDivergences = createSelector(
+  [(s: RootState) => s.estate.services, selectHeartbeats, selectNow, selectFleetAvailable],
+  (services, heartbeats, now, available) => {
+    if (!available) return [];
+    return services
+      .filter((s) => s.status === 'healthy')
+      .filter((s) => {
+        const lastSeen = heartbeats[s.name];
+        // Never-reported is not a divergence — it is an unwired service, not a lying one.
+        return lastSeen !== undefined && now - Date.parse(lastSeen) > HEARTBEAT_STALE_MS;
+      })
+      .map((s) => s.name);
+  },
+);

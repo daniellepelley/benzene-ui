@@ -29,9 +29,34 @@ budget (currently 179 KB against the 274 KB hand-written UI it replaces).
 
 ## Contracts
 
-`src/contracts/` mirrors `docs/specification/mesh.md` in the specification repo. `contracts/` holds
-vendored conformance fixtures pinned by `SPEC_VERSION`. Do not invent contract shapes — if a field is
-needed and the spec does not have it, that is a spec change first.
+`src/contracts/generated.ts` is **generated** — `npm run generate:contracts`. Never edit it.
+
+Types are inferred from the sample artifacts in `contracts/artifacts/`, vendored from the spec repo
+and pinned by `contracts/SPEC_VERSION`. The spec's conformance fixtures are *test cases*, not JSON
+Schema, so there is nothing to compile a type from directly — inference from real payloads is the
+honest substitute, and it makes a shape change show up as a diff on the generated file.
+
+**Widen a type by adding a sample, never by editing.** Every `<stem>*.json` in `contracts/artifacts/`
+is merged, so `manifest.minimal.json` beside `manifest.json` is how a field becomes optional. Editing
+the generated file is silently reverted by the next run.
+
+Inference gives structure, not meaning: it produces `status: string`, never the union. Vocabularies
+are spec decisions and live in `src/contracts/mesh.ts`, pinned to the generated shapes by
+`contracts.test.ts`.
+
+## State slices
+
+Three, and the separation is load-bearing:
+
+- `estateSlice` — what services **declare** (the aggregator's manifest and snapshots).
+- `fleetSlice` — what the collector has **observed** (heartbeats, issues, flows). Fails independently:
+  `available: false` is a resting state, not an error, and the estate must render fine without it.
+- `viewSlice` — everything the user has done to the view.
+
+Conflating the first two is how you lose the ability to say "declared healthy, silent for six
+minutes" — which is the single most useful thing the live plane adds. And note that `fleetSlice.now`
+is state set by `clockTicked`: no selector may read `Date.now()`, or staleness becomes untestable and
+un-memoisable.
 
 ## Do NOT
 

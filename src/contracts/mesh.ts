@@ -1,59 +1,29 @@
 /**
- * Mesh contract types.
+ * The semantic layer over the generated artifact types.
  *
- * These mirror `docs/specification/mesh.md` in the specification repo, and the vendored conformance
- * fixtures in `contracts/` are pinned to the spec commit recorded in `contracts/SPEC_VERSION`.
- * A drift check compares that pin against the spec repo, so a contract change becomes a build
- * failure here rather than an `undefined` at runtime — the same mechanism every language port uses.
+ * `generated.ts` is inferred from sample artifacts, so it gives *structure* — `status: string`, not
+ * `'healthy' | 'degraded' | …`. Inference cannot produce a vocabulary from examples; that vocabulary
+ * is a spec decision. So the generated file owns the shape, and this file owns the meaning, and the
+ * two are pinned together by `contracts.test.ts`, which parses every vendored sample as these types.
+ *
+ * When the aggregator changes an artifact, re-vendor the samples and re-run the generator: the diff
+ * on generated.ts is the contract change, and anything relying on the old shape stops compiling.
  */
+import type {
+  Manifest as GeneratedManifest,
+  ManifestServicesItem,
+  ServiceSnapshot as GeneratedServiceSnapshot,
+} from './generated';
 
-/** A service's declared health, as published in the manifest. */
+export type * from './generated';
+
+/** A service's declared health. The vocabulary is a spec decision, not an inferred one. */
 export type ServiceStatus = 'healthy' | 'degraded' | 'unhealthy' | 'unreachable';
 
 /** Red/amber/green plus "gone" — the fleet's observed state, distinct from declared status. */
 export type Rag = 'red' | 'amber' | 'green' | 'gone';
 
-/** One service as it appears in the estate manifest. */
-export interface ManifestService {
-  name: string;
-  status: ServiceStatus;
-  contractDrift: boolean;
-  specUrl?: string | null;
-  healthUrl?: string | null;
-  owningTeam?: string | null;
-}
-
-/** The estate manifest — the declared plane. */
-export interface Manifest {
-  generatedAtUtc: string;
-  services: ManifestService[];
-}
-
-/** A service's published artifact — the detail behind a manifest entry. */
-export interface ServiceSnapshot {
-  name: string;
-  fetchedAtUtc: string | null;
-  snapshotAtUtc?: string | null;
-  specJson: string | null;
-  specHash: string | null;
-  previousSpecHash: string | null;
-  contractDrift: boolean;
-  health: HealthReport | null;
-  error: string | null;
-}
-
-export interface HealthReport {
-  status: ServiceStatus;
-  checks: HealthCheck[];
-}
-
-export interface HealthCheck {
-  name: string;
-  healthy: boolean;
-  message?: string | null;
-}
-
-/** How a mesh issue is classified — mirrors MeshIssueClassification. */
+/** How a mesh issue is classified — mirrors MeshIssueClassification in the spec. */
 export type IssueClassification =
   | 'exception'
   | 'validation'
@@ -62,12 +32,29 @@ export type IssueClassification =
   | 'contract-drift'
   | 'unclassified';
 
-export interface MeshIssue {
-  id: string;
-  service: string;
-  topic?: string | null;
-  classification: IssueClassification;
-  message: string;
-  observedAtUtc: string;
-  count?: number;
-}
+/** The generated shape, narrowed where the spec defines a vocabulary. */
+export type ManifestService = Omit<ManifestServicesItem, 'status'> & { status: ServiceStatus };
+
+export type Manifest = Omit<GeneratedManifest, 'services'> & { services: ManifestService[] };
+
+/**
+ * NOTE: the original mesh-ui.html computes snapshot age from `svc.snapshotAtUtc`, but
+ * `MeshServiceSnapshot` in Benzene.Mesh.Contracts has no such member — it has `FetchedAtUtc`. The
+ * old code was reading a field the contract never defined, so that age was always unknown. Typed as
+ * optional here to record the discrepancy rather than silently perpetuate it; `fetchedAtUtc` is the
+ * field to use, and it is non-nullable.
+ */
+export type ServiceSnapshot = GeneratedServiceSnapshot & {
+  snapshotAtUtc?: string | null;
+};
+
+/** Every value `ServiceStatus` admits, for exhaustiveness checks and test data. */
+export const SERVICE_STATUSES: readonly ServiceStatus[] = [
+  'healthy',
+  'degraded',
+  'unhealthy',
+  'unreachable',
+] as const;
+
+export const isServiceStatus = (value: string): value is ServiceStatus =>
+  (SERVICE_STATUSES as readonly string[]).includes(value);

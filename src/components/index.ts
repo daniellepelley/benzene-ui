@@ -3,4 +3,5 @@ export * from './primitives/Chip';
 export * from './primitives/EmptyState';
 export * from './primitives/StatusGlyph';
 export * from './controls/ServiceCard';
+export * from './controls/LiveStrip';
 export * from './containers/ServiceList';

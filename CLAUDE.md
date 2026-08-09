@@ -25,7 +25,7 @@ actions and assert on output, never simulate clicks to drive state.
 `dist/index.html` inlines all JS and CSS and makes **zero external requests**. `Benzene.Mesh.Ui`
 embeds it and serves it from inside a running service — no CDN, no static hosting. CI asserts this.
 Consequences: no code splitting, no dynamic import, no runtime CDN anything, and bundle size is a
-budget (currently 236 KB against the 274 KB hand-written UI it replaces).
+budget (currently 237 KB against the 274 KB hand-written UI it replaces).
 
 ## The collector is a Benzene service, not a REST API
 

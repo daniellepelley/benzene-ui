@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from './store/hooks';
-import { loadManifest } from './store/slices/estateSlice';
+import { loadManifest, loadService } from './store/slices/estateSlice';
 import { loadCatalog } from './store/slices/catalogSlice';
 import { loadAnnotations } from './store/slices/annotationsSlice';
 import { probeFleet, clockTicked, FLEET_POLL_MS } from './store/slices/fleetSlice';
@@ -45,6 +45,13 @@ export function App() {
     }, FLEET_POLL_MS);
     return () => clearInterval(id);
   }, [dispatch]);
+
+  // A service's snapshot — its spec, health checks and drift hashes — is one file per service, so it
+  // is fetched on drill-in rather than up front. Without this the About and Health panels sit empty
+  // for ever, which reads as "this service published nothing" rather than "nobody asked".
+  useEffect(() => {
+    if (page === 'service' && selected) void dispatch(loadService(selected));
+  }, [dispatch, page, selected]);
 
   // Changing the window is a new question, not a new rendering of the old answer — the collector has
   // to be asked again, or every live figure on the page would keep its old window's numbers under a

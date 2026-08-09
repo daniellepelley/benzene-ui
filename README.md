@@ -87,7 +87,7 @@ healthy that have stopped reporting. That is the single most useful thing the li
 as a resource and serves it from inside the running service: no CDN, no static hosting, no network
 egress. That rules out code splitting and makes bundle size a budget.
 
-Current: **236 KB**, against the 274 KB hand-written UI it replaces. React and Redux Toolkit
+Current: **237 KB**, against the 274 KB hand-written UI it replaces. React and Redux Toolkit
 included, the whole application is *smaller* than what it replaces, because a minifier beats
 hand-maintained source. CI asserts there are no external requests.
 

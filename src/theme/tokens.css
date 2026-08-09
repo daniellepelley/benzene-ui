@@ -1,0 +1,89 @@
+/* Design tokens. The 30 class names shared across mesh-ui, mesh-spec-ui and spec-ui by copy-paste
+   become one layer here — that shared layer is why the other two UIs can be rebuilt on these
+   components later without re-deriving the visual language. */
+:root {
+  --bz-accent: #2f6f4e;
+  --bz-bg: #ffffff;
+  --bz-fg: #1a1a1a;
+  --bz-muted: #5a5a5a;
+  --bz-border: #e2e2e2;
+  --bz-code-bg: #f6f8f7;
+
+  --bz-rag-red: #c0392b;
+  --bz-rag-amber: #c07a1e;
+  --bz-rag-green: #2f6f4e;
+  --bz-rag-gone: #8a8a8a;
+
+  --bz-radius: 6px;
+  --bz-gap: 0.5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bz-accent: #6fcf9a;
+    --bz-bg: #14161a;
+    --bz-fg: #e8e8e8;
+    --bz-muted: #a3a3a3;
+    --bz-border: #2c2f33;
+    --bz-code-bg: #1c1f23;
+    --bz-rag-red: #e8705f;
+    --bz-rag-amber: #e0a94a;
+    --bz-rag-green: #6fcf9a;
+    --bz-rag-gone: #7d7d7d;
+  }
+}
+
+.bz-badge {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--bz-radius);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: lowercase;
+  border: 1px solid var(--bz-border);
+  color: var(--bz-fg);
+}
+.bz-badge[data-rag='red']   { border-color: var(--bz-rag-red);   color: var(--bz-rag-red); }
+.bz-badge[data-rag='amber'] { border-color: var(--bz-rag-amber); color: var(--bz-rag-amber); }
+.bz-badge[data-rag='green'] { border-color: var(--bz-rag-green); color: var(--bz-rag-green); }
+.bz-badge[data-rag='gone']  { border-color: var(--bz-rag-gone);  color: var(--bz-rag-gone); }
+
+.bz-rag { font-size: 0.85em; line-height: 1; }
+.bz-rag[data-rag='red']   { color: var(--bz-rag-red); }
+.bz-rag[data-rag='amber'] { color: var(--bz-rag-amber); }
+.bz-rag[data-rag='green'] { color: var(--bz-rag-green); }
+.bz-rag[data-rag='gone']  { color: var(--bz-rag-gone); }
+
+.bz-chip {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border: 1px solid var(--bz-border);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  color: var(--bz-muted);
+}
+
+.bz-empty {
+  padding: 1rem;
+  color: var(--bz-muted);
+  border: 1px dashed var(--bz-border);
+  border-radius: var(--bz-radius);
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.bz-svc {
+  border: 1px solid var(--bz-border);
+  border-radius: var(--bz-radius);
+  padding: 0.75rem 0.9rem;
+  background: var(--bz-bg);
+  color: var(--bz-fg);
+}
+.bz-svc-head { display: flex; align-items: center; gap: var(--bz-gap); flex-wrap: wrap; }
+.bz-svc-name {
+  background: none; border: none; padding: 0; font: inherit; font-weight: 600;
+  color: var(--bz-fg); cursor: pointer; text-align: left;
+}
+.bz-svc-name:hover { color: var(--bz-accent); text-decoration: underline; }
+.bz-svc-team { color: var(--bz-muted); font-size: 0.82rem; margin-left: auto; }
+.bz-svc-body { margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid var(--bz-border); }

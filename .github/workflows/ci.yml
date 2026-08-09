@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push: { branches: [main] }
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22', cache: npm }
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm test
+      - run: npm run build
+      - run: npm run build:storybook
+      # The build target is a single self-contained file; a stray external request would break
+      # serving it from inside a Benzene service, where there is no CDN to reach.
+      - name: Assert the artifact is self-contained
+        run: |
+          if grep -oE '<(script|link)[^>]*(src|href)="(https?:)?//' dist/index.html; then
+            echo "::error::dist/index.html makes an external request"; exit 1
+          fi
+          echo "self-contained: $(stat -c%s dist/index.html) bytes"

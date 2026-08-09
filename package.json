@@ -1,0 +1,43 @@
+{
+  "name": "@benzene/ui",
+  "version": "0.1.0",
+  "description": "React component library for the Benzene Mesh UI — cross-language, driven entirely by Redux state",
+  "license": "MIT",
+  "type": "module",
+  "files": ["dist", "src"],
+  "main": "./dist/lib/index.js",
+  "types": "./dist/lib/index.d.ts",
+  "exports": { ".": { "types": "./dist/lib/index.d.ts", "default": "./dist/lib/index.js" } },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "build:lib": "tsc -b tsconfig.lib.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -b --noEmit false --emitDeclarationOnly false",
+    "storybook": "storybook dev -p 6006",
+    "build:storybook": "storybook build -o dist/storybook"
+  },
+  "dependencies": {
+    "@reduxjs/toolkit": "^2.5.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-redux": "^9.2.0"
+  },
+  "devDependencies": {
+    "@storybook/addon-essentials": "^8.4.7",
+    "@storybook/react": "^8.4.7",
+    "@storybook/react-vite": "^8.4.7",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@types/react": "^18.3.17",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "jsdom": "^25.0.1",
+    "storybook": "^8.4.7",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5",
+    "vite-plugin-singlefile": "^2.1.0",
+    "vitest": "^2.1.8"
+  }
+}

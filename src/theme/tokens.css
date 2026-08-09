@@ -225,3 +225,5 @@
 .bz-live-silent { font-size: 0.82rem; color: var(--bz-muted); }
 .bz-live-missing { font-size: 0.72rem; color: var(--bz-rag-amber); font-style: italic; }
 .bz-issue-seen, .bz-issue-exemplars { font-size: 0.82rem; color: var(--bz-muted); margin: 0.2rem 0; }
+.bz-svc-links { display: inline-flex; gap: 0.5rem; margin-left: auto; font-size: 0.8rem; }
+.bz-svc-links a { color: var(--bz-accent); }

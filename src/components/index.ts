@@ -4,6 +4,7 @@ export * from './primitives/EmptyState';
 export * from './primitives/StatusGlyph';
 
 export * from './controls/ServiceCard';
+export * from './controls/ServiceLinks';
 export * from './controls/LiveStrip';
 export * from './controls/IssueRow';
 export * from './controls/ValueRow';

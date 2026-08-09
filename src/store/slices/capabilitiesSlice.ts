@@ -18,17 +18,26 @@ export interface CapabilitiesState {
   annotate: boolean;
   /** Messages can be composed AND sent. */
   invoke: boolean;
+  /**
+   * Where this deployment published its artifacts, when it said.
+   *
+   * Deployment shape is a fact about the mesh, not a component's business — the same reason the
+   * three booleans live here. It is needed to build links that must resolve in the reader's
+   * deployment rather than in ours.
+   */
+  manifestUrl: string | null;
 }
 
-export const capabilitiesOf = (api: MeshApi): CapabilitiesState => ({
+export const capabilitiesOf = (api: MeshApi, manifestUrl?: string): CapabilitiesState => ({
   fleet: typeof api.getFleet === 'function',
   annotate: typeof api.postAnnotation === 'function',
   invoke: typeof api.sendMessage === 'function',
+  manifestUrl: manifestUrl ?? null,
 });
 
 const capabilitiesSlice = createSlice({
   name: 'capabilities',
-  initialState: { fleet: false, annotate: false, invoke: false } as CapabilitiesState,
+  initialState: { fleet: false, annotate: false, invoke: false, manifestUrl: null } as CapabilitiesState,
   reducers: {},
 });
 

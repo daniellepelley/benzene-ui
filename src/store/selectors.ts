@@ -812,3 +812,77 @@ export const selectLiveForTopic = createSelector(
     };
   },
 );
+
+// ── Untrusted URLs ──────────────────────────────────────────────────────────────────────────────
+
+/**
+ * An http(s) URL from an untrusted source, or null.
+ *
+ * `specUrl` and `healthUrl` come from a self-reported manifest, so a `javascript:` or `data:` URL
+ * would execute on click if it were handed straight to an anchor — and `target="_blank"` does not
+ * neutralise it. Anything that is not http or https is refused rather than rendered, which means a
+ * hostile manifest entry costs the reader a missing link, not a script execution.
+ */
+export function safeHttpUrl(raw: string | null | undefined, base: string): string | null {
+  if (!raw) return null;
+  try {
+    const url = new URL(raw, base);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
+export interface ServiceLinkSet {
+  specViewHref: string | null;
+  rawSpecHref: string | null;
+  healthHref: string | null;
+}
+
+/**
+ * The links out of one service card, vetted for the deployment they will be clicked in.
+ *
+ * The spec-view href is relative on purpose: the mesh's spec page sits beside this one whether both
+ * are static files or both are served from a pipeline, so a single href resolves in either. The two
+ * self-reported URLs go through `safeHttpUrl`, because a manifest is written by the services
+ * themselves and an unvetted `javascript:` href would execute on click.
+ */
+function serviceLinksFor(
+  entry: ManifestService | undefined,
+  manifestUrl: string | null,
+  pageUrl: string,
+): ServiceLinkSet {
+  if (!entry) return { specViewHref: null, rawSpecHref: null, healthHref: null };
+
+  const query = new URLSearchParams({ service: entry.name });
+  if (manifestUrl) query.set('manifest', manifestUrl);
+  query.set('mesh', pageUrl);
+
+  return {
+    specViewHref: `mesh-spec-ui.html?${query.toString()}`,
+    rawSpecHref: safeHttpUrl(entry.specUrl, pageUrl),
+    healthHref: safeHttpUrl(entry.healthUrl, pageUrl),
+  };
+}
+
+const selectManifestUrl = (s: RootState) => s.capabilities.manifestUrl;
+
+export const selectServiceLinks = createSelector(
+  [(s: RootState) => s.estate.services, selectManifestUrl,
+    (_: RootState, service: string) => service,
+    (_s: RootState, _service: string, pageUrl: string) => pageUrl],
+  (services, manifestUrl, service, pageUrl): ServiceLinkSet =>
+    serviceLinksFor(services.find((s) => s.name === service), manifestUrl, pageUrl),
+);
+
+/**
+ * The same, for the whole visible list, as ONE memoised array.
+ *
+ * Mapping the per-service selector inside the component would mint a new array on every store read
+ * and make react-redux re-render the list continuously — which it says so, loudly, in development.
+ */
+export const selectVisibleServiceLinks = createSelector(
+  [selectVisibleServices, selectManifestUrl, (_: RootState, pageUrl: string) => pageUrl],
+  (services, manifestUrl, pageUrl): ServiceLinkSet[] =>
+    services.map((entry) => serviceLinksFor(entry, manifestUrl, pageUrl)),
+);

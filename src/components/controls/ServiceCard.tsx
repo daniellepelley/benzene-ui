@@ -10,6 +10,8 @@ export interface ServiceCardProps {
   /** Toggling is a dispatch at the container; the card is told what to call, not what it means. */
   onToggle: (name: string) => void;
   onOpen: (name: string) => void;
+  /** The ways out of this card. Supplied by the container, which knows the deployment's URLs. */
+  links?: ReactNode;
   /** Rendered only when expanded — the container decides what the detail is. */
   children?: ReactNode;
 }
@@ -27,6 +29,7 @@ export function ServiceCard({
   expanded,
   onToggle,
   onOpen,
+  links,
   children,
 }: ServiceCardProps) {
   return (
@@ -48,6 +51,7 @@ export function ServiceCard({
           {service.name}
         </button>
         {service.owningTeam && <span className="bz-svc-team">{service.owningTeam}</span>}
+        {links}
         <button
           type="button"
           aria-expanded={expanded}

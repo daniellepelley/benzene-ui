@@ -55,7 +55,8 @@ export function FleetPage() {
 
       <section>
         <h2>Services</h2>
-        <ServiceList />
+        {/* The spec view links back here, and self-reported URLs resolve against here. */}
+        <ServiceList pageUrl={typeof location === 'undefined' ? '' : location.pathname + location.search} />
       </section>
 
       <section>

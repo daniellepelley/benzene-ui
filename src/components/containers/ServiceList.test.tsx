@@ -2,15 +2,14 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { createStore } from '../../store/store';
-import { manifestRefreshed, type MeshApi } from '../../store/slices/estateSlice';
+import { manifestRefreshed } from '../../store/slices/estateSlice';
+import { fakeMeshApi } from '../../test/fakeMeshApi';
 import { filterChanged, serviceToggled } from '../../store/slices/viewSlice';
 import { ServiceList } from './ServiceList';
 import { act } from 'react';
 
-const api: MeshApi = { getManifest: async () => ({ generatedAtUtc: '', services: [] }), getService: async () => ({}) as never };
-
 const withEstate = () => {
-  const store = createStore(api);
+  const store = createStore(fakeMeshApi());
   store.dispatch(
     manifestRefreshed({
       generatedAtUtc: '2026-07-16T09:15:00Z',

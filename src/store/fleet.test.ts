@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createStore } from './store';
 import { manifestRefreshed, type MeshApi } from './slices/estateSlice';
+import { fakeMeshApi } from '../test/fakeMeshApi';
 import { probeFleet, fleetObserved, clockTicked, HEARTBEAT_STALE_MS } from './slices/fleetSlice';
 import type { FleetSnapshot } from './slices/fleetSlice';
 import {
@@ -22,11 +23,7 @@ const snapshot = (over: Partial<FleetSnapshot> = {}): FleetSnapshot => ({
   ...over,
 });
 
-const api = (over: Partial<MeshApi> = {}): MeshApi => ({
-  getManifest: async () => ({ generatedAtUtc: at(0), services: [] }),
-  getService: async () => ({}) as never,
-  ...over,
-});
+const api = (over: Partial<MeshApi> = {}): MeshApi => fakeMeshApi(over);
 
 const withEstate = (store: ReturnType<typeof createStore>) =>
   store.dispatch(

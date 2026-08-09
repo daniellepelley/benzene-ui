@@ -7,3 +7,7 @@ export { default as fleetReducer } from './slices/fleetSlice';
 export * from './slices/estateSlice';
 export * from './slices/viewSlice';
 export * from './slices/fleetSlice';
+export * from './slices/catalogSlice';
+export * from './slices/annotationsSlice';
+export { default as catalogReducer } from './slices/catalogSlice';
+export { default as annotationsReducer } from './slices/annotationsSlice';

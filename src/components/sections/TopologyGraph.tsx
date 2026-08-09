@@ -1,0 +1,82 @@
+import { layoutTopology, NODE_H, type Layout } from './topologyLayout';
+import type { TopologyEdgesItem } from '../../contracts';
+import { EmptyState } from '../primitives/EmptyState';
+
+export interface TopologyGraphProps {
+  edges: TopologyEdgesItem[];
+  onOpen?: (service: string) => void;
+  /** Above this, an edge is drawn as failing. */
+  errorThreshold?: number;
+}
+
+/** Drawn from a precomputed layout — this component does no arithmetic beyond finding endpoints. */
+export function TopologyGraph({ edges, onOpen, errorThreshold = 0.05 }: TopologyGraphProps) {
+  const layout: Layout = layoutTopology(edges);
+
+  if (layout.nodes.length === 0) {
+    return <EmptyState message="No topology has been observed — no trace source is wired, or nothing has called anything yet." />;
+  }
+
+  const at = (name: string) => layout.nodes.find((n) => n.name === name);
+
+  return (
+    <div className="bz-topo" style={{ overflowX: 'auto' }}>
+      <svg
+        width={layout.width}
+        height={layout.height}
+        viewBox={`0 0 ${layout.width} ${layout.height}`}
+        role="img"
+        aria-label="Service topology graph"
+      >
+        <title>Service topology graph</title>
+        <defs>
+          {/* userSpaceOnUse keeps arrowheads a constant size instead of scaling with edge width. */}
+          {['bz-arrow', 'bz-arrow-err'].map((id) => (
+            <marker
+              key={id}
+              id={id}
+              viewBox="0 0 10 10"
+              refX={9}
+              refY={5}
+              markerWidth={9}
+              markerHeight={9}
+              markerUnits="userSpaceOnUse"
+              orient="auto"
+            >
+              <path d="M 0 0 L 10 5 L 0 10 z" className={id === 'bz-arrow-err' ? 'bz-edge-err' : 'bz-edge-ok'} />
+            </marker>
+          ))}
+        </defs>
+
+        {layout.edges.map((e) => {
+          const from = at(e.from);
+          const to = at(e.to);
+          if (!from || !to) return null;
+          // A null error rate is "not reported", so it must not be drawn as failing.
+          const failing = e.errorRate != null && e.errorRate > errorThreshold;
+          return (
+            <line
+              key={`${e.from}->${e.to}`}
+              x1={from.x + from.w}
+              y1={from.y + NODE_H / 2}
+              x2={to.x}
+              y2={to.y + NODE_H / 2}
+              className={failing ? 'bz-edge-err' : 'bz-edge-ok'}
+              strokeWidth={Math.max(1, Math.min(6, Math.log10(e.requestsPerMinute + 1) * 3))}
+              markerEnd={`url(#${failing ? 'bz-arrow-err' : 'bz-arrow'})`}
+            />
+          );
+        })}
+
+        {layout.nodes.map((n) => (
+          <g key={n.name} className="bz-topo-node" onClick={() => onOpen?.(n.name)}>
+            <rect x={n.x} y={n.y} width={n.w} height={NODE_H} rx={6} />
+            <text x={n.x + n.w / 2} y={n.y + NODE_H / 2 + 4} textAnchor="middle">
+              {n.name}
+            </text>
+          </g>
+        ))}
+      </svg>
+    </div>
+  );
+}

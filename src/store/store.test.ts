@@ -9,6 +9,7 @@ import {
   ragForStatus,
 } from './selectors';
 import type { Manifest, ServiceSnapshot } from '../contracts';
+import { fakeMeshApi } from '../test/fakeMeshApi';
 
 const MANIFEST: Manifest = {
   generatedAtUtc: '2026-07-16T09:15:00Z',
@@ -19,21 +20,22 @@ const MANIFEST: Manifest = {
   ],
 };
 
-const stubApi = (over: Partial<MeshApi> = {}): MeshApi => ({
-  getManifest: async () => MANIFEST,
-  getService: async (name) =>
-    ({
-      name,
-      fetchedAtUtc: '2026-07-16T09:15:00Z',
-      specJson: null,
-      specHash: null,
-      previousSpecHash: null,
-      contractDrift: false,
-      health: null,
-      error: null,
-    }) as ServiceSnapshot,
-  ...over,
-});
+const stubApi = (over: Partial<MeshApi> = {}): MeshApi =>
+  fakeMeshApi({
+    getManifest: async () => MANIFEST,
+    getService: async (name) =>
+      ({
+        name,
+        fetchedAtUtc: '2026-07-16T09:15:00Z',
+        specJson: null,
+        specHash: null,
+        previousSpecHash: null,
+        contractDrift: false,
+        health: null,
+        error: null,
+      }) as ServiceSnapshot,
+    ...over,
+  });
 
 describe('estate', () => {
   it('moves idle → loading → ready, and holds the manifest', async () => {

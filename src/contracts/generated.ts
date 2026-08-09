@@ -12,6 +12,24 @@
  * Generated roots: Manifest, Topology, Usage, Topics, Annotations, ServiceSnapshot
  */
 
+/** A JSON Schema document. Open and recursive by definition, so it is declared, not inferred. */
+export interface JsonSchema {
+  type?: string | string[];
+  title?: string;
+  format?: string;
+  description?: string;
+  enum?: unknown[];
+  required?: string[];
+  properties?: Record<string, JsonSchema>;
+  items?: JsonSchema | JsonSchema[];
+  minimum?: number;
+  maximum?: number;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  [keyword: string]: unknown;
+}
+
 export interface Manifest {
   generatedAtUtc: string;
   services: ManifestServicesItem[];
@@ -70,160 +88,28 @@ export interface TopicsTopicsItem {
   topic: string;
   version: string;
   reserved: boolean;
-  consumers: unknown[];
-  producers: unknown[];
+  consumers: TopicsTopicsItemConsumersItem[];
+  producers: TopicsTopicsItemProducersItem[];
   status: string | null;
-  requestSchema: TopicsTopicsItemRequestSchema | null;
-  responseSchema: TopicsTopicsItemResponseSchema | null;
-  messageSchema: TopicsTopicsItemMessageSchema | null;
+  requestSchema: JsonSchema | null;
+  responseSchema: JsonSchema | null;
+  messageSchema: JsonSchema | null;
   schemaMismatch: boolean;
   changes?: TopicsTopicsItemChangesItem[];
 }
 
-export interface TopicsTopicsItemRequestSchema {
-  title: string;
-  type: string;
-  properties: TopicsTopicsItemRequestSchemaProperties;
-  required: string[];
+export interface TopicsTopicsItemConsumersItem {
+  service: string;
+  httpMappings: TopicsTopicsItemConsumersItemHttpMappingsItem[];
 }
 
-export interface TopicsTopicsItemRequestSchemaProperties {
-  customerEmail?: TopicsTopicsItemRequestSchemaPropertiesCustomerEmail;
-  lines?: TopicsTopicsItemRequestSchemaPropertiesLines;
-  orderId: TopicsTopicsItemRequestSchemaPropertiesOrderId;
-  amount?: TopicsTopicsItemRequestSchemaPropertiesAmount;
-  currency?: TopicsTopicsItemRequestSchemaPropertiesCurrency;
-  address?: TopicsTopicsItemRequestSchemaPropertiesAddress;
+export interface TopicsTopicsItemConsumersItemHttpMappingsItem {
+  method: string;
+  path: string;
 }
 
-export interface TopicsTopicsItemRequestSchemaPropertiesCustomerEmail {
-  type: string;
-  format: string;
-}
-
-export interface TopicsTopicsItemRequestSchemaPropertiesLines {
-  type: string;
-  items: TopicsTopicsItemRequestSchemaPropertiesLinesItems;
-}
-
-export interface TopicsTopicsItemRequestSchemaPropertiesLinesItems {
-  title: string;
-  type: string;
-  properties: TopicsTopicsItemRequestSchemaPropertiesLinesItemsProperties;
-  required: string[];
-}
-
-export interface TopicsTopicsItemRequestSchemaPropertiesLinesItemsProperties {
-  sku: TopicsTopicsItemRequestSchemaPropertiesLinesItemsPropertiesSku;
-  quantity: TopicsTopicsItemRequestSchemaPropertiesLinesItemsPropertiesQuantity;
-}
-
-export interface TopicsTopicsItemRequestSchemaPropertiesLinesItemsPropertiesSku {
-  type: string;
-  pattern: string;
-}
-
-export interface TopicsTopicsItemRequestSchemaPropertiesLinesItemsPropertiesQuantity {
-  type: string;
-  minimum: number;
-  maximum: number;
-}
-
-export interface TopicsTopicsItemRequestSchemaPropertiesOrderId {
-  type: string;
-  format: string;
-}
-
-export interface TopicsTopicsItemRequestSchemaPropertiesAmount {
-  type: string;
-  minimum: number;
-}
-
-export interface TopicsTopicsItemRequestSchemaPropertiesCurrency {
-  type: string;
-  minLength: number;
-  maxLength: number;
-}
-
-export interface TopicsTopicsItemRequestSchemaPropertiesAddress {
-  title: string;
-  type: string;
-  properties: TopicsTopicsItemRequestSchemaPropertiesAddressProperties;
-  required: string[];
-}
-
-export interface TopicsTopicsItemRequestSchemaPropertiesAddressProperties {
-  line1: TopicsTopicsItemRequestSchemaPropertiesAddressPropertiesLine1;
-  postcode: TopicsTopicsItemRequestSchemaPropertiesAddressPropertiesPostcode;
-}
-
-export interface TopicsTopicsItemRequestSchemaPropertiesAddressPropertiesLine1 {
-  type: string;
-  maxLength: number;
-}
-
-export interface TopicsTopicsItemRequestSchemaPropertiesAddressPropertiesPostcode {
-  type: string;
-  maxLength: number;
-}
-
-export interface TopicsTopicsItemResponseSchema {
-  type: string;
-  items: TopicsTopicsItemResponseSchemaItems;
-}
-
-export interface TopicsTopicsItemResponseSchemaItems {
-  title: string;
-  type: string;
-  properties: TopicsTopicsItemResponseSchemaItemsProperties;
-  required: string[];
-}
-
-export interface TopicsTopicsItemResponseSchemaItemsProperties {
-  id: TopicsTopicsItemResponseSchemaItemsPropertiesId;
-  customerEmail: TopicsTopicsItemResponseSchemaItemsPropertiesCustomerEmail;
-  total: TopicsTopicsItemResponseSchemaItemsPropertiesTotal;
-  status: TopicsTopicsItemResponseSchemaItemsPropertiesStatus;
-}
-
-export interface TopicsTopicsItemResponseSchemaItemsPropertiesId {
-  type: string;
-  format: string;
-}
-
-export interface TopicsTopicsItemResponseSchemaItemsPropertiesCustomerEmail {
-  type: string;
-  format: string;
-}
-
-export interface TopicsTopicsItemResponseSchemaItemsPropertiesTotal {
-  type: string;
-  minimum: number;
-}
-
-export interface TopicsTopicsItemResponseSchemaItemsPropertiesStatus {
-  type: string;
-  enum: string[];
-}
-
-export interface TopicsTopicsItemMessageSchema {
-  title: string;
-  type: string;
-  properties: TopicsTopicsItemMessageSchemaProperties;
-}
-
-export interface TopicsTopicsItemMessageSchemaProperties {
-  orderId: TopicsTopicsItemMessageSchemaPropertiesOrderId;
-  exportedAt: TopicsTopicsItemMessageSchemaPropertiesExportedAt;
-}
-
-export interface TopicsTopicsItemMessageSchemaPropertiesOrderId {
-  type: string;
-}
-
-export interface TopicsTopicsItemMessageSchemaPropertiesExportedAt {
-  type: string;
-  format: string;
+export interface TopicsTopicsItemProducersItem {
+  service: string;
 }
 
 export interface TopicsTopicsItemChangesItem {

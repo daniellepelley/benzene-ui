@@ -39,6 +39,11 @@ function describe(value) {
 function merge(a, b) {
   if (!a) return b;
   if (!b) return a;
+  // An empty array yields `unknown` items. Merging that with a populated sample must keep the real
+  // shape, not collapse to unknown — otherwise one topic with `producers: []` erases the producer
+  // type inferred from every other topic, which is exactly what happened the first time.
+  if (a.kind === 'unknown') return b;
+  if (b.kind === 'unknown') return a;
   if (a.kind === 'null') return { ...b, nullable: true };
   if (b.kind === 'null') return { ...a, nullable: true };
   if (a.kind === 'object' && b.kind === 'object') {
@@ -60,12 +65,28 @@ function merge(a, b) {
 
 const TS = { string: 'string', number: 'number', boolean: 'boolean', null: 'null', unknown: 'unknown' };
 
+/**
+ * Fields whose value is an open, recursive structure rather than a fixed shape. Inferring these
+ * produces one interface per property of the sample payload — 40+ of them for a single JSON Schema,
+ * all of which churn whenever a sample changes and none of which describe the contract. A JSON
+ * Schema is a JSON Schema; it gets one hand-written recursive type.
+ */
+const OPAQUE = new Map([
+  ['requestSchema', 'JsonSchema'],
+  ['responseSchema', 'JsonSchema'],
+  ['messageSchema', 'JsonSchema'],
+]);
+
 function render(node, name, out, indent = '  ') {
   if (node.kind === 'object') {
     const lines = [];
     for (const [key, field] of Object.entries(node.fields)) {
       const optional = field.required ? '' : '?';
-      lines.push(`${indent}${key}${optional}: ${typeOf(field, name + cap(key), out)};`);
+      const opaque = OPAQUE.get(key);
+      const type = opaque
+        ? `${opaque}${field.nullable ? ' | null' : ''}`
+        : typeOf(field, name + cap(key), out);
+      lines.push(`${indent}${key}${optional}: ${type};`);
     }
     return `{\n${lines.join('\n')}\n}`;
   }
@@ -132,6 +153,25 @@ if (existsSync(dir)) {
 
 const specVersion = readFileSync(join(root, 'contracts', 'SPEC_VERSION'), 'utf8').trim();
 
+const opaqueTypes = `/** A JSON Schema document. Open and recursive by definition, so it is declared, not inferred. */
+export interface JsonSchema {
+  type?: string | string[];
+  title?: string;
+  format?: string;
+  description?: string;
+  enum?: unknown[];
+  required?: string[];
+  properties?: Record<string, JsonSchema>;
+  items?: JsonSchema | JsonSchema[];
+  minimum?: number;
+  maximum?: number;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  [keyword: string]: unknown;
+}
+`;
+
 const header = `/**
  * GENERATED FILE — do not edit by hand. Run \`npm run generate:contracts\`.
  *
@@ -150,7 +190,7 @@ const header = `/**
 
 writeFileSync(
   join(root, 'src', 'contracts', 'generated.ts'),
-  header + [...out.values()].filter(Boolean).join('\n'),
+  header + opaqueTypes + '\n' + [...out.values()].filter(Boolean).join('\n'),
   'utf8',
 );
 

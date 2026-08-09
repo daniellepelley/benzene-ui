@@ -41,16 +41,32 @@ from; XState is a better fit for one complex workflow than for a whole applicati
 
 ```
 src/
-  contracts/    types mirroring docs/specification/mesh.md
-  store/        slices, selectors, typed hooks — the application
+  contracts/    generated.ts (do not edit) + mesh.ts, the semantic layer over it
+  store/        five slices, selectors, routing, typed hooks — the application
   components/
-    primitives/ Badge, Chip, EmptyState, StatusGlyph
-    controls/   ServiceCard — pure, props only
-    containers/ the only place components meet the store
+    primitives/ Badge · Chip · EmptyState · StatusGlyph
+    controls/   ServiceCard · LiveStrip · IssueRow · ValueRow · UsagePanel · TopicList · EdgeList
+    sections/   TopologyGraph (+ pure topologyLayout) · SchemaTree · HealthChecks · Thread · Composer
+    containers/ ServiceList — the only place a component meets the store
+    pages/      Fleet · Service · Topic · Issue
   data/         the mesh HTTP client, injected into the store
   theme/        design tokens
-contracts/      vendored conformance fixtures + SPEC_VERSION
+contracts/      vendored sample artifacts + SPEC_VERSION (codegen input)
+scripts/        generate-contracts.mjs
 ```
+
+## Five slices
+
+| Slice | Holds |
+|---|---|
+| `estate` | What services **declare** — the aggregator's manifest and per-service snapshots |
+| `fleet` | What the collector has **observed** — heartbeats, issues, flows. Fails independently |
+| `catalog` | Topics, topology and usage — published together, so they live together |
+| `annotations` | Discussion threads. The only read-**write** data, hence its own slice |
+| `view` | Page, selection, filter, expansion, range — everything the user has done |
+
+Keeping `estate` and `fleet` apart is what makes `selectDivergences` expressible: services declaring
+healthy that have stopped reporting. That is the single most useful thing the live plane adds.
 
 ## Commands
 
@@ -67,8 +83,9 @@ contracts/      vendored conformance fixtures + SPEC_VERSION
 as a resource and serves it from inside the running service: no CDN, no static hosting, no network
 egress. That rules out code splitting and makes bundle size a budget.
 
-Current: **179 KB**, against the 274 KB hand-written UI it replaces. React and Redux Toolkit
-included, it is *smaller* than what it replaces, because a minifier beats hand-maintained source.
+Current: **206 KB**, against the 274 KB hand-written UI it replaces. React and Redux Toolkit
+included, the whole application is *smaller* than what it replaces, because a minifier beats
+hand-maintained source. CI asserts there are no external requests.
 
 ## Contracts
 

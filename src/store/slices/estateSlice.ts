@@ -39,8 +39,17 @@ export const loadService = createAsyncThunk<ServiceSnapshot, string, { extra: Me
 export interface MeshApi {
   getManifest(): Promise<Manifest>;
   getService(name: string): Promise<ServiceSnapshot>;
+  getTopics(): Promise<import('../../contracts').Topics>;
+  getTopology(): Promise<import('../../contracts').Topology>;
+  getUsage(): Promise<import('../../contracts').Usage>;
   /** Optional: absent when no collector is wired. The estate renders fine without it. */
   getFleet?(): Promise<import('./fleetSlice').FleetSnapshot>;
+  getAnnotations?(): Promise<import('./annotationsSlice').Annotation[]>;
+  postAnnotation?(request: {
+    entity: string;
+    author: string;
+    text: string;
+  }): Promise<import('./annotationsSlice').Annotation>;
 }
 
 const estateSlice = createSlice({

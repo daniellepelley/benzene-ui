@@ -1,47 +1,76 @@
 import { useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from './store/hooks';
 import { loadManifest } from './store/slices/estateSlice';
-import { filterChanged } from './store/slices/viewSlice';
-import { selectEstateSummary, selectLoad, selectError } from './store/selectors';
-import { ServiceList } from './components/containers/ServiceList';
-import { StatusGlyph } from './components/primitives/StatusGlyph';
+import { loadCatalog } from './store/slices/catalogSlice';
+import { loadAnnotations } from './store/slices/annotationsSlice';
+import { probeFleet, clockTicked } from './store/slices/fleetSlice';
+import { filterChanged, navigated } from './store/slices/viewSlice';
+import { selectLoad, selectError, selectPage, selectSelected, selectEstateSummary } from './store/selectors';
+import { FleetPage, ServicePage, TopicPage, IssuePage } from './components/pages';
 import { EmptyState } from './components/primitives/EmptyState';
+import { StatusGlyph } from './components/primitives/StatusGlyph';
+
+const POLL_MS = 15_000;
 
 /**
- * The composition root — the one place an effect is allowed, because kicking off the initial load is
- * not state, it is a lifecycle. Everything below this is a function of the store.
+ * The composition root, and the only place effects are allowed — starting a load and running a clock
+ * are lifecycles, not state. Everything below is a function of the store.
  */
 export function App() {
   const dispatch = useAppDispatch();
   const load = useAppSelector(selectLoad);
   const error = useAppSelector(selectError);
+  const page = useAppSelector(selectPage);
+  const selected = useAppSelector(selectSelected);
   const filter = useAppSelector((s) => s.view.filter);
   const summary = useAppSelector(selectEstateSummary);
 
   useEffect(() => {
     void dispatch(loadManifest());
+    void dispatch(loadCatalog());
+    void dispatch(loadAnnotations());
+    void dispatch(probeFleet());
+  }, [dispatch]);
+
+  // Staleness is computed from `fleet.now`, so something has to advance it. A selector reading the
+  // clock directly would be neither memoisable nor testable.
+  useEffect(() => {
+    const tick = () => dispatch(clockTicked(Date.now()));
+    tick();
+    const id = setInterval(() => {
+      tick();
+      void dispatch(probeFleet());
+    }, POLL_MS);
+    return () => clearInterval(id);
   }, [dispatch]);
 
   return (
-    <main style={{ maxWidth: 1100, margin: '0 auto', padding: '1.5rem' }}>
-      <header style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-        <h1 style={{ fontSize: '1.4rem', margin: 0 }}>Benzene Mesh</h1>
+    <div className="bz-app">
+      <header className="bz-app-head">
+        <button type="button" className="bz-brand" onClick={() => dispatch(navigated({ page: 'fleet' }))}>
+          Benzene Mesh
+        </button>
         {summary.worst && <StatusGlyph rag={summary.worst} label={`worst status: ${summary.worst}`} />}
-        <span style={{ color: 'var(--bz-muted)', fontSize: '0.9rem' }}>
-          {summary.total} services · {summary.drift} with drift
-        </span>
         <input
-          aria-label="Filter services"
+          aria-label="Filter"
           placeholder="Filter…"
           value={filter}
           onChange={(e) => dispatch(filterChanged(e.target.value))}
-          style={{ marginLeft: 'auto', padding: '0.3rem 0.5rem' }}
         />
       </header>
 
-      {load === 'loading' && <EmptyState message="Loading the estate…" />}
-      {load === 'failed' && <EmptyState message={error ?? 'The estate could not be loaded.'} />}
-      {load === 'ready' && <ServiceList />}
-    </main>
+      <main>
+        {load === 'loading' && <EmptyState message="Loading the estate…" />}
+        {load === 'failed' && <EmptyState message={error ?? 'The estate could not be loaded.'} />}
+        {load === 'ready' && (
+          <>
+            {page === 'fleet' && <FleetPage />}
+            {page === 'service' && selected && <ServicePage service={selected} />}
+            {page === 'topic' && selected && <TopicPage topic={selected} />}
+            {(page === 'issue' || page === 'compose') && <IssuePage selected={selected ?? 'all'} />}
+          </>
+        )}
+      </main>
+    </div>
   );
 }

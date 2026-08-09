@@ -2,6 +2,8 @@ import { configureStore, combineReducers } from '@reduxjs/toolkit';
 import estate, { type MeshApi } from './slices/estateSlice';
 import view from './slices/viewSlice';
 import fleet from './slices/fleetSlice';
+import catalog from './slices/catalogSlice';
+import annotations from './slices/annotationsSlice';
 
 /**
  * The store is the application. Components render from it and dispatch into it; they hold no state
@@ -11,7 +13,7 @@ import fleet from './slices/fleetSlice';
  * The mesh API is injected as the thunk `extra` argument, so tests supply a stub and the real client
  * is wired only at the composition root — no test ever touches `fetch`.
  */
-const rootReducer = combineReducers({ estate, view, fleet });
+const rootReducer = combineReducers({ estate, view, fleet, catalog, annotations });
 
 export const createStore = (api: MeshApi, preloadedState?: Partial<RootState>) =>
   configureStore({

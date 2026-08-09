@@ -18,8 +18,12 @@ const meta = {
       available: true,
       observed: 4820,
       errors: 17,
+      avgDurationMs: 14.2,
+      statusCounts: { ok: 4803, 'internal-server-error': 17 },
       services: ['orders-api'],
+      missingFeeds: [],
       rangeLabel: '15 minutes',
+      countsSince: null,
     },
     traffic: { success: 148_000, failure: 300, total: 148_300, observed: true },
   },
@@ -30,18 +34,32 @@ type Story = StoryObj<typeof meta>;
 export const Live: Story = {};
 
 export const NoFailures: Story = {
-  args: { live: { available: true, observed: 4820, errors: 0, services: ['orders-api'], rangeLabel: '15 minutes' } },
+  args: {
+    live: {
+      available: true, observed: 4820, errors: 0, avgDurationMs: 11.8,
+      statusCounts: { ok: 4820 }, services: ['orders-api'], missingFeeds: [],
+      rangeLabel: '15 minutes', countsSince: null,
+    },
+  },
 };
 
 /** Quiet in the picked window, busy over the feed's own. Both true, and each says which it is. */
 export const QuietInWindow: Story = {
-  args: { live: { available: true, observed: null, errors: 0, services: [], rangeLabel: '15 minutes' } },
+  args: {
+    live: {
+      available: true, observed: null, errors: 0, avgDurationMs: null, statusCounts: {},
+      services: [], missingFeeds: [], rangeLabel: '15 minutes', countsSince: null,
+    },
+  },
 };
 
 /** Neither plane has anything. The live absence is scoped to the window, not stated as "unused". */
 export const NotObservedAtAll: Story = {
   args: {
-    live: { available: true, observed: null, errors: 0, services: [], rangeLabel: '24 hours' },
+    live: {
+      available: true, observed: null, errors: 0, avgDurationMs: null, statusCounts: {},
+      services: [], missingFeeds: [], rangeLabel: '24 hours', countsSince: null,
+    },
     traffic: { success: 0, failure: 0, total: 0, observed: false },
   },
 };
@@ -53,13 +71,44 @@ export const MultipleObservedHandlers: Story = {
       available: true,
       observed: 9100,
       errors: 240,
+      avgDurationMs: 88.4,
+      statusCounts: { ok: 8860, 'dependency-failure': 240 },
       services: ['orders-api', 'orders-worker'],
+      missingFeeds: [],
       rangeLabel: '1 hour',
+      countsSince: null,
+    },
+  },
+};
+
+/** The counts answer a different window than the flows. Shown with their own window, never relabelled. */
+export const CountsAnswerAnotherWindow: Story = {
+  args: {
+    live: {
+      available: true, observed: 148320, errors: 300, avgDurationMs: 14.2,
+      statusCounts: { ok: 148020 }, services: ['orders-api'], missingFeeds: [],
+      rangeLabel: '15 minutes', countsSince: '2026-08-08T06:00:00Z',
+    },
+  },
+};
+
+/** The plane declares it cannot supply duration. Rendered as "—", never as an invented zero. */
+export const DimensionAbsent: Story = {
+  args: {
+    live: {
+      available: true, observed: 9100, errors: 240, avgDurationMs: null,
+      statusCounts: { ok: 8860 }, services: ['payments-api'], missingFeeds: ['duration'],
+      rangeLabel: '1 hour', countsSince: null,
     },
   },
 };
 
 /** No collector wired: the strip is absent rather than showing zeroes it cannot vouch for. */
 export const NoLivePlane: Story = {
-  args: { live: { available: false, observed: null, errors: 0, services: [], rangeLabel: '15 minutes' } },
+  args: {
+    live: {
+      available: false, observed: null, errors: 0, avgDurationMs: null, statusCounts: {},
+      services: [], missingFeeds: [], rangeLabel: '15 minutes', countsSince: null,
+    },
+  },
 };

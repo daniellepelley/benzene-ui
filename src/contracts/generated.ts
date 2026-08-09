@@ -9,7 +9,7 @@
  * sample infers as null-only. Widen by adding a sample, not by editing this file — otherwise the next
  * generation silently reverts it.
  *
- * Generated roots: Manifest, Topology, Usage, Topics, Annotations, ServiceSnapshot
+ * Generated roots: Manifest, Topology, Usage, Topics, Annotations, FleetView, ServiceSnapshot
  */
 
 /** A JSON Schema document. Open and recursive by definition, so it is declared, not inferred. */
@@ -143,6 +143,75 @@ export interface AnnotationsAnnotationsItem {
   author: string;
   text: string;
   createdAtUtc: string;
+}
+
+export interface FleetView {
+  generatedAt: string;
+  services: FleetViewServicesItem[];
+  topics: FleetViewTopicsItem[];
+  traces: FleetViewTracesItem[];
+  issues: FleetViewIssuesItem[];
+  window?: FleetViewWindow;
+}
+
+export interface FleetViewServicesItem {
+  service: string;
+  runtime?: string;
+  binding?: string;
+  placement: Record<string, string>;
+  topics: number;
+  instances: number;
+  health: string;
+  lastSeen?: string;
+  invocations: number;
+  errors: number;
+  missingFeeds: string[];
+}
+
+export interface FleetViewTopicsItem {
+  topic: string;
+  version?: string;
+  providers: string[];
+  consumers: string[];
+  invocations: number;
+  errors: number;
+  avgDurationMs: number;
+  statusCounts: Record<string, number>;
+  lastSeen?: string;
+  missingFeeds: string[];
+}
+
+export interface FleetViewTracesItem {
+  traceId: string;
+  events: number;
+  services: string[];
+  startedAt: string;
+  durationMs: number;
+  failed: boolean;
+  topic?: string;
+}
+
+export interface FleetViewIssuesItem {
+  fingerprint: string;
+  classification: string;
+  service: string;
+  topic: string;
+  version?: string;
+  transport?: string;
+  status: string;
+  exceptionType?: string;
+  count: number;
+  firstSeen: string;
+  lastSeen: string;
+  exemplarTraceIds: string[];
+  resolutionHint?: string;
+}
+
+export interface FleetViewWindow {
+  from: string;
+  to: string;
+  countsWindowed: boolean;
+  countsSince?: string;
 }
 
 export interface ServiceSnapshot {

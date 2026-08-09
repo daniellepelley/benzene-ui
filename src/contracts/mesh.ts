@@ -13,6 +13,8 @@ import type {
   Manifest as GeneratedManifest,
   ManifestServicesItem,
   ServiceSnapshot as GeneratedServiceSnapshot,
+  FleetView as GeneratedFleetView,
+  FleetViewIssuesItem,
 } from './generated';
 
 export type * from './generated';
@@ -47,6 +49,21 @@ export type Manifest = Omit<GeneratedManifest, 'services'> & { services: Manifes
 export type ServiceSnapshot = GeneratedServiceSnapshot & {
   snapshotAtUtc?: string | null;
 };
+
+/**
+ * One deduplicated, classified failure signature. The generated shape, narrowed where the spec
+ * defines a vocabulary — `classification` is a closed set, which inference cannot know from samples.
+ *
+ * Identity is `fingerprint`, not an id: it is a hash over service|topic|version|classification|
+ * discriminator, so the same failure keeps the same identity across collector restarts and across
+ * instances. There is deliberately no `message` field — a message is prose that varies per
+ * occurrence, and fingerprinting on it would shatter one issue into thousands.
+ */
+export type MeshIssue = Omit<FleetViewIssuesItem, 'classification'> & {
+  classification: IssueClassification;
+};
+
+export type FleetView = Omit<GeneratedFleetView, 'issues'> & { issues: MeshIssue[] };
 
 /** Every value `ServiceStatus` admits, for exhaustiveness checks and test data. */
 export const SERVICE_STATUSES: readonly ServiceStatus[] = [

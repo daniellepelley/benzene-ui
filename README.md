@@ -62,7 +62,7 @@ scripts/        generate-contracts.mjs
 | Slice | Holds |
 |---|---|
 | `estate` | What services **declare** — the aggregator's manifest and per-service snapshots |
-| `fleet` | What the collector has **observed** — heartbeats, issues, flows. Fails independently |
+| `fleet` | What the collector has **observed** — the `FleetView` wire contract, stored as it arrives. Fails independently |
 | `catalog` | Topics, topology and usage — published together, so they live together |
 | `annotations` | Discussion threads. The only read-**write** data, hence its own slice |
 | `compose` | The try-it workflow — topic, version, transport, body, headers, result |
@@ -87,7 +87,7 @@ healthy that have stopped reporting. That is the single most useful thing the li
 as a resource and serves it from inside the running service: no CDN, no static hosting, no network
 egress. That rules out code splitting and makes bundle size a budget.
 
-Current: **232 KB**, against the 274 KB hand-written UI it replaces. React and Redux Toolkit
+Current: **234 KB**, against the 274 KB hand-written UI it replaces. React and Redux Toolkit
 included, the whole application is *smaller* than what it replaces, because a minifier beats
 hand-maintained source. CI asserts there are no external requests.
 

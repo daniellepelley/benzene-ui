@@ -1,13 +1,13 @@
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { selectIssueSummary, selectFleetAvailable } from '../../store/selectors';
 import { navigated } from '../../store/slices/viewSlice';
-import { IssueRow } from '../controls/IssueRow';
+import { IssueRow, issueHeadline } from '../controls/IssueRow';
 import { EmptyState } from '../primitives/EmptyState';
 import { Chip } from '../primitives/Chip';
 import type { RootState } from '../../store/store';
 
 export interface IssuePageProps {
-  /** An issue id, or 'all' for the inbox. */
+  /** An issue fingerprint, or 'all' for the inbox. */
   selected: string;
 }
 
@@ -23,12 +23,23 @@ export function IssuePage({ selected }: IssuePageProps) {
   }
 
   if (selected !== 'all') {
-    const issue = issues.find((i) => i.id === selected);
+    const issue = issues.find((i) => i.fingerprint === selected);
     if (!issue) return <EmptyState message="That issue is no longer in the observation window." />;
     return (
       <div className="bz-page">
-        <header className="bz-page-head"><h2>Issue</h2><Chip>{issue.classification}</Chip></header>
+        <header className="bz-page-head"><h2>{issueHeadline(issue)}</h2><Chip>{issue.classification}</Chip></header>
         <IssueRow issue={issue} />
+        <p className="bz-issue-seen">
+          {/* First and last seen, not "when it happened": this is a merged signature, and how long
+              it has been recurring is what decides whether it is a regression or background noise. */}
+          first seen {issue.firstSeen} · last seen {issue.lastSeen}
+        </p>
+        {issue.exemplarTraceIds.length > 0 && (
+          <p className="bz-issue-exemplars">
+            {/* The bridge from "what is wrong" to "what happened" — the newest traces that showed it. */}
+            exemplar traces: {issue.exemplarTraceIds.join(', ')}
+          </p>
+        )}
         <p>
           <button type="button" onClick={() => dispatch(navigated({ page: 'service', selected: issue.service }))}>
             {issue.service}
@@ -54,7 +65,11 @@ export function IssuePage({ selected }: IssuePageProps) {
         </Chip>
       </header>
       {issues.map((i) => (
-        <IssueRow key={i.id} issue={i} onOpen={(id) => dispatch(navigated({ page: 'issue', selected: id }))} />
+        <IssueRow
+          key={i.fingerprint}
+          issue={i}
+          onOpen={(fingerprint) => dispatch(navigated({ page: 'issue', selected: fingerprint }))}
+        />
       ))}
     </div>
   );

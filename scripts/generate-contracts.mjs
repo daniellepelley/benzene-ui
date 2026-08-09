@@ -79,6 +79,12 @@ const OPAQUE = new Map([
   ['requestSchema', 'JsonSchema'],
   ['responseSchema', 'JsonSchema'],
   ['messageSchema', 'JsonSchema'],
+  // Keyed by whatever statuses were observed. Inferring it produces one interface per status the
+  // sample happened to contain, which then churns on any traffic mix — and describes nothing.
+  ['statusCounts', 'Record<string, number>'],
+  // Free-form deployment placement (region, environment, cluster, …). The collector passes through
+  // whatever the binding supplied; enumerating one sample's keys would claim a shape it does not have.
+  ['placement', 'Record<string, string>'],
 ]);
 
 function render(node, name, out, indent = '  ') {
@@ -135,6 +141,7 @@ for (const [stem, typeName] of [
   ['usage', 'Usage'],
   ['topics', 'Topics'],
   ['annotations', 'Annotations'],
+  ['fleet', 'FleetView'],
 ]) {
   const node = loadSamples(stem);
   if (!node) continue;

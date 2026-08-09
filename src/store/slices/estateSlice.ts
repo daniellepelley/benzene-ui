@@ -49,7 +49,7 @@ export interface MeshApi {
    * it — and a collector answering over a different window than the one the UI is labelling is the
    * kind of quiet lie this codebase exists to avoid.
    */
-  getFleet?(request: { rangeMs: number }): Promise<import('./fleetSlice').FleetSnapshot>;
+  getFleet?(query: import('./fleetSlice').FleetQuery): Promise<import('../../contracts').FleetView>;
   getAnnotations?(): Promise<import('./annotationsSlice').Annotation[]>;
   postAnnotation?(request: {
     entity: string;

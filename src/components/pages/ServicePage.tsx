@@ -98,7 +98,13 @@ export function ServicePage({ service }: ServicePageProps) {
           {issues.length === 0 ? (
             <EmptyState message="No issues observed for this service." />
           ) : (
-            issues.map((i) => <IssueRow key={i.id} issue={i} onOpen={(id) => dispatch(navigated({ page: 'issue', selected: id }))} />)
+            issues.map((i) => (
+              <IssueRow
+                key={i.fingerprint}
+                issue={i}
+                onOpen={(fingerprint) => dispatch(navigated({ page: 'issue', selected: fingerprint }))}
+              />
+            ))
           )}
         </section>
       )}

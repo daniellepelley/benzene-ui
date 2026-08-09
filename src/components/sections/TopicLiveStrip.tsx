@@ -47,11 +47,22 @@ export function TopicLiveStrip({ live, traffic }: TopicLiveStripProps) {
           <span className="bz-live-item">
             <span className="bz-live-k">observed</span>
             <span className="bz-live-v">{formatCount(live.observed)}</span>
-            <span className="bz-live-window">last {live.rangeLabel}</span>
+            {/* The counts do not always answer the picked window. When they do not, they say so here
+                rather than borrowing the window's label — see TopicLive.countsSince. */}
+            <span className="bz-live-window">
+              {live.countsSince ? `counts cover from ${live.countsSince}` : `last ${live.rangeLabel}`}
+            </span>
           </span>
           <span className="bz-live-item" data-failing={live.errors > 0 ? 'true' : undefined}>
             <span className="bz-live-k">errors</span>
             <span className="bz-live-v">{formatCount(live.errors)}</span>
+          </span>
+          <span className="bz-live-item">
+            <span className="bz-live-k">avg ms</span>
+            {/* An em-dash, never 0: the contract's non-nullable default is not a measurement. */}
+            <span className="bz-live-v">
+              {live.avgDurationMs == null ? '—' : live.avgDurationMs.toFixed(1)}
+            </span>
           </span>
           {live.services.length > 0 && (
             <span className="bz-live-item">
@@ -61,6 +72,12 @@ export function TopicLiveStrip({ live, traffic }: TopicLiveStripProps) {
                   {s}
                 </Chip>
               ))}
+            </span>
+          )}
+          {live.missingFeeds.length > 0 && (
+            // Reduced is visible, never mistaken for empty: the plane names what it could not supply.
+            <span className="bz-live-missing">
+              not supplied by this plane: {live.missingFeeds.join(', ')}
             </span>
           )}
         </>

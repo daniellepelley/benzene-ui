@@ -25,7 +25,15 @@ actions and assert on output, never simulate clicks to drive state.
 `dist/index.html` inlines all JS and CSS and makes **zero external requests**. `Benzene.Mesh.Ui`
 embeds it and serves it from inside a running service — no CDN, no static hosting. CI asserts this.
 Consequences: no code splitting, no dynamic import, no runtime CDN anything, and bundle size is a
-budget (currently 232 KB against the 274 KB hand-written UI it replaces).
+budget (currently 234 KB against the 274 KB hand-written UI it replaces).
+
+## The collector is a Benzene service, not a REST API
+
+Every query to it is a message on a topic, inside the wire envelope: `POST {topic, headers, body}`
+where `body` is a JSON *string*, answered by `{statusCode, body}` where that is a JSON string too. A
+non-`ok` status is an application failure carried in a 200. The window is sent in the wire's
+relative-time grammar (`now-15m`), never as a resolved instant — the server resolves it against its
+own clock, so a skewed client still asks for the window it means.
 
 ## Contracts
 
@@ -49,8 +57,14 @@ are spec decisions and live in `src/contracts/mesh.ts`, pinned to the generated 
 Seven, and the separation is load-bearing:
 
 - `estate` — what services **declare** (the aggregator's manifest and snapshots).
-- `fleet` — what the collector has **observed**. Fails independently: `available: false` is a resting
-  state, not an error, and the estate must render fine without it.
+- `fleet` — what the collector has **observed**, stored as the `FleetView` wire contract itself
+  rather than a friendlier projection of it. Fails independently: `available: false` is a resting
+  state, not an error, and the estate must render fine without it. **Store the contract, not a
+  convenience shape** — an earlier cut invented `heartbeats`/`flows`, and the result was a library no
+  real collector could drive, with nowhere to put the three honesty channels the contract carries:
+  `missingFeeds` (a dimension genuinely absent, so render "—" not 0), `window.countsWindowed` (the
+  counts answer a different window than the flows), and an *absent* `lastSeen` (no live-time signal —
+  never a default epoch, which once serialised as 0001-01-01 and read as "stale for two millennia").
 - `catalog` — topics, topology and usage. Published together by one aggregator run and meaningless
   apart, so they load together and go stale together. Loading *settles* rather than races: one
   missing artifact must not blank the other two.

@@ -1,19 +1,20 @@
 import { describe, it, expect } from 'vitest';
 import { createStore } from './store';
 import { loadCatalog } from './slices/catalogSlice';
-import { probeFleet, clockTicked, fleetObserved, FLEET_POLL_MS, type FleetSnapshot } from './slices/fleetSlice';
+import { probeFleet, clockTicked, fleetObserved, FLEET_POLL_MS } from './slices/fleetSlice';
+import { fleetView, fleetService, fleetTopic } from '../test/fleetView';
+import type { FleetView } from '../contracts';
 import { selectFeedHealth } from './selectors';
 import { fakeMeshApi } from '../test/fakeMeshApi';
 
 const T0 = Date.parse('2026-08-09T06:00:00Z');
 
-const snapshot = (over: Partial<FleetSnapshot> = {}): FleetSnapshot => ({
-  heartbeats: [{ service: 'orders-api', lastSeenUtc: '2026-08-09T05:59:50Z' }],
-  issues: [],
-  flows: [],
-  observedAtUtc: '2026-08-09T06:00:00Z',
-  ...over,
-});
+const snapshot = (over: Partial<FleetView> = {}): FleetView =>
+  fleetView({
+    generatedAt: '2026-08-09T06:00:00Z',
+    services: [fleetService({ service: 'orders-api', health: 'healthy', lastSeen: '2026-08-09T05:59:50Z' })],
+    ...over,
+  });
 
 const withCatalog = async (over = {}) => {
   const store = createStore(fakeMeshApi(over));
@@ -60,15 +61,29 @@ describe('feed health', () => {
     // Heartbeats travel on the mesh's own feed. If they counted, a fleet heartbeating into a broken
     // exporter would report a healthy feed — the exact failure the blind state is here to catch.
     const store = await withCatalog({
-      getFleet: async () => snapshot({ heartbeats: [{ service: 'orders-api', lastSeenUtc: '2026-08-09T05:59:59Z' }] }),
+      getFleet: async () =>
+        snapshot({ services: [fleetService({ service: 'orders-api', health: 'healthy', lastSeen: '2026-08-09T05:59:59Z' })] }),
     });
     await store.dispatch(probeFleet());
     expect(selectFeedHealth(store.getState())?.kind).toBe('warn');
   });
 
+  it('does not count a topic whose plane declares its stats missing', async () => {
+    // The contract's invocations field is non-nullable, so a plane that cannot supply counts sends
+    // zero. `missingFeeds` is how it says so — reading the zero as an observation would make a blind
+    // feed look merely quiet, which is the whole failure this state exists to catch.
+    const store = await withCatalog({
+      getFleet: async () =>
+        snapshot({ topics: [fleetTopic({ topic: 'orders:create', invocations: 7, missingFeeds: ['stats'] })] }),
+    });
+    await store.dispatch(probeFleet());
+
+    expect(selectFeedHealth(store.getState())?.kind).toBe('warn');
+  });
+
   it('goes healthy once real traffic is observed', async () => {
     const store = await withCatalog({
-      getFleet: async () => snapshot({ flows: [{ topic: 'orders:create', service: 'orders-api', success: 12, failure: 0 }] }),
+      getFleet: async () => snapshot({ topics: [fleetTopic({ topic: 'orders:create', invocations: 12 })] }),
     });
     await store.dispatch(probeFleet());
 
@@ -83,7 +98,7 @@ describe('feed health', () => {
     const store = await withCatalog({
       getFleet: async () => {
         if (fail) throw new Error('timeout');
-        return snapshot({ flows: [{ topic: 'orders:create', service: 'orders-api', success: 1, failure: 0 }] });
+        return snapshot({ topics: [fleetTopic({ topic: 'orders:create', invocations: 1 })] });
       },
     });
     await store.dispatch(probeFleet());
@@ -97,7 +112,7 @@ describe('feed health', () => {
 
   it('declares the data stale once failures outlast three poll intervals', async () => {
     const store = await withCatalog({ getFleet: async () => snapshot() });
-    store.dispatch(fleetObserved(snapshot({ flows: [{ topic: 'orders:create', service: 'orders-api', success: 1, failure: 0 }] })));
+    store.dispatch(fleetObserved(snapshot({ topics: [fleetTopic({ topic: 'orders:create', invocations: 1 })] })));
 
     const store2 = store;
     store2.dispatch(clockTicked(T0 + 4 * FLEET_POLL_MS));

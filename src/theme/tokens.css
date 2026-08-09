@@ -223,3 +223,5 @@
 /* The window travels with the number it qualifies — never inherited from a header. */
 .bz-live-window { font-size: 0.72rem; color: var(--bz-muted); font-style: italic; }
 .bz-live-silent { font-size: 0.82rem; color: var(--bz-muted); }
+.bz-live-missing { font-size: 0.72rem; color: var(--bz-rag-amber); font-style: italic; }
+.bz-issue-seen, .bz-issue-exemplars { font-size: 0.82rem; color: var(--bz-muted); margin: 0.2rem 0; }

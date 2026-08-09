@@ -7,6 +7,7 @@ import { loadManifest } from '../../store/slices/estateSlice';
 import { loadCatalog } from '../../store/slices/catalogSlice';
 import { loadAnnotations } from '../../store/slices/annotationsSlice';
 import { fleetObserved, clockTicked } from '../../store/slices/fleetSlice';
+import { fleetView, fleetService, meshIssue } from '../../test/fleetView';
 import { fakeMeshApi } from '../../test/fakeMeshApi';
 import { FleetPage } from './FleetPage';
 import { ServicePage } from './ServicePage';
@@ -22,12 +23,23 @@ const loaded = async (withFleet = false) => {
   await store.dispatch(loadAnnotations());
   if (withFleet) {
     store.dispatch(
-      fleetObserved({
-        observedAtUtc: '2026-07-16T09:15:00Z',
-        heartbeats: [{ service: 'orders-api', lastSeenUtc: '2026-07-16T09:15:00Z' }],
-        issues: [{ id: 'i1', service: 'payments-api', classification: 'exception', message: 'boom', observedAtUtc: '2026-07-16T09:14:00Z', count: 12 }],
-        flows: [],
-      }),
+      fleetObserved(
+        fleetView({
+          generatedAt: '2026-07-16T09:15:00Z',
+          services: [fleetService({ service: 'orders-api', health: 'healthy', lastSeen: '2026-07-16T09:15:00Z' })],
+          issues: [
+            meshIssue({
+              fingerprint: 'i1',
+              service: 'payments-api',
+              classification: 'exception',
+              topic: 'payment:capture',
+              exceptionType: 'System.NullReferenceException',
+              lastSeen: '2026-07-16T09:14:00Z',
+              count: 12,
+            }),
+          ],
+        }),
+      ),
     );
     store.dispatch(clockTicked(Date.parse('2026-07-16T09:15:10Z')));
   }
@@ -124,7 +136,8 @@ describe('IssuePage', () => {
     const store = await loaded(true);
     show(store, <IssuePage selected="all" />);
 
-    expect(screen.getByText('boom')).toBeInTheDocument();
+    // No message on the wire — the headline is composed from the stable parts of the fingerprint.
+    expect(screen.getByText('System.NullReferenceException on payment:capture')).toBeInTheDocument();
     expect(screen.getByText(/12 occurrences/)).toBeInTheDocument();
   });
 

@@ -1,7 +1,6 @@
-import type { Manifest, ServiceSnapshot, Topics, Topology, Usage } from '../contracts';
+import type { FleetView, Manifest, ServiceSnapshot, Topics, Topology, Usage } from '../contracts';
 import type { MeshApi } from '../store/slices/estateSlice';
 import type { Annotation } from '../store/slices/annotationsSlice';
-import type { FleetSnapshot } from '../store/slices/fleetSlice';
 
 /**
  * Resolves artifact paths relative to the page, exactly as the original UI's `resolveUrl` did: the
@@ -26,6 +25,28 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
   return (await response.json()) as T;
 }
 
+/**
+ * One Benzene message, over the mesh wire envelope.
+ *
+ * The collector is not a REST API — it is a Benzene service, and every query to it is a message on a
+ * topic. The envelope is the whole point of the framework: the same `{topic, headers, body}` shape
+ * travels over HTTP here, and over SQS, Service Bus or a direct invoke elsewhere, without the caller
+ * changing. `body` is a JSON *string* inside the envelope, and the response body is too — that is the
+ * contract, not an accident of this client.
+ *
+ * A non-`ok` status is an application-level failure carried in a 200 response, so the HTTP status
+ * alone is not enough to know whether the query worked.
+ */
+async function meshQuery<T>(endpoint: string, topic: string, body: unknown): Promise<T> {
+  const envelope = await postJson<{ statusCode: string; body?: string }>(endpoint, {
+    topic,
+    headers: {},
+    body: JSON.stringify(body ?? {}),
+  });
+  if (envelope.statusCode !== 'ok') throw new Error(`${topic} answered ${envelope.statusCode}`);
+  return JSON.parse(envelope.body ?? '{}') as T;
+}
+
 export interface MeshApiOptions {
   /** Set when a live collector is reachable; absent means the dashboard shows the declared plane only. */
   fleetEndpoint?: string;
@@ -41,11 +62,7 @@ export const createMeshApi = (options: MeshApiOptions = {}): MeshApi => ({
   getUsage: () => getJson<Usage>('usage.json'),
   getAnnotations: () => getJson<{ annotations: Annotation[] }>('annotations.json').then((d) => d.annotations),
   ...(options.fleetEndpoint
-    ? {
-        // POST, not GET: the window is a query the collector runs, and a request body keeps it out
-        // of caches and access logs that would otherwise serve one window's answer for another's.
-        getFleet: (request) => postJson<FleetSnapshot>(options.fleetEndpoint!, request),
-      }
+    ? { getFleet: (query) => meshQuery<FleetView>(options.fleetEndpoint!, 'benzene:mesh:query:fleet', query) }
     : {}),
   ...(options.annotationsEndpoint
     ? {

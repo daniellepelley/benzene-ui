@@ -1,0 +1,29 @@
+{
+  "generatedAt": "2026-08-09T06:00:00Z",
+  "services": [
+    {
+      "service": "orders",
+      "placement": {},
+      "topics": 1,
+      "instances": 0,
+      "health": "unknown",
+      "invocations": 0,
+      "errors": 0,
+      "missingFeeds": ["health", "traces"]
+    }
+  ],
+  "topics": [
+    {
+      "topic": "order:create",
+      "providers": ["orders"],
+      "consumers": [],
+      "invocations": 0,
+      "errors": 0,
+      "avgDurationMs": 0,
+      "statusCounts": {},
+      "missingFeeds": []
+    }
+  ],
+  "traces": [],
+  "issues": []
+}

@@ -64,40 +64,49 @@ export const selectExpandedCount = createSelector([selectExpanded], (e) => e.len
 // Everything below derives from fleetSlice. Note that no selector reads the clock: `now` is state,
 // set by an action, which is what makes staleness testable without faking timers.
 
-import { HEARTBEAT_STALE_MS, type LiveIssue } from './slices/fleetSlice';
+import { HEARTBEAT_STALE_MS, type FleetIssue, type FleetService } from './slices/fleetSlice';
 
 export const selectFleetAvailable = (s: RootState) => s.fleet.available;
 export const selectFleetLoad = (s: RootState) => s.fleet.load;
-const selectHeartbeats = (s: RootState) => s.fleet.heartbeats;
+const selectFleetServices = (s: RootState) => s.fleet.services;
+const selectFleetTopics = (s: RootState) => s.fleet.topics;
 const selectNow = (s: RootState) => s.fleet.now;
 const selectIssues = (s: RootState) => s.fleet.issues;
+
+export const selectFleetService = createSelector(
+  [selectFleetServices, (_: RootState, service: string) => service],
+  (services, service): FleetService | null => services.find((s) => s.service === service) ?? null,
+);
 
 export type Liveness = 'live' | 'stale' | 'silent';
 
 /**
  * A service's observed liveness — distinct from its declared status.
  *
- * 'silent' means no heartbeat has ever arrived, which is NOT the same as stale: a service that never
- * reported may simply not have the reporting middleware wired. The UI must not paint that as a fault.
+ * 'silent' means no live-time signal has ever arrived, which is NOT the same as stale: the service
+ * may lack the reporting middleware, or the plane may simply not carry a live-time signal at all
+ * (the composite plane's anonymous rows omit `lastSeen` by design). The UI must not paint either as
+ * a fault. Note this reads an *absent* `lastSeen` — never a default epoch, which once serialised as
+ * 0001-01-01 and read as "stale for two millennia".
  */
 export const selectLiveness = createSelector(
-  [selectHeartbeats, selectNow, (_: RootState, service: string) => service],
-  (heartbeats, now, service): Liveness => {
-    const lastSeen = heartbeats[service];
+  [selectFleetServices, selectNow, (_: RootState, service: string) => service],
+  (services, now, service): Liveness => {
+    const lastSeen = services.find((s) => s.service === service)?.lastSeen;
     if (!lastSeen) return 'silent';
     const age = now - Date.parse(lastSeen);
     return age > HEARTBEAT_STALE_MS ? 'stale' : 'live';
   },
 );
 
-/** Issues for one service, newest first. */
+/** Issues for one service, newest activity first. */
 export const selectIssuesForService = createSelector(
   [selectIssues, (_: RootState, service: string) => service],
-  (issues, service): LiveIssue[] =>
+  (issues, service): FleetIssue[] =>
     issues
       .filter((i) => i.service === service)
       .slice()
-      .sort((a, b) => Date.parse(b.observedAtUtc) - Date.parse(a.observedAtUtc)),
+      .sort((a, b) => Date.parse(b.lastSeen) - Date.parse(a.lastSeen)),
 );
 
 /**
@@ -119,13 +128,13 @@ export const selectIssueSummary = createSelector([selectIssues], (issues) => {
  * plane adds, and impossible to express while the two planes share one slice.
  */
 export const selectDivergences = createSelector(
-  [(s: RootState) => s.estate.services, selectHeartbeats, selectNow, selectFleetAvailable],
-  (services, heartbeats, now, available) => {
+  [(s: RootState) => s.estate.services, selectFleetServices, selectNow, selectFleetAvailable],
+  (declared, observed, now, available) => {
     if (!available) return [];
-    return services
+    return declared
       .filter((s) => s.status === 'healthy')
       .filter((s) => {
-        const lastSeen = heartbeats[s.name];
+        const lastSeen = observed.find((o) => o.service === s.name)?.lastSeen;
         // Never-reported is not a divergence — it is an unwired service, not a lying one.
         return lastSeen !== undefined && now - Date.parse(lastSeen) > HEARTBEAT_STALE_MS;
       })
@@ -739,32 +748,67 @@ export const rangeLabel = (ms: number): string =>
 export interface TopicLive {
   /** False when no collector is wired — every field below is then meaningless, not zero. */
   available: boolean;
-  /** null when the live plane reported nothing for this topic in the window. Not the same as zero. */
+  /** null when the plane reported nothing for this topic, or declares its counts absent. Not zero. */
   observed: number | null;
   errors: number;
+  /** null when the plane declares it cannot supply duration — the contract's non-nullable 0 is not a
+   *  measurement, and rendering it as one invents a latency figure nobody measured. */
+  avgDurationMs: number | null;
+  /** Per-status breakdown as observed. Empty on a plane that does not carry it. */
+  statusCounts: Record<string, number>;
   /** Services the collector actually saw handling this topic — observed, not declared. */
   services: string[];
+  /** Dimensions the plane declares genuinely absent. Reduced is visible, never mistaken for empty. */
+  missingFeeds: string[];
   rangeLabel: string;
+  /**
+   * The instant the *counts* actually cover from, when that is not the picked window.
+   *
+   * On a push-collector plane the counters are cumulative since process start; on a composite plane
+   * they come from the usage feed's own baked window. Either way the flows honour the picked window
+   * and the counts do not. That is a real number answering a different question — shown with its own
+   * window attached, never blanked and never relabelled as the picked one.
+   */
+  countsSince: string | null;
 }
 
 /**
  * What the live plane observed for one topic, over the picked window.
  *
- * Deliberately separate from `selectTrafficForTopic`, which reads the usage feed over the feed's
- * *own* baked window. The two numbers answer different questions and cannot be re-windowed into each
- * other, so they are never summed and never shown without their window attached — a range-labelled
- * figure that is actually a baked-window figure is the most convincing kind of wrong number.
+ * Deliberately separate from `selectTrafficForTopic`, which reads the aggregator's published usage
+ * artifact. The two answer different questions from different feeds and cannot be re-windowed into
+ * each other, so they are never summed and never shown without their window attached — a
+ * range-labelled figure that is actually a baked-window figure is the most convincing kind of wrong
+ * number.
  */
 export const selectLiveForTopic = createSelector(
-  [(s: RootState) => s.fleet.flows, selectFleetAvailable, selectRangeMs, (_: RootState, topic: string) => topic],
-  (flows, available, ms, topic): TopicLive => {
-    const rows = flows.filter((f) => f.topic === topic);
+  [selectFleetTopics, selectFleetAvailable, selectRangeMs, (s: RootState) => s.fleet.window,
+    (_: RootState, topic: string) => topic],
+  (topics, available, ms, window, topic): TopicLive => {
+    const rows = topics.filter((t) => t.topic === topic);
+    const missingFeeds = [...new Set(rows.flatMap((r) => r.missingFeeds))];
+    const statsAbsent = missingFeeds.includes('stats');
+    const durationAbsent = missingFeeds.includes('duration');
+
+    // Weighted, so a busy version is not averaged away by a quiet one.
+    const weighted = rows.reduce((n, r) => n + r.avgDurationMs * Math.max(r.invocations, 1), 0);
+    const weights = rows.reduce((n, r) => n + Math.max(r.invocations, 1), 0);
+
     return {
       available,
-      observed: rows.length === 0 ? null : rows.reduce((n, f) => n + f.success + f.failure, 0),
-      errors: rows.reduce((n, f) => n + f.failure, 0),
-      services: [...new Set(rows.map((f) => f.service))].sort(),
+      observed: rows.length === 0 || statsAbsent ? null : rows.reduce((n, r) => n + r.invocations, 0),
+      errors: statsAbsent ? 0 : rows.reduce((n, r) => n + r.errors, 0),
+      avgDurationMs: rows.length === 0 || durationAbsent || weights === 0 ? null : weighted / weights,
+      statusCounts: rows.reduce<Record<string, number>>((acc, r) => {
+        for (const [status, count] of Object.entries(r.statusCounts)) {
+          acc[status] = (acc[status] ?? 0) + count;
+        }
+        return acc;
+      }, {}),
+      services: [...new Set(rows.flatMap((r) => r.consumers))].sort(),
+      missingFeeds,
       rangeLabel: rangeLabel(ms),
+      countsSince: window && !window.countsWindowed ? (window.countsSince ?? null) : null,
     };
   },
 );

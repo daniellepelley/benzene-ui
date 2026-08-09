@@ -1,0 +1,24 @@
+{
+  "generatedAt": "2026-08-09T06:00:00Z",
+  "services": [],
+  "topics": [],
+  "traces": [],
+  "issues": [
+    {
+      "fingerprint": "0a1b2c3d4e5f6071",
+      "classification": "config-wiring",
+      "service": "orders-api",
+      "topic": "orders:create",
+      "status": "not-found",
+      "count": 4,
+      "firstSeen": "2026-08-09T05:50:00Z",
+      "lastSeen": "2026-08-09T05:55:00Z",
+      "exemplarTraceIds": []
+    }
+  ],
+  "window": {
+    "from": "2026-08-09T05:45:00Z",
+    "to": "2026-08-09T06:00:00Z",
+    "countsWindowed": true
+  }
+}

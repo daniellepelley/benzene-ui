@@ -1,0 +1,117 @@
+{
+  "generatedAt": "2026-08-09T06:00:00Z",
+  "services": [
+    {
+      "service": "orders-api",
+      "runtime": "dotnet",
+      "binding": "aws-lambda",
+      "placement": { "region": "eu-west-1", "environment": "production" },
+      "topics": 3,
+      "instances": 2,
+      "health": "healthy",
+      "lastSeen": "2026-08-09T05:59:52Z",
+      "invocations": 148320,
+      "errors": 300,
+      "missingFeeds": []
+    },
+    {
+      "service": "payments-api",
+      "placement": {},
+      "topics": 2,
+      "instances": 1,
+      "health": "degraded",
+      "lastSeen": "2026-08-09T05:59:48Z",
+      "invocations": 9100,
+      "errors": 240,
+      "missingFeeds": ["traces"]
+    },
+    {
+      "service": "shipping-api",
+      "placement": {},
+      "topics": 1,
+      "instances": 0,
+      "health": "unknown",
+      "invocations": 0,
+      "errors": 0,
+      "missingFeeds": ["health", "traces"]
+    }
+  ],
+  "topics": [
+    {
+      "topic": "orders:create",
+      "version": "v1",
+      "providers": ["orders-api"],
+      "consumers": ["payments-api"],
+      "invocations": 148320,
+      "errors": 300,
+      "avgDurationMs": 14.2,
+      "statusCounts": { "ok": 148020, "internal-server-error": 300 },
+      "lastSeen": "2026-08-09T05:59:52Z",
+      "missingFeeds": []
+    },
+    {
+      "topic": "payment:capture",
+      "providers": ["orders-api"],
+      "consumers": ["payments-api"],
+      "invocations": 9100,
+      "errors": 240,
+      "avgDurationMs": 88.4,
+      "statusCounts": { "ok": 8860, "dependency-failure": 240 },
+      "missingFeeds": ["duration"]
+    }
+  ],
+  "traces": [
+    {
+      "traceId": "1-68c0a1f2-4b1c9e3a5d6f7089ab12cd34",
+      "events": 7,
+      "services": ["orders-api", "payments-api"],
+      "startedAt": "2026-08-09T05:59:41Z",
+      "durationMs": 212.7,
+      "failed": true,
+      "topic": "payment:capture"
+    },
+    {
+      "traceId": "1-68c0a1e0-2a3b4c5d6e7f8091a2b3c4d5",
+      "events": 4,
+      "services": ["orders-api"],
+      "startedAt": "2026-08-09T05:59:30Z",
+      "durationMs": 18.1,
+      "failed": false
+    }
+  ],
+  "issues": [
+    {
+      "fingerprint": "9f2c4b81a03d5e67",
+      "classification": "dependency",
+      "service": "payments-api",
+      "topic": "payment:capture",
+      "version": "v1",
+      "transport": "sqs",
+      "status": "dependency-failure",
+      "exceptionType": "System.Net.Http.HttpRequestException",
+      "count": 240,
+      "firstSeen": "2026-08-09T05:12:03Z",
+      "lastSeen": "2026-08-09T05:59:41Z",
+      "exemplarTraceIds": ["1-68c0a1f2-4b1c9e3a5d6f7089ab12cd34"],
+      "resolutionHint": "dependency"
+    },
+    {
+      "fingerprint": "3d71ae0c9b825f14",
+      "classification": "exception",
+      "service": "orders-api",
+      "topic": "orders:create",
+      "status": "internal-server-error",
+      "exceptionType": "System.NullReferenceException",
+      "count": 300,
+      "firstSeen": "2026-08-09T04:40:00Z",
+      "lastSeen": "2026-08-09T05:58:12Z",
+      "exemplarTraceIds": []
+    }
+  ],
+  "window": {
+    "from": "2026-08-09T05:45:00Z",
+    "to": "2026-08-09T06:00:00Z",
+    "countsWindowed": false,
+    "countsSince": "2026-08-08T06:00:00Z"
+  }
+}

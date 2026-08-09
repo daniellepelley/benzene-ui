@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import type { MeshApi } from './estateSlice';
-import type { IssueClassification } from '../../contracts';
+import type { FleetView, FleetViewServicesItem, FleetViewTopicsItem, FleetViewTracesItem, FleetViewWindow, MeshIssue } from '../../contracts';
 
 /**
  * The live plane, kept deliberately separate from `estateSlice`.
@@ -13,6 +13,12 @@ import type { IssueClassification } from '../../contracts';
  * Above all, they fail independently: no collector configured is not an error, it is a service with
  * no live plane. `available: false` is a legitimate resting state, and the UI must render the
  * declared plane perfectly well without any of this.
+ *
+ * The state here IS the `FleetView` wire contract (`benzene:mesh:query:fleet`), stored as it
+ * arrives. An earlier cut of this slice invented a friendlier shape — heartbeats, flows — and the
+ * result was a library no real collector could drive: the adapter it needed did not exist, and the
+ * three honesty channels the contract carries (`missingFeeds`, `window.countsWindowed`, absent
+ * `lastSeen`) had nowhere to live. Storing the contract keeps them.
  */
 
 /** Heartbeat staleness, carried over from the original UI's FL_STALE_MS. */
@@ -22,33 +28,26 @@ export const HEARTBEAT_STALE_MS = 90_000;
  *  selector needs it to decide when a failed poll has gone on long enough to call the plane stale. */
 export const FLEET_POLL_MS = 15_000;
 
-export interface Heartbeat {
-  service: string;
-  lastSeenUtc: string;
-}
+export type FleetService = FleetViewServicesItem;
+export type FleetTopic = FleetViewTopicsItem;
+export type FleetTrace = FleetViewTracesItem;
+export type FleetIssue = MeshIssue;
+export type FleetWindow = FleetViewWindow;
 
-export interface LiveIssue {
-  id: string;
-  service: string;
-  topic?: string | null;
-  classification: IssueClassification;
-  message: string;
-  observedAtUtc: string;
-  count: number;
-}
-
-export interface TopicFlow {
-  topic: string;
-  service: string;
-  success: number;
-  failure: number;
-}
-
-export interface FleetSnapshot {
-  heartbeats: Heartbeat[];
-  issues: LiveIssue[];
-  flows: TopicFlow[];
-  observedAtUtc: string;
+/**
+ * The query body of `benzene:mesh:query:fleet`.
+ *
+ * `window.from` is Grafana relative-time grammar (`now-15m`), not a millisecond count — the server
+ * resolves it against its own clock, which is the only clock both sides agree on.
+ */
+export interface FleetQuery {
+  window?: { from: string; to?: string };
+  /**
+   * A cost hint, never a contract change. On a trace-backed plane, flows cost a trace scan over the
+   * whole window and are billed per trace scanned, so a wide-window counts-only poll sets this false.
+   * A reader must still tolerate an empty flows list either way — that was already the degraded case.
+   */
+  includeFlows?: boolean;
 }
 
 export type FleetLoad = 'idle' | 'probing' | 'live' | 'unavailable';
@@ -58,10 +57,19 @@ export interface FleetState {
   available: boolean;
   load: FleetLoad;
   error: string | null;
-  observedAtUtc: string | null;
-  heartbeats: Record<string, string>;
-  issues: LiveIssue[];
-  flows: TopicFlow[];
+  generatedAt: string | null;
+  services: FleetService[];
+  topics: FleetTopic[];
+  traces: FleetTrace[];
+  issues: FleetIssue[];
+  /**
+   * The window the view answers, when the query carried one.
+   *
+   * `countsWindowed: false` is the load-bearing case: the flows honour the picked window but the
+   * counts answer a different one (cumulative since collector start, or the usage feed's own baked
+   * window). That is a real number answering a different question — never blanked, never relabelled.
+   */
+  window: FleetWindow | null;
   /** Wall-clock the staleness calculations are relative to. Injected, never read from Date.now()
    *  inside a selector — a selector that reads the clock is untestable and un-memoisable. */
   now: number;
@@ -73,7 +81,7 @@ export interface FleetState {
    * never once reported traffic, while the catalog declares topics, is far more likely a broken
    * exporter than an idle estate, and the UI has to say so rather than render a calm green.
    *
-   * All three are milliseconds, taken from the observation itself (`observedAtUtc`) or from the last
+   * All three are milliseconds, taken from the observation itself (`generatedAt`) or from the last
    * ticked clock on failure — never from `Date.now()` in here, for the same reason as `now`.
    */
   lastOkAt: number | null;
@@ -85,10 +93,12 @@ const initialState: FleetState = {
   available: false,
   load: 'idle',
   error: null,
-  observedAtUtc: null,
-  heartbeats: {},
+  generatedAt: null,
+  services: [],
+  topics: [],
+  traces: [],
   issues: [],
-  flows: [],
+  window: null,
   now: 0,
   lastOkAt: null,
   lastFailAt: null,
@@ -96,12 +106,26 @@ const initialState: FleetState = {
 };
 
 export const probeFleet = createAsyncThunk<
-  FleetSnapshot | null,
+  FleetView | null,
   void,
   { extra: MeshApi; state: { view: { rangeMs: number } } }
 >('fleet/probe', async (_, { extra, getState }) =>
-  extra.getFleet ? extra.getFleet({ rangeMs: getState().view.rangeMs }) : null,
+  extra.getFleet ? extra.getFleet({ window: { from: relativeFrom(getState().view.rangeMs) } }) : null,
 );
+
+/**
+ * A picked window as the wire's relative-time grammar.
+ *
+ * Sending `now-15m` rather than a resolved timestamp is deliberate: the server resolves it against
+ * its own clock, so a client whose clock is skewed asks for the window it means rather than one
+ * silently shifted by the skew.
+ */
+export function relativeFrom(rangeMs: number): string {
+  const minutes = Math.round(rangeMs / 60_000);
+  if (minutes % (60 * 24) === 0) return `now-${minutes / (60 * 24)}d`;
+  if (minutes % 60 === 0) return `now-${minutes / 60}h`;
+  return `now-${minutes}m`;
+}
 
 const fleetSlice = createSlice({
   name: 'fleet',
@@ -114,11 +138,11 @@ const fleetSlice = createSlice({
      * rather than leaving it to whoever probed first — a snapshot arriving while `available` was
      * false would otherwise render as "no live plane" on top of live data.
      */
-    fleetObserved(state, action: PayloadAction<FleetSnapshot>) {
+    fleetObserved(state, action: PayloadAction<FleetView>) {
       state.available = true;
       state.load = 'live';
       state.error = null;
-      applySnapshot(state, action.payload);
+      applyView(state, action.payload);
     },
     /** Drives every staleness calculation. Tests set it; the app ticks it. */
     clockTicked(state, action: PayloadAction<number>) {
@@ -140,7 +164,7 @@ const fleetSlice = createSlice({
         }
         state.available = true;
         state.load = 'live';
-        applySnapshot(state, action.payload);
+        applyView(state, action.payload);
       })
       .addCase(probeFleet.rejected, (state, action) => {
         state.available = false;
@@ -153,24 +177,28 @@ const fleetSlice = createSlice({
   },
 });
 
-function applySnapshot(state: FleetState, snapshot: FleetSnapshot) {
-  state.observedAtUtc = snapshot.observedAtUtc;
-  state.issues = snapshot.issues;
-  state.flows = snapshot.flows;
-  for (const beat of snapshot.heartbeats) {
-    state.heartbeats[beat.service] = beat.lastSeenUtc;
-  }
+function applyView(state: FleetState, view: FleetView) {
+  state.generatedAt = view.generatedAt;
+  state.services = view.services;
+  state.topics = view.topics;
+  state.traces = view.traces;
+  state.issues = view.issues;
+  state.window = view.window ?? null;
 
-  const observedAt = Date.parse(snapshot.observedAtUtc);
+  const observedAt = Date.parse(view.generatedAt);
   if (!Number.isNaN(observedAt)) {
     state.lastOkAt = observedAt;
-    // Counts, not flow rows: flows are sampled and capped, so an empty flow list is not evidence of
-    // no traffic, but a non-zero count is evidence of traffic. Only the positive direction is safe.
-    //
-    // Heartbeats deliberately do NOT count. They travel on the mesh's own feed, so a fleet that
-    // heartbeats while no domain traffic is observed is exactly the broken-exporter case this is
-    // here to catch — counting them would make the blind state unreachable.
-    if (snapshot.flows.some((f) => f.success + f.failure > 0)) state.lastActivityAt = observedAt;
+    // Counts, not flow rows: flows are sampled and capped, so an empty trace list is not evidence of
+    // no traffic, but a non-zero invocation count is evidence of traffic. Only the positive
+    // direction is safe — and a count from a topic that declares `stats` missing is not a count at
+    // all, it is the contract's non-nullable default showing through.
+    const sawTraffic = view.topics.some(
+      (t) => !t.missingFeeds.includes('stats') && t.invocations > 0,
+    );
+    // Heartbeats deliberately do NOT count. They ride the mesh's own feed, so a fleet heartbeating
+    // into a broken exporter is exactly the case the blind state exists to catch — counting them
+    // would make that state unreachable.
+    if (sawTraffic || view.traces.length > 0) state.lastActivityAt = observedAt;
   }
 }
 

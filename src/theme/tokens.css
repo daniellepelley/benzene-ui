@@ -159,3 +159,67 @@
 .bz-compose button { align-self: flex-start; padding: 0.35rem 1rem; border-radius: var(--bz-radius); border: 1px solid var(--bz-accent); background: var(--bz-accent); color: #fff; font-weight: 600; cursor: pointer; }
 .bz-compose button:disabled { opacity: 0.5; cursor: not-allowed; }
 .bz-compose-result pre { background: var(--bz-code-bg); border: 1px solid var(--bz-border); border-radius: var(--bz-radius); padding: 0.75rem; overflow-x: auto; font-size: 0.85rem; }
+
+/* ── Feed health ───────────────────────────────────────────────────────────────────────────── */
+/* Deliberately not a banner. The line sits inline in the reading order so it is impossible to
+   dismiss and equally impossible to mistake for the data it qualifies. */
+.bz-feed-health { margin: 0 0 0.75rem; padding: 0.4rem 0.6rem; border-radius: var(--bz-radius); font-size: 0.85rem; border: 1px solid var(--bz-border); }
+.bz-feed-health[data-kind='ok']   { color: var(--bz-muted); border-color: var(--bz-border); }
+.bz-feed-health[data-kind='warn'] { color: var(--bz-rag-amber); border-color: var(--bz-rag-amber); }
+.bz-feed-health[data-kind='bad']  { color: var(--bz-rag-red);   border-color: var(--bz-rag-red); }
+
+/* ── Version compatibility ─────────────────────────────────────────────────────────────────── */
+.bz-vc { border: 1px solid var(--bz-border); border-radius: var(--bz-radius); padding: 0.75rem 1rem; }
+.bz-vc[data-skew='true'] { border-color: var(--bz-rag-amber); }
+.bz-vc h3 { margin: 0 0 0.35rem; }
+.bz-vc-lead { margin: 0 0 0.6rem; font-size: 0.88rem; color: var(--bz-muted); }
+.bz-vc-grid { display: flex; gap: 2rem; flex-wrap: wrap; }
+.bz-vc-cell { display: flex; gap: 0.35rem; align-items: baseline; flex-wrap: wrap; }
+.bz-vc-label { color: var(--bz-muted); font-size: 0.82rem; }
+.bz-vc-none { color: var(--bz-muted); font-style: italic; font-size: 0.85rem; }
+.bz-vc-issue { display: flex; gap: 0.35rem; align-items: baseline; flex-wrap: wrap; margin: 0.5rem 0 0; font-size: 0.85rem; }
+.bz-vc-issue[data-severity='bad'] .bz-vc-label { color: var(--bz-rag-amber); }
+
+/* ── Service detail ────────────────────────────────────────────────────────────────────────── */
+.bz-about-desc { margin: 0 0 0.5rem; }
+.bz-about-live[data-liveness='stale']  { color: var(--bz-rag-amber); }
+.bz-about-live[data-liveness='silent'] { color: var(--bz-muted); }
+.bz-usage-chip-row { display: flex; gap: 0.35rem; align-items: baseline; flex-wrap: wrap; margin-top: 0.4rem; }
+.bz-usage-dim { color: var(--bz-muted); font-size: 0.8rem; min-width: 5rem; }
+.bz-usage-toggle { background: none; border: none; padding: 0; font: inherit; font-size: inherit; color: var(--bz-accent); cursor: pointer; text-decoration: underline; }
+.bz-usage-note[data-provenance='fleet-wide'] { color: var(--bz-rag-amber); }
+
+/* ── Value view ────────────────────────────────────────────────────────────────────────────── */
+/* Colour is never the only signal: every tier keeps its text label and its StatusGlyph shape, so
+   the reading survives monochrome, forced-colors and colour-blindness. */
+.bz-vd-tier { display: flex; align-items: baseline; gap: 0.4rem; margin: 0 0 0.15rem; }
+.bz-vd-tier[data-rag='red']   { color: var(--bz-rag-red); }
+.bz-vd-tier[data-rag='amber'] { color: var(--bz-rag-amber); }
+.bz-vd-tier[data-rag='green'] { color: var(--bz-rag-green); }
+.bz-vd-tier[data-rag='gone']  { color: var(--bz-rag-gone); }
+.bz-vd-sub { margin: 0 0 0.5rem; font-size: 0.82rem; color: var(--bz-muted); }
+.bz-vd-row { display: flex; gap: 0.5rem; align-items: baseline; flex-wrap: wrap; padding: 0.3rem 0 0.3rem 0.5rem; border-left: 3px solid var(--bz-border); }
+.bz-vd-row[data-rag='red']   { border-left-color: var(--bz-rag-red); }
+.bz-vd-row[data-rag='amber'] { border-left-color: var(--bz-rag-amber); }
+.bz-vd-row[data-rag='green'] { border-left-color: var(--bz-rag-green); }
+.bz-vd-row[data-rag='gone']  { border-left-color: var(--bz-rag-gone); }
+.bz-vd-topic { background: none; border: none; padding: 0; font: inherit; font-weight: 600; color: var(--bz-fg); cursor: pointer; }
+.bz-vd-topic:hover { color: var(--bz-accent); text-decoration: underline; }
+.bz-vd-removed { font-weight: 600; color: var(--bz-muted); text-decoration: line-through; }
+.bz-vd-shape, .bz-vd-evidence, .bz-vd-usage { font-size: 0.82rem; color: var(--bz-muted); }
+.bz-page-note { margin: 0; font-size: 0.85rem; color: var(--bz-muted); }
+
+/* ── Live window ───────────────────────────────────────────────────────────────────────────── */
+.bz-range { display: inline-flex; gap: 0.4rem; align-items: baseline; font-size: 0.82rem; }
+.bz-range-label { color: var(--bz-muted); }
+.bz-range select { padding: 0.15rem 0.35rem; border: 1px solid var(--bz-border); border-radius: var(--bz-radius); background: var(--bz-bg); color: var(--bz-fg); font: inherit; font-size: 0.82rem; }
+
+.bz-live-strip { display: flex; gap: 0.9rem; align-items: baseline; flex-wrap: wrap; padding: 0.4rem 0.6rem; border: 1px solid var(--bz-border); border-radius: var(--bz-radius); margin-bottom: 0.5rem; }
+.bz-live-tag { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--bz-rag-green); }
+.bz-live-item { display: inline-flex; gap: 0.3rem; align-items: baseline; flex-wrap: wrap; }
+.bz-live-item[data-failing='true'] .bz-live-v { color: var(--bz-rag-red); }
+.bz-live-k { font-size: 0.78rem; color: var(--bz-muted); }
+.bz-live-v { font-weight: 600; }
+/* The window travels with the number it qualifies — never inherited from a header. */
+.bz-live-window { font-size: 0.72rem; color: var(--bz-muted); font-style: italic; }
+.bz-live-silent { font-size: 0.82rem; color: var(--bz-muted); }

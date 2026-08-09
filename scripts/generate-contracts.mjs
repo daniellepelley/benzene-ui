@@ -51,7 +51,11 @@ function merge(a, b) {
     for (const key of new Set([...Object.keys(a.fields), ...Object.keys(b.fields)])) {
       const fa = a.fields[key];
       const fb = b.fields[key];
-      if (fa && fb) fields[key] = { ...merge(fa, fb), required: true };
+      // Present on both sides is not the same as required on both sides. Two samples that each
+      // saw the field as optional (some array items carry it, some don't) must stay optional —
+      // forcing `required: true` here made `TopicsTopicsItem.changes` non-optional the moment a
+      // second topics sample was added, which no aggregator output actually guarantees.
+      if (fa && fb) fields[key] = { ...merge(fa, fb), required: fa.required !== false && fb.required !== false };
       else fields[key] = { ...(fa ?? fb), required: false };
     }
     return { kind: 'object', fields, nullable: a.nullable || b.nullable };

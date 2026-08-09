@@ -42,20 +42,22 @@ from; XState is a better fit for one complex workflow than for a whole applicati
 ```
 src/
   contracts/    generated.ts (do not edit) + mesh.ts, the semantic layer over it
-  store/        five slices, selectors, routing, typed hooks — the application
+  store/        seven slices, selectors, routing, typed hooks — the application
   components/
     primitives/ Badge · Chip · EmptyState · StatusGlyph
     controls/   ServiceCard · LiveStrip · IssueRow · ValueRow · UsagePanel · TopicList · EdgeList
+                FeedHealthLine · RetirementRow · RangePicker
     sections/   TopologyGraph (+ pure topologyLayout) · SchemaTree · HealthChecks · Thread · Composer
+                MessageComposer · VersionCompatibility · ServiceAbout · ServiceUsage · TopicLiveStrip
     containers/ ServiceList — the only place a component meets the store
-    pages/      Fleet · Service · Topic · Issue
+    pages/      Fleet · Service · Topic · Issue · Compose · Value
   data/         the mesh HTTP client, injected into the store
   theme/        design tokens
 contracts/      vendored sample artifacts + SPEC_VERSION (codegen input)
 scripts/        generate-contracts.mjs
 ```
 
-## Five slices
+## Seven slices
 
 | Slice | Holds |
 |---|---|
@@ -63,7 +65,9 @@ scripts/        generate-contracts.mjs
 | `fleet` | What the collector has **observed** — heartbeats, issues, flows. Fails independently |
 | `catalog` | Topics, topology and usage — published together, so they live together |
 | `annotations` | Discussion threads. The only read-**write** data, hence its own slice |
-| `view` | Page, selection, filter, expansion, range — everything the user has done |
+| `compose` | The try-it workflow — topic, version, transport, body, headers, result |
+| `capabilities` | What this mesh can do — derived from the injected API, not guessed at |
+| `view` | Page, selection, filter, expansion, live window, utility toggle — everything the user has done |
 
 Keeping `estate` and `fleet` apart is what makes `selectDivergences` expressible: services declaring
 healthy that have stopped reporting. That is the single most useful thing the live plane adds.
@@ -83,7 +87,7 @@ healthy that have stopped reporting. That is the single most useful thing the li
 as a resource and serves it from inside the running service: no CDN, no static hosting, no network
 egress. That rules out code splitting and makes bundle size a budget.
 
-Current: **206 KB**, against the 274 KB hand-written UI it replaces. React and Redux Toolkit
+Current: **232 KB**, against the 274 KB hand-written UI it replaces. React and Redux Toolkit
 included, the whole application is *smaller* than what it replaces, because a minifier beats
 hand-maintained source. CI asserts there are no external requests.
 

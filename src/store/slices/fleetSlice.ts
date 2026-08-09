@@ -18,6 +18,10 @@ import type { IssueClassification } from '../../contracts';
 /** Heartbeat staleness, carried over from the original UI's FL_STALE_MS. */
 export const HEARTBEAT_STALE_MS = 90_000;
 
+/** How often the app re-polls the collector. Lives here, not in the app shell, because the feed-health
+ *  selector needs it to decide when a failed poll has gone on long enough to call the plane stale. */
+export const FLEET_POLL_MS = 15_000;
+
 export interface Heartbeat {
   service: string;
   lastSeenUtc: string;
@@ -61,6 +65,20 @@ export interface FleetState {
   /** Wall-clock the staleness calculations are relative to. Injected, never read from Date.now()
    *  inside a selector — a selector that reads the clock is untestable and un-memoisable. */
   now: number;
+  /**
+   * Feed health: the three facts needed to tell "the estate is quiet" apart from "I am blind".
+   *
+   * A dashboard that cannot make that distinction is worse than none, because silence then reads as
+   * health. `lastActivityAt` is what breaks the tie — a collector answering every poll that has
+   * never once reported traffic, while the catalog declares topics, is far more likely a broken
+   * exporter than an idle estate, and the UI has to say so rather than render a calm green.
+   *
+   * All three are milliseconds, taken from the observation itself (`observedAtUtc`) or from the last
+   * ticked clock on failure — never from `Date.now()` in here, for the same reason as `now`.
+   */
+  lastOkAt: number | null;
+  lastFailAt: number | null;
+  lastActivityAt: number | null;
 }
 
 const initialState: FleetState = {
@@ -72,11 +90,17 @@ const initialState: FleetState = {
   issues: [],
   flows: [],
   now: 0,
+  lastOkAt: null,
+  lastFailAt: null,
+  lastActivityAt: null,
 };
 
-export const probeFleet = createAsyncThunk<FleetSnapshot | null, void, { extra: MeshApi }>(
-  'fleet/probe',
-  async (_, { extra }) => (extra.getFleet ? extra.getFleet() : null),
+export const probeFleet = createAsyncThunk<
+  FleetSnapshot | null,
+  void,
+  { extra: MeshApi; state: { view: { rangeMs: number } } }
+>('fleet/probe', async (_, { extra, getState }) =>
+  extra.getFleet ? extra.getFleet({ rangeMs: getState().view.rangeMs }) : null,
 );
 
 const fleetSlice = createSlice({
@@ -122,6 +146,9 @@ const fleetSlice = createSlice({
         state.available = false;
         state.load = 'unavailable';
         state.error = action.error.message ?? 'The collector could not be reached';
+        // `now` is the last ticked clock. Zero (never ticked) would date the failure to 1970 and
+        // make every age nonsensical, so a failure before the first tick simply isn't timestamped.
+        if (state.now > 0) state.lastFailAt = state.now;
       });
   },
 });
@@ -132,6 +159,18 @@ function applySnapshot(state: FleetState, snapshot: FleetSnapshot) {
   state.flows = snapshot.flows;
   for (const beat of snapshot.heartbeats) {
     state.heartbeats[beat.service] = beat.lastSeenUtc;
+  }
+
+  const observedAt = Date.parse(snapshot.observedAtUtc);
+  if (!Number.isNaN(observedAt)) {
+    state.lastOkAt = observedAt;
+    // Counts, not flow rows: flows are sampled and capped, so an empty flow list is not evidence of
+    // no traffic, but a non-zero count is evidence of traffic. Only the positive direction is safe.
+    //
+    // Heartbeats deliberately do NOT count. They travel on the mesh's own feed, so a fleet that
+    // heartbeats while no domain traffic is observed is exactly the broken-exporter case this is
+    // here to catch — counting them would make the blind state unreachable.
+    if (snapshot.flows.some((f) => f.success + f.failure > 0)) state.lastActivityAt = observedAt;
   }
 }
 

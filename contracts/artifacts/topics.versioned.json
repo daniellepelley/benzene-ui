@@ -1,0 +1,135 @@
+{
+  "generatedAtUtc": "2026-08-09T06:00:00Z",
+  "topics": [
+    {
+      "topic": "payment:capture",
+      "version": "v1",
+      "reserved": false,
+      "consumers": [
+        {
+          "service": "payments-api",
+          "httpMappings": [
+            {
+              "method": "POST",
+              "path": "/payments/capture"
+            }
+          ]
+        }
+      ],
+      "producers": [
+        {
+          "service": "orders-api"
+        }
+      ],
+      "status": null,
+      "requestSchema": null,
+      "responseSchema": null,
+      "messageSchema": {
+        "title": "PaymentCapture",
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          }
+        }
+      },
+      "schemaMismatch": false,
+      "changes": [
+        {
+          "kind": "schema-changed",
+          "description": "amount widened from integer to number"
+        }
+      ]
+    },
+    {
+      "topic": "payment:capture",
+      "version": "v2",
+      "reserved": false,
+      "consumers": [],
+      "producers": [
+        {
+          "service": "orders-api"
+        }
+      ],
+      "status": null,
+      "requestSchema": null,
+      "responseSchema": null,
+      "messageSchema": {
+        "title": "PaymentCapture",
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "currency": {
+            "type": "string"
+          }
+        }
+      },
+      "schemaMismatch": false
+    },
+    {
+      "topic": "shipping:book",
+      "version": "v1",
+      "reserved": false,
+      "consumers": [
+        {
+          "service": "shipping-api",
+          "httpMappings": []
+        }
+      ],
+      "producers": [],
+      "status": null,
+      "requestSchema": null,
+      "responseSchema": null,
+      "messageSchema": null,
+      "schemaMismatch": false
+    },
+    {
+      "topic": "shipping:book",
+      "version": "v2",
+      "reserved": false,
+      "consumers": [
+        {
+          "service": "shipping-api",
+          "httpMappings": []
+        }
+      ],
+      "producers": [
+        {
+          "service": "orders-api"
+        }
+      ],
+      "status": null,
+      "requestSchema": null,
+      "responseSchema": null,
+      "messageSchema": null,
+      "schemaMismatch": false
+    }
+  ],
+  "removedTopics": [],
+  "versionCompatibility": [
+    {
+      "topic": "payment:capture",
+      "producedVersions": ["v1", "v2"],
+      "consumedVersions": ["v1"],
+      "producedNotConsumed": ["v2"],
+      "consumedNotProduced": [],
+      "isCompatible": false
+    },
+    {
+      "topic": "shipping:book",
+      "producedVersions": ["v2"],
+      "consumedVersions": ["v1", "v2"],
+      "producedNotConsumed": [],
+      "consumedNotProduced": ["v1"],
+      "isCompatible": true
+    }
+  ]
+}

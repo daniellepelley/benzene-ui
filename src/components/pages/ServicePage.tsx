@@ -2,13 +2,17 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   selectTopicsForService, selectEdgesForService, selectLiveness, selectIssuesForService,
   selectFleetAvailable, ragForStatus, selectThread, selectCanPost, selectCanAnnotate,
+  selectServiceAbout, selectUsageForService, selectShowUtility, selectFeedHealth,
 } from '../../store/selectors';
-import { navigated } from '../../store/slices/viewSlice';
+import { navigated, utilityToggled } from '../../store/slices/viewSlice';
 import { draftChanged, draftAuthorChanged, postAnnotation } from '../../store/slices/annotationsSlice';
 import { TopicList } from '../controls/TopicList';
 import { EdgeList } from '../controls/EdgeList';
 import { LiveStrip } from '../controls/LiveStrip';
 import { IssueRow } from '../controls/IssueRow';
+import { FeedHealthLine } from '../controls/FeedHealthLine';
+import { ServiceAbout } from '../sections/ServiceAbout';
+import { ServiceUsage } from '../sections/ServiceUsage';
 import { HealthChecks } from '../sections/HealthChecks';
 import { Thread } from '../sections/Thread';
 import { Composer } from '../sections/Composer';
@@ -34,6 +38,10 @@ export function ServicePage({ service }: ServicePageProps) {
   const canPost = useAppSelector(selectCanPost);
   const annotations = useAppSelector((s: RootState) => s.annotations);
   const writable = useAppSelector(selectCanAnnotate);
+  const about = useAppSelector((s: RootState) => selectServiceAbout(s, service));
+  const usage = useAppSelector((s: RootState) => selectUsageForService(s, service));
+  const showUtility = useAppSelector(selectShowUtility);
+  const feedHealth = useAppSelector(selectFeedHealth);
 
   if (!entry) {
     return <EmptyState message={`${service} is not in the estate manifest.`} />;
@@ -50,7 +58,23 @@ export function ServicePage({ service }: ServicePageProps) {
         {live && <LiveStrip liveness={liveness} issueCount={issues.reduce((n, i) => n + i.count, 0)} diverged={entry.status === 'healthy' && liveness === 'stale'} />}
       </header>
 
+      <FeedHealthLine health={feedHealth} />
+
+      <section>
+        <h3>About</h3>
+        <ServiceAbout about={about} liveness={live ? liveness : null} />
+      </section>
+
       <section><h3>Health</h3><HealthChecks snapshot={snapshot} /></section>
+
+      <section>
+        <h3>Usage</h3>
+        <ServiceUsage
+          usage={usage}
+          showUtility={showUtility}
+          onToggleUtility={() => dispatch(utilityToggled())}
+        />
+      </section>
 
       <section>
         <h3>Topics</h3>

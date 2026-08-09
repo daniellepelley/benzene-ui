@@ -1,6 +1,6 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
-export type Page = 'fleet' | 'service' | 'topic' | 'issue' | 'compose';
+export type Page = 'fleet' | 'service' | 'topic' | 'issue' | 'compose' | 'value';
 
 /**
  * View state lives here, not in components.
@@ -18,6 +18,13 @@ export interface ViewState {
   expandedServices: string[];
   /** Millisecond window the live planes are reporting over. */
   rangeMs: number;
+  /**
+   * Whether Benzene's own plumbing traffic (spec fetches, health probes, the mesh feeds) counts
+   * toward what the traffic surfaces show. Off by default: in a live estate the utility topics
+   * outnumber the domain ones by orders of magnitude — 9.8k spec fetches beside 11 payment
+   * captures — so counting them in by default buries the signal the reader came for.
+   */
+  showUtility: boolean;
 }
 
 const initialState: ViewState = {
@@ -26,6 +33,7 @@ const initialState: ViewState = {
   filter: '',
   expandedServices: [],
   rangeMs: 15 * 60 * 1000,
+  showUtility: false,
 };
 
 const viewSlice = createSlice({
@@ -51,9 +59,12 @@ const viewSlice = createSlice({
     rangeChanged(state, action: PayloadAction<number>) {
       state.rangeMs = action.payload;
     },
+    utilityToggled(state) {
+      state.showUtility = !state.showUtility;
+    },
   },
 });
 
-export const { navigated, filterChanged, serviceToggled, allCollapsed, rangeChanged } =
+export const { navigated, filterChanged, serviceToggled, allCollapsed, rangeChanged, utilityToggled } =
   viewSlice.actions;
 export default viewSlice.reducer;

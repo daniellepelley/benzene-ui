@@ -82,6 +82,7 @@ export interface Topics {
   generatedAtUtc: string;
   topics: TopicsTopicsItem[];
   removedTopics: TopicsRemovedTopicsItem[];
+  versionCompatibility?: TopicsVersionCompatibilityItem[];
 }
 
 export interface TopicsTopicsItem {
@@ -120,6 +121,15 @@ export interface TopicsTopicsItemChangesItem {
 export interface TopicsRemovedTopicsItem {
   topic: string;
   version: string;
+}
+
+export interface TopicsVersionCompatibilityItem {
+  topic: string;
+  producedVersions: string[];
+  consumedVersions: string[];
+  producedNotConsumed: string[];
+  consumedNotProduced: string[];
+  isCompatible: boolean;
 }
 
 export interface Annotations {

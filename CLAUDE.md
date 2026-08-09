@@ -25,7 +25,7 @@ actions and assert on output, never simulate clicks to drive state.
 `dist/index.html` inlines all JS and CSS and makes **zero external requests**. `Benzene.Mesh.Ui`
 embeds it and serves it from inside a running service — no CDN, no static hosting. CI asserts this.
 Consequences: no code splitting, no dynamic import, no runtime CDN anything, and bundle size is a
-budget (currently 179 KB against the 274 KB hand-written UI it replaces).
+budget (currently 232 KB against the 274 KB hand-written UI it replaces).
 
 ## Contracts
 
@@ -59,7 +59,8 @@ Seven, and the separation is load-bearing:
 - `capabilities` — what this mesh can actually do (`fleet`, `annotate`, `invoke`), derived from the
   API once at store creation. **Optional endpoints are state.** A component must never inspect the
   API object to decide what to render; if it did, "the UI is a function of the store" would be a lie.
-- `view` — everything the user has done to the view.
+- `view` — everything the user has done to the view: page, selection, filter, expansion, the live
+  window, and whether benzene's own utility traffic counts toward the traffic surfaces.
 
 Conflating `estate` and `fleet` is how you lose the ability to say "declared healthy, silent for six
 minutes" — the single most useful thing the live plane adds. And `fleet.now` is state set by
@@ -74,6 +75,15 @@ A dashboard that overclaims is worse than none. These distinctions are deliberat
 - a measured topic with zero traffic is a deprecation candidate; an unmeasured one is not a finding
 - a service that has never reported is `silent`, not `stale` — it probably lacks the middleware
 - a read-only mesh explains itself rather than showing a button that cannot work
+- a collector that answers but has never seen traffic is reported **blind**, not healthy — silence
+  from a broken exporter looks exactly like silence from an idle estate, and only one is good news
+- the live plane's window and the usage feed's own baked window are never summed and never share a
+  label; each figure carries its own provenance inline
+- no version-compatibility entry means *nothing was reconciled*, not "compatible" — the aggregator
+  emits one only for a topic with more than one version in play
+- a produced version nothing consumes is a prompt to confirm an upcaster exists, not a proven break
+- "unused" is never claimed without a usage feed; the value view degrades to structural evidence and
+  says so
 
 ## Do NOT
 

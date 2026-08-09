@@ -41,7 +41,11 @@ export const createMeshApi = (options: MeshApiOptions = {}): MeshApi => ({
   getUsage: () => getJson<Usage>('usage.json'),
   getAnnotations: () => getJson<{ annotations: Annotation[] }>('annotations.json').then((d) => d.annotations),
   ...(options.fleetEndpoint
-    ? { getFleet: () => getJson<FleetSnapshot>(options.fleetEndpoint!) }
+    ? {
+        // POST, not GET: the window is a query the collector runs, and a request body keeps it out
+        // of caches and access logs that would otherwise serve one window's answer for another's.
+        getFleet: (request) => postJson<FleetSnapshot>(options.fleetEndpoint!, request),
+      }
     : {}),
   ...(options.annotationsEndpoint
     ? {

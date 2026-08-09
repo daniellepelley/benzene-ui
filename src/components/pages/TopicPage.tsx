@@ -1,10 +1,13 @@
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   selectTopic, selectTrafficForTopic, selectThread, selectCanPost, selectCanAnnotate,
+  selectVersionCompatibility, selectHttpMappingsForTopic, selectLiveForTopic,
 } from '../../store/selectors';
 import { navigated } from '../../store/slices/viewSlice';
 import { draftChanged, draftAuthorChanged, postAnnotation } from '../../store/slices/annotationsSlice';
 import { SchemaTree } from '../sections/SchemaTree';
+import { VersionCompatibility } from '../sections/VersionCompatibility';
+import { TopicLiveStrip } from '../sections/TopicLiveStrip';
 import { UsagePanel } from '../controls/UsagePanel';
 import { Thread } from '../sections/Thread';
 import { Composer } from '../sections/Composer';
@@ -26,6 +29,9 @@ export function TopicPage({ topic }: TopicPageProps) {
   const canPost = useAppSelector(selectCanPost);
   const annotations = useAppSelector((s: RootState) => s.annotations);
   const writable = useAppSelector(selectCanAnnotate);
+  const compatibility = useAppSelector((s: RootState) => selectVersionCompatibility(s, topic));
+  const httpMappings = useAppSelector((s: RootState) => selectHttpMappingsForTopic(s, topic));
+  const live = useAppSelector((s: RootState) => selectLiveForTopic(s, topic));
 
   if (!entry) return <EmptyState message={`${topic} is not in the published catalog.`} />;
 
@@ -69,9 +75,26 @@ export function TopicPage({ topic }: TopicPageProps) {
             <Chip>mismatch</Chip>
           </ValueRow>
         )}
+        {/* The wire binding — the only place a reader can see how to actually reach this topic. */}
+        {httpMappings.length > 0 && (
+          <ValueRow label="HTTP">
+            {httpMappings.map((m, i) => (
+              <Chip key={i} title={`Exposed by ${m.service}`}>
+                {m.method.toUpperCase()} {m.path}
+              </Chip>
+            ))}
+          </ValueRow>
+        )}
       </section>
 
-      <section><h3>Traffic</h3><UsagePanel traffic={traffic} /></section>
+      <VersionCompatibility compatibility={compatibility} />
+
+      <section>
+        <h3>Traffic</h3>
+        {/* Two planes, two windows. The strip states its own; the panel states the feed's. */}
+        <TopicLiveStrip live={live} traffic={traffic} />
+        <UsagePanel traffic={traffic} windowLabel="over the usage feed's own window" />
+      </section>
 
       <section>
         <h3>Payload</h3>

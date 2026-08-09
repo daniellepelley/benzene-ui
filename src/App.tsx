@@ -3,14 +3,15 @@ import { useAppDispatch, useAppSelector } from './store/hooks';
 import { loadManifest } from './store/slices/estateSlice';
 import { loadCatalog } from './store/slices/catalogSlice';
 import { loadAnnotations } from './store/slices/annotationsSlice';
-import { probeFleet, clockTicked } from './store/slices/fleetSlice';
+import { probeFleet, clockTicked, FLEET_POLL_MS } from './store/slices/fleetSlice';
 import { filterChanged, navigated } from './store/slices/viewSlice';
-import { selectLoad, selectError, selectPage, selectSelected, selectEstateSummary } from './store/selectors';
-import { FleetPage, ServicePage, TopicPage, IssuePage, ComposePage } from './components/pages';
+import {
+  selectLoad, selectError, selectPage, selectSelected, selectEstateSummary, selectFeedHealth,
+} from './store/selectors';
+import { FleetPage, ServicePage, TopicPage, IssuePage, ComposePage, ValuePage } from './components/pages';
+import { FeedHealthLine } from './components/controls/FeedHealthLine';
 import { EmptyState } from './components/primitives/EmptyState';
 import { StatusGlyph } from './components/primitives/StatusGlyph';
-
-const POLL_MS = 15_000;
 
 /**
  * The composition root, and the only place effects are allowed — starting a load and running a clock
@@ -24,6 +25,7 @@ export function App() {
   const selected = useAppSelector(selectSelected);
   const filter = useAppSelector((s) => s.view.filter);
   const summary = useAppSelector(selectEstateSummary);
+  const feedHealth = useAppSelector(selectFeedHealth);
 
   useEffect(() => {
     void dispatch(loadManifest());
@@ -40,15 +42,26 @@ export function App() {
     const id = setInterval(() => {
       tick();
       void dispatch(probeFleet());
-    }, POLL_MS);
+    }, FLEET_POLL_MS);
     return () => clearInterval(id);
   }, [dispatch]);
+
+  // Changing the window is a new question, not a new rendering of the old answer — the collector has
+  // to be asked again, or every live figure on the page would keep its old window's numbers under a
+  // new window's label.
+  const rangeMs = useAppSelector((s) => s.view.rangeMs);
+  useEffect(() => {
+    void dispatch(probeFleet());
+  }, [dispatch, rangeMs]);
 
   return (
     <div className="bz-app">
       <header className="bz-app-head">
         <button type="button" className="bz-brand" onClick={() => dispatch(navigated({ page: 'fleet' }))}>
           Benzene Mesh
+        </button>
+        <button type="button" onClick={() => dispatch(navigated({ page: 'value' }))}>
+          Value
         </button>
         {summary.worst && <StatusGlyph rag={summary.worst} label={`worst status: ${summary.worst}`} />}
         <input
@@ -58,6 +71,10 @@ export function App() {
           onChange={(e) => dispatch(filterChanged(e.target.value))}
         />
       </header>
+
+      {/* Only when something is wrong: a green line here would be chrome in the place a warning
+          eventually has to appear, and readers learn to skip chrome. */}
+      <FeedHealthLine health={feedHealth} />
 
       <main>
         {load === 'loading' && <EmptyState message="Loading the estate…" />}
@@ -69,6 +86,7 @@ export function App() {
             {page === 'topic' && selected && <TopicPage topic={selected} />}
             {page === 'issue' && <IssuePage selected={selected ?? 'all'} />}
             {page === 'compose' && selected && <ComposePage topic={selected} />}
+            {page === 'value' && <ValuePage />}
           </>
         )}
       </main>

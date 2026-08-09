@@ -12,25 +12,35 @@ import type { AppStore } from './store';
  *
  * Prefixes are carried over from the original UI so existing bookmarks keep working.
  */
-const PREFIX: Record<Exclude<Page, 'fleet'>, string> = {
+type EntityPage = 'service' | 'topic' | 'issue' | 'compose';
+
+const PREFIX: Record<EntityPage, string> = {
   service: '#service/',
   topic: '#topic/',
   issue: '#issue/',
   compose: '#compose/',
 };
 
+/** Pages that are about the whole estate rather than one entity, so they carry no selection. */
+const STANDALONE: Record<string, Page> = {
+  '#fleet': 'fleet',
+  '#value': 'value',
+};
+
 export function parseHash(hash: string): { page: Page; selected: string | null } {
-  for (const [page, prefix] of Object.entries(PREFIX) as [Exclude<Page, 'fleet'>, string][]) {
+  for (const [page, prefix] of Object.entries(PREFIX) as [EntityPage, string][]) {
     if (hash.startsWith(prefix)) {
       const selected = decodeURIComponent(hash.slice(prefix.length));
       // "#service/" with nothing after it is a malformed link, not a selection.
       return selected ? { page, selected } : { page: 'fleet', selected: null };
     }
   }
-  return { page: 'fleet', selected: null };
+  const standalone = STANDALONE[hash];
+  return { page: standalone ?? 'fleet', selected: null };
 }
 
 export function toHash(page: Page, selected: string | null): string {
+  if (page === 'value') return '#value';
   if (page === 'fleet' || !selected) return '#fleet';
   return `${PREFIX[page]}${encodeURIComponent(selected)}`;
 }

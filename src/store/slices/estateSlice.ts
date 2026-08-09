@@ -42,8 +42,14 @@ export interface MeshApi {
   getTopics(): Promise<import('../../contracts').Topics>;
   getTopology(): Promise<import('../../contracts').Topology>;
   getUsage(): Promise<import('../../contracts').Usage>;
-  /** Optional: absent when no collector is wired. The estate renders fine without it. */
-  getFleet?(): Promise<import('./fleetSlice').FleetSnapshot>;
+  /**
+   * Optional: absent when no collector is wired. The estate renders fine without it.
+   *
+   * The window is passed on every call rather than configured once, because the reader can change
+   * it — and a collector answering over a different window than the one the UI is labelling is the
+   * kind of quiet lie this codebase exists to avoid.
+   */
+  getFleet?(request: { rangeMs: number }): Promise<import('./fleetSlice').FleetSnapshot>;
   getAnnotations?(): Promise<import('./annotationsSlice').Annotation[]>;
   postAnnotation?(request: {
     entity: string;

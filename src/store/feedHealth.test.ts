@@ -1,0 +1,124 @@
+import { describe, it, expect } from 'vitest';
+import { createStore } from './store';
+import { loadCatalog } from './slices/catalogSlice';
+import { probeFleet, clockTicked, fleetObserved, FLEET_POLL_MS, type FleetSnapshot } from './slices/fleetSlice';
+import { selectFeedHealth } from './selectors';
+import { fakeMeshApi } from '../test/fakeMeshApi';
+
+const T0 = Date.parse('2026-08-09T06:00:00Z');
+
+const snapshot = (over: Partial<FleetSnapshot> = {}): FleetSnapshot => ({
+  heartbeats: [{ service: 'orders-api', lastSeenUtc: '2026-08-09T05:59:50Z' }],
+  issues: [],
+  flows: [],
+  observedAtUtc: '2026-08-09T06:00:00Z',
+  ...over,
+});
+
+const withCatalog = async (over = {}) => {
+  const store = createStore(fakeMeshApi(over));
+  await store.dispatch(loadCatalog());
+  store.dispatch(clockTicked(T0));
+  return store;
+};
+
+describe('feed health', () => {
+  it('says nothing at all when no live plane is wired', async () => {
+    // The static floor. A page with no collector must not carry a warning about one.
+    const store = await withCatalog();
+    await store.dispatch(probeFleet());
+    expect(selectFeedHealth(store.getState())).toBeNull();
+  });
+
+  it('reports a collector that has never answered as unreachable, not as quiet', async () => {
+    const store = await withCatalog({
+      getFleet: async () => {
+        throw new Error('ECONNREFUSED');
+      },
+    });
+    await store.dispatch(probeFleet());
+    store.dispatch(clockTicked(T0 + 8_000));
+
+    const health = selectFeedHealth(store.getState());
+    expect(health?.kind).toBe('bad');
+    expect(health?.text).toMatch(/no successful poll yet/);
+  });
+
+  it('calls a connected collector that has never seen traffic blind, not healthy', async () => {
+    // The single most important thing this exists for. Silence from a broken exporter looks exactly
+    // like silence from an idle estate, and only one of them is good news.
+    const store = await withCatalog({ getFleet: async () => snapshot() });
+    await store.dispatch(probeFleet());
+
+    const health = selectFeedHealth(store.getState());
+    expect(health?.kind).toBe('warn');
+    expect(health?.text).toMatch(/no traffic has been observed/);
+    expect(health?.text).toMatch(/check the exporter wiring/);
+  });
+
+  it('does not let heartbeats count as traffic', async () => {
+    // Heartbeats travel on the mesh's own feed. If they counted, a fleet heartbeating into a broken
+    // exporter would report a healthy feed — the exact failure the blind state is here to catch.
+    const store = await withCatalog({
+      getFleet: async () => snapshot({ heartbeats: [{ service: 'orders-api', lastSeenUtc: '2026-08-09T05:59:59Z' }] }),
+    });
+    await store.dispatch(probeFleet());
+    expect(selectFeedHealth(store.getState())?.kind).toBe('warn');
+  });
+
+  it('goes healthy once real traffic is observed', async () => {
+    const store = await withCatalog({
+      getFleet: async () => snapshot({ flows: [{ topic: 'orders:create', service: 'orders-api', success: 12, failure: 0 }] }),
+    });
+    await store.dispatch(probeFleet());
+
+    const health = selectFeedHealth(store.getState());
+    expect(health?.kind).toBe('ok');
+    expect(health?.text).toMatch(/last activity/);
+  });
+
+  it('tolerates a single failed poll without declaring the plane stale', async () => {
+    // Polls fail transiently. Shouting on the first one trains readers to ignore the line.
+    let fail = false;
+    const store = await withCatalog({
+      getFleet: async () => {
+        if (fail) throw new Error('timeout');
+        return snapshot({ flows: [{ topic: 'orders:create', service: 'orders-api', success: 1, failure: 0 }] });
+      },
+    });
+    await store.dispatch(probeFleet());
+
+    fail = true;
+    store.dispatch(clockTicked(T0 + FLEET_POLL_MS));
+    await store.dispatch(probeFleet());
+
+    expect(selectFeedHealth(store.getState())?.kind).toBe('ok');
+  });
+
+  it('declares the data stale once failures outlast three poll intervals', async () => {
+    const store = await withCatalog({ getFleet: async () => snapshot() });
+    store.dispatch(fleetObserved(snapshot({ flows: [{ topic: 'orders:create', service: 'orders-api', success: 1, failure: 0 }] })));
+
+    const store2 = store;
+    store2.dispatch(clockTicked(T0 + 4 * FLEET_POLL_MS));
+    // A failure recorded after the last success, more than three intervals on from it.
+    store2.dispatch({ type: 'fleet/probe/rejected', error: { message: 'timeout' } });
+
+    const health = selectFeedHealth(store2.getState());
+    expect(health?.kind).toBe('bad');
+    expect(health?.text).toMatch(/the live data shown is stale/);
+  });
+
+  it('does not date a failure that arrives before the clock has ever ticked', async () => {
+    // `now` starts at 0. Stamping a failure with it would date it to 1970 and make every age absurd.
+    const store = createStore(
+      fakeMeshApi({
+        getFleet: async () => {
+          throw new Error('ECONNREFUSED');
+        },
+      }),
+    );
+    await store.dispatch(probeFleet());
+    expect(store.getState().fleet.lastFailAt).toBeNull();
+  });
+});

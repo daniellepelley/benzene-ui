@@ -1,12 +1,13 @@
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   selectEstateSummary, selectDivergences, selectIssueSummary, selectFleetAvailable,
-  selectFlaggedTopics, selectEdges,
+  selectFlaggedTopics, selectEdges, selectRangeMs, RANGE_OPTIONS,
 } from '../../store/selectors';
-import { navigated } from '../../store/slices/viewSlice';
+import { navigated, rangeChanged } from '../../store/slices/viewSlice';
 import { ServiceList } from '../containers/ServiceList';
 import { TopologyGraph } from '../sections/TopologyGraph';
 import { TopicList } from '../controls/TopicList';
+import { RangePicker } from '../controls/RangePicker';
 import { StatusGlyph } from '../primitives/StatusGlyph';
 import { Chip } from '../primitives/Chip';
 
@@ -19,11 +20,18 @@ export function FleetPage() {
   const liveAvailable = useAppSelector(selectFleetAvailable);
   const flagged = useAppSelector(selectFlaggedTopics);
   const edges = useAppSelector(selectEdges);
+  const rangeMs = useAppSelector(selectRangeMs);
 
   return (
     <div className="bz-page">
       <section className="bz-rollup">
         <h2>Estate</h2>
+        <RangePicker
+          rangeMs={rangeMs}
+          options={RANGE_OPTIONS}
+          available={liveAvailable}
+          onChange={(ms) => dispatch(rangeChanged(ms))}
+        />
         <p>
           {summary.worst && <StatusGlyph rag={summary.worst} label={`worst: ${summary.worst}`} />}{' '}
           <strong>{summary.total}</strong> services · {summary.counts.red} unhealthy ·{' '}

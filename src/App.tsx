@@ -6,7 +6,7 @@ import { loadAnnotations } from './store/slices/annotationsSlice';
 import { probeFleet, clockTicked } from './store/slices/fleetSlice';
 import { filterChanged, navigated } from './store/slices/viewSlice';
 import { selectLoad, selectError, selectPage, selectSelected, selectEstateSummary } from './store/selectors';
-import { FleetPage, ServicePage, TopicPage, IssuePage } from './components/pages';
+import { FleetPage, ServicePage, TopicPage, IssuePage, ComposePage } from './components/pages';
 import { EmptyState } from './components/primitives/EmptyState';
 import { StatusGlyph } from './components/primitives/StatusGlyph';
 
@@ -67,7 +67,8 @@ export function App() {
             {page === 'fleet' && <FleetPage />}
             {page === 'service' && selected && <ServicePage service={selected} />}
             {page === 'topic' && selected && <TopicPage topic={selected} />}
-            {(page === 'issue' || page === 'compose') && <IssuePage selected={selected ?? 'all'} />}
+            {page === 'issue' && <IssuePage selected={selected ?? 'all'} />}
+            {page === 'compose' && selected && <ComposePage topic={selected} />}
           </>
         )}
       </main>

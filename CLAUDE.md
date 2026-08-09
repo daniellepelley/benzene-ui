@@ -46,17 +46,34 @@ are spec decisions and live in `src/contracts/mesh.ts`, pinned to the generated 
 
 ## State slices
 
-Three, and the separation is load-bearing:
+Seven, and the separation is load-bearing:
 
-- `estateSlice` — what services **declare** (the aggregator's manifest and snapshots).
-- `fleetSlice` — what the collector has **observed** (heartbeats, issues, flows). Fails independently:
-  `available: false` is a resting state, not an error, and the estate must render fine without it.
-- `viewSlice` — everything the user has done to the view.
+- `estate` — what services **declare** (the aggregator's manifest and snapshots).
+- `fleet` — what the collector has **observed**. Fails independently: `available: false` is a resting
+  state, not an error, and the estate must render fine without it.
+- `catalog` — topics, topology and usage. Published together by one aggregator run and meaningless
+  apart, so they load together and go stale together. Loading *settles* rather than races: one
+  missing artifact must not blank the other two.
+- `annotations` — discussion threads. The only read-**write** data, hence its own slice.
+- `compose` — the "try it" message workflow: selection, draft, in-flight request, result.
+- `capabilities` — what this mesh can actually do (`fleet`, `annotate`, `invoke`), derived from the
+  API once at store creation. **Optional endpoints are state.** A component must never inspect the
+  API object to decide what to render; if it did, "the UI is a function of the store" would be a lie.
+- `view` — everything the user has done to the view.
 
-Conflating the first two is how you lose the ability to say "declared healthy, silent for six
-minutes" — which is the single most useful thing the live plane adds. And note that `fleetSlice.now`
-is state set by `clockTicked`: no selector may read `Date.now()`, or staleness becomes untestable and
-un-memoisable.
+Conflating `estate` and `fleet` is how you lose the ability to say "declared healthy, silent for six
+minutes" — the single most useful thing the live plane adds. And `fleet.now` is state set by
+`clockTicked`: no selector may read `Date.now()`, or staleness becomes untestable and un-memoisable.
+
+## Honesty states
+
+A dashboard that overclaims is worse than none. These distinctions are deliberate and tested:
+
+- "no collector wired" is never rendered as "no issues"
+- a null error rate is drawn as *unknown*, not as healthy
+- a measured topic with zero traffic is a deprecation candidate; an unmeasured one is not a finding
+- a service that has never reported is `silent`, not `stale` — it probably lacks the middleware
+- a read-only mesh explains itself rather than showing a button that cannot work
 
 ## Do NOT
 

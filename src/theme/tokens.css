@@ -147,3 +147,15 @@
 .bz-rollup { border: 1px solid var(--bz-border); border-radius: var(--bz-radius); padding: 0.75rem 1rem; }
 .bz-rollup p { margin: 0.3rem 0; }
 .bz-divergence { color: var(--bz-rag-amber); }
+
+/* ── Compose ───────────────────────────────────────────────────────────────────────────────── */
+.bz-compose { display: flex; flex-direction: column; gap: 0.75rem; max-width: 46rem; }
+.bz-compose-controls { display: flex; gap: 1rem; flex-wrap: wrap; }
+.bz-compose-controls label, .bz-compose-field { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.85rem; color: var(--bz-muted); }
+.bz-compose select, .bz-compose textarea { padding: 0.35rem 0.5rem; border: 1px solid var(--bz-border); border-radius: var(--bz-radius); background: var(--bz-bg); color: var(--bz-fg); font: inherit; }
+.bz-compose textarea { font-family: ui-monospace, monospace; font-size: 0.85rem; }
+.bz-compose textarea[aria-invalid='true'] { border-color: var(--bz-rag-red); }
+.bz-compose-invalid { color: var(--bz-rag-red); font-size: 0.8rem; }
+.bz-compose button { align-self: flex-start; padding: 0.35rem 1rem; border-radius: var(--bz-radius); border: 1px solid var(--bz-accent); background: var(--bz-accent); color: #fff; font-weight: 600; cursor: pointer; }
+.bz-compose button:disabled { opacity: 0.5; cursor: not-allowed; }
+.bz-compose-result pre { background: var(--bz-code-bg); border: 1px solid var(--bz-border); border-radius: var(--bz-radius); padding: 0.75rem; overflow-x: auto; font-size: 0.85rem; }

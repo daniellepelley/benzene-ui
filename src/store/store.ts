@@ -4,6 +4,8 @@ import view from './slices/viewSlice';
 import fleet from './slices/fleetSlice';
 import catalog from './slices/catalogSlice';
 import annotations from './slices/annotationsSlice';
+import compose from './slices/composeSlice';
+import capabilities, { capabilitiesOf } from './slices/capabilitiesSlice';
 
 /**
  * The store is the application. Components render from it and dispatch into it; they hold no state
@@ -13,13 +15,15 @@ import annotations from './slices/annotationsSlice';
  * The mesh API is injected as the thunk `extra` argument, so tests supply a stub and the real client
  * is wired only at the composition root — no test ever touches `fetch`.
  */
-const rootReducer = combineReducers({ estate, view, fleet, catalog, annotations });
+const rootReducer = combineReducers({ estate, view, fleet, catalog, annotations, compose, capabilities });
 
 export const createStore = (api: MeshApi, preloadedState?: Partial<RootState>) =>
   configureStore({
     reducer: rootReducer,
     middleware: (getDefault) => getDefault({ thunk: { extraArgument: api } }),
-    preloadedState,
+    // Capabilities are derived from the API once, here, so components read them from state like
+    // everything else rather than inspecting the API object.
+    preloadedState: { capabilities: capabilitiesOf(api), ...preloadedState },
   });
 
 /**

@@ -232,3 +232,83 @@ export const selectThread = createSelector(
 
 export const selectCanPost = (s: RootState) =>
   s.annotations.draft.trim().length > 0 && s.annotations.post !== 'posting';
+
+// ── Compose ─────────────────────────────────────────────────────────────────────────────────────
+
+import { exampleFromSchema, inboundSchema } from './exampleFromSchema';
+import { RAW_TRANSPORT } from './slices/composeSlice';
+
+/** Every version of a topic, sorted by version string — the payload picker's options. */
+export const selectTopicVersions = createSelector(
+  [selectTopics, (_: RootState, topic: string) => topic],
+  (topics, topic) =>
+    topics
+      .filter((t) => t.topic === topic && !t.reserved)
+      .slice()
+      .sort((a, b) => (a.version || '').localeCompare(b.version || '')),
+);
+
+/**
+ * Transports a topic can actually be sent over, derived from its consumers' HTTP mappings. The raw
+ * benzene-message transport is always offered — it is the one every Benzene service understands.
+ */
+export const selectTransportsForTopic = createSelector(
+  [selectTopics, (_: RootState, topic: string) => topic],
+  (topics, topic) => {
+    const set = new Set<string>([RAW_TRANSPORT]);
+    for (const t of topics.filter((x) => x.topic === topic)) {
+      for (const consumer of t.consumers ?? []) {
+        if ((consumer.httpMappings ?? []).length > 0) set.add('http');
+      }
+    }
+    return [...set];
+  },
+);
+
+/** The deterministic example body for the selected version, as pretty JSON. */
+export const selectExampleBody = createSelector(
+  [selectTopicVersions, (_: RootState, _topic: string, index: number) => index],
+  (versions, index) => {
+    const version = versions[index] ?? versions[0];
+    if (!version) return '{}';
+    const schema = inboundSchema(version);
+    return JSON.stringify(exampleFromSchema(schema), null, 2);
+  },
+);
+
+export interface ComposeValidity {
+  bodyValid: boolean;
+  headersValid: boolean;
+  canSend: boolean;
+}
+
+/**
+ * Whether the composed message is sendable. Parsing lives here rather than in the form, so "is this
+ * valid JSON" is one memoised answer both the Send button and the error message read.
+ */
+export const selectComposeValidity = createSelector(
+  [(s: RootState) => s.compose],
+  (compose): ComposeValidity => {
+    const parses = (text: string) => {
+      try {
+        JSON.parse(text);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    const bodyValid = parses(compose.bodyJson);
+    const headersValid = parses(compose.headersJson);
+    return {
+      bodyValid,
+      headersValid,
+      canSend: bodyValid && headersValid && compose.send !== 'sending' && compose.topic != null,
+    };
+  },
+);
+
+// ── Capabilities ────────────────────────────────────────────────────────────────────────────────
+
+export const selectCapabilities = (s: RootState) => s.capabilities;
+export const selectCanInvoke = (s: RootState) => s.capabilities.invoke;
+export const selectCanAnnotate = (s: RootState) => s.capabilities.annotate;

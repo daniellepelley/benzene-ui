@@ -12,6 +12,7 @@ import { FleetPage } from './FleetPage';
 import { ServicePage } from './ServicePage';
 import { TopicPage } from './TopicPage';
 import { IssuePage } from './IssuePage';
+import { ComposePage } from './ComposePage';
 import type { ReactElement } from 'react';
 
 const loaded = async (withFleet = false) => {
@@ -131,5 +132,54 @@ describe('IssuePage', () => {
     const store = await loaded(true);
     show(store, <IssuePage selected="gone-from-window" />);
     expect(screen.getByText(/no longer in the observation window/)).toBeInTheDocument();
+  });
+});
+
+describe('ComposePage', () => {
+  it('seeds the body from the topic schema', async () => {
+    const store = await loaded();
+    const topic = store.getState().catalog.topics!.topics.find((t) => t.requestSchema && !t.reserved)!;
+    show(store, <ComposePage topic={topic.topic} />);
+
+    const body = screen.getByLabelText(/Body/) as HTMLTextAreaElement;
+    // Deterministic, so this is a real assertion rather than "something appeared".
+    expect(() => JSON.parse(body.value)).not.toThrow();
+    expect(body.value.length).toBeGreaterThan(2);
+  });
+
+  it('offers the raw transport for every topic', async () => {
+    const store = await loaded();
+    const topic = store.getState().catalog.topics!.topics.find((t) => !t.reserved)!;
+    show(store, <ComposePage topic={topic.topic} />);
+
+    expect(screen.getByRole('option', { name: /raw \(benzene-message\)/ })).toBeInTheDocument();
+  });
+
+  it('says so when a topic cannot be composed against', async () => {
+    const store = await loaded();
+    show(store, <ComposePage topic="not-a-topic" />);
+    expect(screen.getByText(/no composable version/)).toBeInTheDocument();
+  });
+
+  it('explains a read-only mesh instead of offering a dead Send button', async () => {
+    const store = await loaded();
+    const topic = store.getState().catalog.topics!.topics.find((t) => !t.reserved)!;
+    show(store, <ComposePage topic={topic.topic} />);
+
+    // fakeMeshApi has no sendMessage, so `capabilities.invoke` is false and the composer says why
+    // rather than rendering a button that cannot work.
+    expect(screen.queryByRole('button', { name: 'Send' })).not.toBeInTheDocument();
+    expect(screen.getByText(/no invoke endpoint configured/)).toBeInTheDocument();
+  });
+
+  it('offers Send when the mesh advertises an invoke endpoint', async () => {
+    const store = createStore(
+      fakeMeshApi({ sendMessage: async () => ({ statusCode: 'ok', body: '{}', headers: {} }) }),
+    );
+    await store.dispatch(loadCatalog());
+    const topic = store.getState().catalog.topics!.topics.find((t) => !t.reserved)!;
+    show(store, <ComposePage topic={topic.topic} />);
+
+    expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled();
   });
 });

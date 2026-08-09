@@ -50,6 +50,12 @@ export interface MeshApi {
     author: string;
     text: string;
   }): Promise<import('./annotationsSlice').Annotation>;
+  /** Optional: absent on a read-only mesh, which disables the composer rather than hiding it. */
+  sendMessage?(message: {
+    topic: string;
+    headers: Record<string, string>;
+    body: string;
+  }): Promise<import('./composeSlice').ComposeResult>;
 }
 
 const estateSlice = createSlice({

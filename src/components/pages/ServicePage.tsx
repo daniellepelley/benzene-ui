@@ -1,7 +1,7 @@
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   selectTopicsForService, selectEdgesForService, selectLiveness, selectIssuesForService,
-  selectFleetAvailable, ragForStatus, selectThread, selectCanPost,
+  selectFleetAvailable, ragForStatus, selectThread, selectCanPost, selectCanAnnotate,
 } from '../../store/selectors';
 import { navigated } from '../../store/slices/viewSlice';
 import { draftChanged, draftAuthorChanged, postAnnotation } from '../../store/slices/annotationsSlice';
@@ -33,7 +33,7 @@ export function ServicePage({ service }: ServicePageProps) {
   const thread = useAppSelector((s: RootState) => selectThread(s, entity));
   const canPost = useAppSelector(selectCanPost);
   const annotations = useAppSelector((s: RootState) => s.annotations);
-  const writable = useAppSelector(() => true);
+  const writable = useAppSelector(selectCanAnnotate);
 
   if (!entry) {
     return <EmptyState message={`${service} is not in the estate manifest.`} />;

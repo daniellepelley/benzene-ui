@@ -11,3 +11,8 @@ export * from './slices/catalogSlice';
 export * from './slices/annotationsSlice';
 export { default as catalogReducer } from './slices/catalogSlice';
 export { default as annotationsReducer } from './slices/annotationsSlice';
+export * from './slices/composeSlice';
+export { default as composeReducer } from './slices/composeSlice';
+export * from './exampleFromSchema';
+export * from './slices/capabilitiesSlice';
+export { default as capabilitiesReducer } from './slices/capabilitiesSlice';

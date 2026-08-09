@@ -1,6 +1,6 @@
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
-  selectTopic, selectTrafficForTopic, selectThread, selectCanPost,
+  selectTopic, selectTrafficForTopic, selectThread, selectCanPost, selectCanAnnotate,
 } from '../../store/selectors';
 import { navigated } from '../../store/slices/viewSlice';
 import { draftChanged, draftAuthorChanged, postAnnotation } from '../../store/slices/annotationsSlice';
@@ -25,6 +25,7 @@ export function TopicPage({ topic }: TopicPageProps) {
   const thread = useAppSelector((s: RootState) => selectThread(s, entity));
   const canPost = useAppSelector(selectCanPost);
   const annotations = useAppSelector((s: RootState) => s.annotations);
+  const writable = useAppSelector(selectCanAnnotate);
 
   if (!entry) return <EmptyState message={`${topic} is not in the published catalog.`} />;
 
@@ -37,6 +38,11 @@ export function TopicPage({ topic }: TopicPageProps) {
         {entry.version && <Chip title="Payload schema version">v{entry.version}</Chip>}
         {entry.reserved && <Chip>reserved</Chip>}
         {entry.status && <Chip title="Flagged by the aggregator">{entry.status}</Chip>}
+        {!entry.reserved && (
+          <button type="button" onClick={() => dispatch(navigated({ page: 'compose', selected: topic }))}>
+            compose a message
+          </button>
+        )}
       </header>
 
       <section>
@@ -95,9 +101,14 @@ export function TopicPage({ topic }: TopicPageProps) {
           error={annotations.postError}
           onDraftChange={(t) => dispatch(draftChanged(t))}
           onAuthorChange={(a) => dispatch(draftAuthorChanged(a))}
-          onPost={() =>
-            void dispatch(postAnnotation({ entity, author: annotations.draftAuthor, text: annotations.draft }))
-          }
+          {...(writable
+            ? {
+                onPost: () =>
+                  void dispatch(
+                    postAnnotation({ entity, author: annotations.draftAuthor, text: annotations.draft }),
+                  ),
+              }
+            : {})}
         />
       </section>
     </div>

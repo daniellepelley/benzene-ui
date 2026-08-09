@@ -16,6 +16,7 @@ export * from './sections/HealthChecks';
 export * from './sections/Thread';
 export * from './sections/Composer';
 export * from './sections/TopologyGraph';
+export * from './sections/MessageComposer';
 export * from './sections/topologyLayout';
 
 export * from './containers/ServiceList';

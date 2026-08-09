@@ -3,14 +3,25 @@ import type { MeshApi } from '../store/slices/estateSlice';
 import type { Annotation } from '../store/slices/annotationsSlice';
 
 /**
- * Resolves artifact paths relative to the page, exactly as the original UI's `resolveUrl` did: the
- * page is served from wherever the aggregator published its artifacts, so everything is relative and
- * nothing needs configuring.
+ * Resolves an artifact path against the manifest's location, then the page.
+ *
+ * `manifestUrl` is very often itself relative — a bare filename, or root-relative like
+ * `/artifacts/manifest.json` when an aggregator host self-serves its dashboard — and `URL()` needs
+ * an absolute base, so it is resolved against the page first and everything else against that.
+ * With no manifest URL at all the page is assumed to sit beside the published artifacts, which is
+ * the realistic static-hosting deployment and needs no configuration whatsoever.
  */
-const resolveUrl = (path: string) => new URL(path, document.baseURI).toString();
+const resolveUrl = (path: string, manifestUrl?: string) => {
+  try {
+    const base = manifestUrl ? new URL(manifestUrl, document.baseURI) : document.baseURI;
+    return new URL(path, base).toString();
+  } catch {
+    return path;
+  }
+};
 
-async function getJson<T>(path: string): Promise<T> {
-  const response = await fetch(resolveUrl(path), { headers: { accept: 'application/json' } });
+async function getJson<T>(path: string, manifestUrl?: string): Promise<T> {
+  const response = await fetch(resolveUrl(path, manifestUrl), { headers: { accept: 'application/json' } });
   if (!response.ok) throw new Error(`${response.status} ${response.statusText} for ${path}`);
   return (await response.json()) as T;
 }
@@ -48,19 +59,43 @@ async function meshQuery<T>(endpoint: string, topic: string, body: unknown): Pro
 }
 
 export interface MeshApiOptions {
+  /** Where the aggregator published its artifacts. Everything else resolves relative to it. */
+  manifestUrl?: string;
   /** Set when a live collector is reachable; absent means the dashboard shows the declared plane only. */
   fleetEndpoint?: string;
   /** Set when annotations are writable. Absent means a read-only mesh. */
   annotationsEndpoint?: string;
 }
 
+/**
+ * How a deployment tells the page where things are.
+ *
+ * Query parameters win, so a link can point one page at another estate. Behind them sit attributes
+ * on the document root, which is how a host that serves this page from inside a running service
+ * bakes its own endpoints in — `Benzene.Mesh.Ui` injects exactly these three, and without reading
+ * them an embedded dashboard would come up with no live plane and no writable annotations at all.
+ */
+export function optionsFromDocument(location: Location, root: HTMLElement): MeshApiOptions {
+  const params = new URLSearchParams(location.search);
+  const pick = (param: string, attribute: string) =>
+    params.get(param) ?? root.getAttribute(attribute) ?? undefined;
+
+  return {
+    manifestUrl: pick('url', 'data-manifest-url'),
+    fleetEndpoint: pick('fleet', 'data-fleet-url'),
+    annotationsEndpoint: pick('annotations', 'data-annotations-url'),
+  };
+}
+
 export const createMeshApi = (options: MeshApiOptions = {}): MeshApi => ({
-  getManifest: () => getJson<Manifest>('manifest.json'),
-  getService: (name) => getJson<ServiceSnapshot>(`services/${encodeURIComponent(name)}.json`),
-  getTopics: () => getJson<Topics>('topics.json'),
-  getTopology: () => getJson<Topology>('topology.json'),
-  getUsage: () => getJson<Usage>('usage.json'),
-  getAnnotations: () => getJson<{ annotations: Annotation[] }>('annotations.json').then((d) => d.annotations),
+  getManifest: () => getJson<Manifest>(options.manifestUrl ?? 'manifest.json'),
+  getService: (name) =>
+    getJson<ServiceSnapshot>(`services/${encodeURIComponent(name)}.json`, options.manifestUrl),
+  getTopics: () => getJson<Topics>('topics.json', options.manifestUrl),
+  getTopology: () => getJson<Topology>('topology.json', options.manifestUrl),
+  getUsage: () => getJson<Usage>('usage.json', options.manifestUrl),
+  getAnnotations: () =>
+    getJson<{ annotations: Annotation[] }>('annotations.json', options.manifestUrl).then((d) => d.annotations),
   ...(options.fleetEndpoint
     ? { getFleet: (query) => meshQuery<FleetView>(options.fleetEndpoint!, 'benzene:mesh:query:fleet', query) }
     : {}),

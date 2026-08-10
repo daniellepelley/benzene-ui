@@ -48,6 +48,9 @@ export const selectVisibleServices = createSelector(
 export const selectIsExpanded = (name: string) => (s: RootState) =>
   s.view.expandedServices.includes(name);
 
+/** Services whose status moved on the last refresh. Empty on first load, by design. */
+export const selectChangedServices = (s: RootState) => s.estate.changed;
+
 /**
  * The estate roll-up the fleet header shows. Derived, never stored — there is exactly one definition
  * of "how many are unhealthy", and both the header and any consumer's own header read it.

@@ -81,6 +81,29 @@ describe('ServiceList — the UI is a function of the store', () => {
     expect(screen.getByRole('button', { name: /orders:create/ })).toBeInTheDocument();
   });
 
+  it('marks a card whose status moved, and no others', () => {
+    // The flash is the only thing on the page that announces a change the reader was not looking
+    // at, so it has to fire on a real transition and nothing else.
+    const store = withEstate();
+    const { container } = renderWith(store);
+    expect(container.querySelector('.bz-svc[data-changed]')).toBeNull();
+
+    act(() => {
+      store.dispatch(
+        manifestRefreshed({
+          generatedAtUtc: '2026-07-16T09:16:00Z',
+          services: [
+            { name: 'orders-api', status: 'unhealthy', contractDrift: false },
+            { name: 'payments-api', status: 'unhealthy', contractDrift: true },
+          ],
+        }),
+      );
+    });
+
+    const flashing = [...container.querySelectorAll('.bz-svc[data-changed]')];
+    expect(flashing.map((c) => c.getAttribute('data-service'))).toEqual(['orders-api']);
+  });
+
   it('says why the list is empty rather than showing nothing', () => {
     const store = withEstate();
     renderWith(store);

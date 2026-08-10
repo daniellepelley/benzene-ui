@@ -1,5 +1,8 @@
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { selectVisibleServices, ragForStatus, selectVisibleServiceLinks, selectVisibleServiceTopics } from '../../store/selectors';
+import {
+  selectVisibleServices, ragForStatus, selectVisibleServiceLinks, selectVisibleServiceTopics,
+  selectChangedServices,
+} from '../../store/selectors';
 import { serviceToggled, navigated } from '../../store/slices/viewSlice';
 import { ServiceCard } from '../controls/ServiceCard';
 import { ServiceLinks } from '../controls/ServiceLinks';
@@ -31,6 +34,7 @@ export function ServiceList({ pageUrl = '' }: ServiceListProps = {}) {
   // empty box: the affordance promised detail and delivered nothing, which is worse than no
   // affordance, because a reader concludes the data is missing rather than the control is broken.
   const topics = useAppSelector(selectVisibleServiceTopics);
+  const changed = useAppSelector(selectChangedServices);
   const dispatch = useAppDispatch();
 
   if (services.length === 0) {
@@ -46,6 +50,7 @@ export function ServiceList({ pageUrl = '' }: ServiceListProps = {}) {
           rag={ragForStatus(service.status)}
           links={<ServiceLinks {...links[i]!} />}
           expanded={expanded.includes(service.name)}
+          changed={changed.includes(service.name)}
           onToggle={(name) => dispatch(serviceToggled(name))}
           onOpen={(name) => dispatch(navigated({ page: 'service', selected: name }))}
         >

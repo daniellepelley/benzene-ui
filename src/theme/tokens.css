@@ -269,6 +269,22 @@ input, select, textarea {
   box-shadow: var(--bz-shadow);
 }
 .bz-svc[data-expanded='true'] { border-color: var(--bz-accent); }
+
+/* A card whose status moved since the last refresh says so, once.
+   Deliberately a single 1.4s settle rather than a repeat or a pulse: a card that keeps moving is
+   motion in the place alarms live, and readers learn to look away from that — which is the opposite
+   of the point. The card's own RAG colour does the tinting, so the flash says *which way* it moved:
+   a service going red and a service recovering are different news. Reduced-motion collapses the
+   duration via the global rule above, and the card simply appears in its new state. */
+@keyframes bz-settle {
+  from { background: var(--bz-flash); box-shadow: 0 0 0 3px var(--bz-flash); }
+  to { background: var(--bz-surface); box-shadow: var(--bz-shadow); }
+}
+.bz-svc[data-changed] { animation: bz-settle 1.4s ease-out 1; }
+.bz-svc[data-changed][data-rag='red'] { --bz-flash: var(--bz-rag-red-bg); }
+.bz-svc[data-changed][data-rag='amber'] { --bz-flash: var(--bz-rag-amber-bg); }
+.bz-svc[data-changed][data-rag='green'] { --bz-flash: var(--bz-rag-green-bg); }
+.bz-svc[data-changed][data-rag='gone'] { --bz-flash: var(--bz-rag-gone-bg); }
 .bz-svc-head { display: flex; align-items: center; gap: var(--bz-gap); flex-wrap: wrap; }
 .bz-svc-name {
   background: none; border: none; padding: 0; font: inherit; font-weight: 600;

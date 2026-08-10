@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from './store/hooks';
-import { loadManifest, loadService } from './store/slices/estateSlice';
+import { loadManifest, loadService, refreshManifest, ARTIFACT_POLL_MS } from './store/slices/estateSlice';
 import { loadCatalog } from './store/slices/catalogSlice';
 import { loadAnnotations } from './store/slices/annotationsSlice';
 import { probeFleet, pollInbox, clockTicked, FLEET_POLL_MS, INBOX_POLL_MS } from './store/slices/fleetSlice';
@@ -50,6 +50,19 @@ export function App() {
   // live cadence would scan — and bill for — a day of traces every fifteen seconds.
   useEffect(() => {
     const id = setInterval(() => void dispatch(pollInbox()), INBOX_POLL_MS);
+    return () => clearInterval(id);
+  }, [dispatch]);
+
+  // The published artifacts, re-fetched together on a slower cadence than the live poll. Together,
+  // because one aggregator run publishes all of them under one `generatedAtUtc` — refreshing the
+  // manifest alone would put fresh statuses under a stale map. Slower, because they change when the
+  // aggregator runs, not continuously; polling them at the live cadence would be asking a question
+  // whose answer cannot have moved.
+  useEffect(() => {
+    const id = setInterval(() => {
+      void dispatch(refreshManifest());
+      void dispatch(loadCatalog());
+    }, ARTIFACT_POLL_MS);
     return () => clearInterval(id);
   }, [dispatch]);
 

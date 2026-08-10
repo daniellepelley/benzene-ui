@@ -13,6 +13,13 @@ export interface ServiceCardProps {
   links?: ReactNode;
   /** Rendered only when expanded — the container decides what the detail is. */
   children?: ReactNode;
+  /**
+   * This service's status moved on the last refresh, so the card announces itself once.
+   *
+   * A prop rather than something the card works out, because a card cannot know what it looked like
+   * before — and a component that tried would be holding state to do it.
+   */
+  changed?: boolean;
 }
 
 /**
@@ -30,9 +37,16 @@ export function ServiceCard({
   onOpen,
   links,
   children,
+  changed = false,
 }: ServiceCardProps) {
   return (
-    <article className="bz-svc" data-service={service.name} data-expanded={expanded} data-rag={rag}>
+    <article
+      className="bz-svc"
+      data-service={service.name}
+      data-expanded={expanded}
+      data-rag={rag}
+      data-changed={changed || undefined}
+    >
       <div className="bz-svc-head">
         {/* No standalone glyph: the rail and the filled badge already carry the status, and saying
             one fact three times crowds the row without adding a signal. */}

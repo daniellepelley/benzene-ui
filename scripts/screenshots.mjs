@@ -81,6 +81,16 @@ const PAGES = [
   // block, so it is the one that can silently drift into a half-dark page; the run above with
   // `--scheme dark` never exercises it.
   { name: 'forced-dark', path: '/', click: ['.bz-theme-toggle', '.bz-theme-toggle'] },
+  // The status-change flash, caught mid-flight. The fixtures are static files, so no refresh here
+  // can ever change a status — the attribute is set directly, which is exactly what the store does
+  // when it sees one move. What this checks is the part unit tests cannot: that the tint reads as
+  // the card's own RAG rather than as a generic highlight.
+  {
+    name: 'status-changed',
+    path: '/',
+    eval: `document.querySelectorAll('.bz-svc').forEach((c) => c.setAttribute('data-changed', 'true'))`,
+    settle: 200,
+  },
 ];
 
 const browser = await chromium.launch();
@@ -97,7 +107,7 @@ page.on('response', (r) => {
 await mkdir(outDir, { recursive: true });
 const index = [];
 
-for (const { name, path, click } of PAGES) {
+for (const { name, path, click, eval: script, settle } of PAGES) {
   await page.goto(base + path, { waitUntil: 'networkidle' });
   await page.waitForTimeout(400);
   for (const selector of [click].flat().filter(Boolean)) {
@@ -107,10 +117,24 @@ for (const { name, path, click } of PAGES) {
       await page.waitForTimeout(250);
     }
   }
+  if (script) {
+    await page.evaluate(script);
+    // Short on purpose: an animation has to be caught part-way, not after it has finished.
+    await page.waitForTimeout(settle ?? 250);
+  }
   const file = join(outDir, `${name}-${scheme}.png`);
   await page.screenshot({ path: file, fullPage: true });
   index.push(`${name}-${scheme}.png`);
   console.log(`  ${name}`);
+  // The theme is remembered in localStorage, so without this the forced-dark page silently themes
+  // every shot after it and the sheet stops being a picture of the default experience.
+  await page.evaluate(() => {
+    try {
+      localStorage.clear();
+    } catch {
+      /* storage may be unavailable; nothing to clear if so */
+    }
+  });
 }
 
 // A contact sheet, so all of them can be looked at at once rather than one file at a time.

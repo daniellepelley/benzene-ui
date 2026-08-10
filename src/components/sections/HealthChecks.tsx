@@ -35,11 +35,11 @@ const formatValue = (value: unknown): string => {
  * failure needs the "why", and the check's own data bag is where the actionable discriminators live.
  */
 export function HealthChecks({ snapshot }: HealthChecksProps) {
-  if (!snapshot) return <EmptyState message="No snapshot has been fetched for this service yet." />;
+  if (!snapshot) return <EmptyState message="No snapshot has been fetched for this service yet." tone="unknown" />;
 
   if (snapshot.error) {
     // The snapshot exists but the fetch failed — say what happened rather than showing nothing.
-    return <EmptyState message={`Could not reach this service: ${snapshot.error}`} />;
+    return <EmptyState message={`Could not reach this service: ${snapshot.error}`} tone="unknown" />;
   }
 
   const checks = Object.entries(snapshot.health?.healthChecks ?? {}) as [

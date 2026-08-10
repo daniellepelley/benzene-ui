@@ -14,6 +14,8 @@ import { FlowList } from '../controls/FlowList';
 import { Thread } from '../sections/Thread';
 import { Composer } from '../sections/Composer';
 import { ValueRow } from '../controls/ValueRow';
+import { PageHead } from '../controls/PageHead';
+import { Badge } from '../primitives/Badge';
 import { Chip } from '../primitives/Chip';
 import { EmptyState } from '../primitives/EmptyState';
 import type { RootState } from '../../store/store';
@@ -43,17 +45,27 @@ export function TopicPage({ topic }: TopicPageProps) {
 
   return (
     <div className="bz-page">
-      <header className="bz-page-head">
-        <h2>{entry.topic}</h2>
-        {versionLabel(entry.version) && <Chip title="Payload schema version">{versionLabel(entry.version)}</Chip>}
-        {entry.reserved && <Chip>reserved</Chip>}
-        {entry.status && <Chip title="Flagged by the aggregator">{entry.status}</Chip>}
-        {!entry.reserved && (
-          <button type="button" onClick={() => dispatch(navigated({ page: 'compose', selected: topic }))}>
-            compose a message
-          </button>
-        )}
-      </header>
+      <PageHead
+        mono
+        breadcrumb={[{ label: 'Estate', onClick: () => dispatch(navigated({ page: 'fleet' })) }]}
+        title={entry.topic}
+        lede="Who produces and consumes this topic, the payload contract on it, and what traffic it has actually carried."
+        badges={
+          <>
+            {versionLabel(entry.version) && <Chip title="Payload schema version">{versionLabel(entry.version)}</Chip>}
+            {entry.reserved && <Chip title="A topic Benzene itself owns">reserved</Chip>}
+            {entry.status && <Badge rag={entry.status === 'gap' ? 'amber' : 'red'} title="Flagged by the aggregator">{entry.status}</Badge>}
+            {entry.schemaMismatch && <Badge rag="red" title="Producer and consumer disagree on the payload shape">schema mismatch</Badge>}
+          </>
+        }
+        actions={
+          !entry.reserved ? (
+            <button type="button" onClick={() => dispatch(navigated({ page: 'compose', selected: topic }))}>
+              compose a message
+            </button>
+          ) : undefined
+        }
+      />
 
       <section>
         <ValueRow label="Consumers">
@@ -74,11 +86,6 @@ export function TopicPage({ topic }: TopicPageProps) {
                 </button>
               ))}
         </ValueRow>
-        {entry.schemaMismatch && (
-          <ValueRow label="Schema" title="Producer and consumer disagree on the payload shape">
-            <Chip>mismatch</Chip>
-          </ValueRow>
-        )}
         {/* The wire binding — the only place a reader can see how to actually reach this topic. */}
         {httpMappings.length > 0 && (
           <ValueRow label="HTTP">

@@ -29,7 +29,7 @@ describe('ValuePage', () => {
   it('leads with what the available evidence can actually support', async () => {
     const store = await loaded();
     show(store, <ValuePage />);
-    expect(screen.getByText(/structural \+ observed-usage evidence/)).toBeInTheDocument();
+    expect(screen.getByText(/structural plus observed usage, candidates first/)).toBeInTheDocument();
   });
 
   it('says out loud that “unused” cannot be proven without a usage feed', async () => {

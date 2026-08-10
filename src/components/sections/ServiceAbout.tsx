@@ -22,7 +22,7 @@ const LIVENESS_TEXT: Record<Liveness, string> = {
 
 /** What a service says about itself, from the spec the aggregator stored verbatim. */
 export function ServiceAbout({ about, liveness = null }: ServiceAboutProps) {
-  if (!about) return <EmptyState message="This service's snapshot has not been loaded." />;
+  if (!about) return <EmptyState message="This service's snapshot has not been loaded." tone="unknown" />;
 
   return (
     <div className="bz-about">

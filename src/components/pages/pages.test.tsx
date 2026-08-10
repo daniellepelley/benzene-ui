@@ -50,11 +50,21 @@ const show = (store: Awaited<ReturnType<typeof loaded>>, ui: ReactElement) =>
   render(<Provider store={store}>{ui}</Provider>);
 
 describe('FleetPage', () => {
-  it('rolls the estate up and lists its services', async () => {
+  it('answers "is anything wrong" in counts, not in a sentence', async () => {
+    // The roll-up used to be a line of running prose, so a reader had to *read* to discover the
+    // estate was broken. The counts are the page's first-second answer and must be present as such.
     const store = await loaded();
     show(store, <FleetPage />);
 
-    expect(screen.getByRole('heading', { name: 'Estate' })).toBeInTheDocument();
+    // Read the tiles directly: "Services" also appears as the section heading below them.
+    const tiles = Object.fromEntries(
+      [...document.querySelectorAll('.bz-stat')].map((el) => [
+        // The label carries a status glyph too, so keep only the word.
+        el.querySelector('.bz-stat-l')?.textContent?.replace(/[^\w ]/g, '').trim(),
+        el.querySelector('.bz-stat-n')?.textContent,
+      ]),
+    );
+    expect(tiles).toMatchObject({ Services: '3', Unhealthy: '1', Unreachable: '1' });
     // The name appears in the service list AND in the topology graph, so query the card's button —
     // the graph draws SVG text, not buttons.
     expect(screen.getByRole('button', { name: 'orders-api' })).toBeInTheDocument();
@@ -70,11 +80,30 @@ describe('FleetPage', () => {
     expect(screen.queryByText(/declaring healthy but/)).not.toBeInTheDocument();
   });
 
-  it('surfaces issue occurrences once a collector is live', async () => {
+  it('puts what needs attention on the front door, not behind a link', async () => {
+    // The whole issue surface used to be one hyperlink inside a paragraph. It is the reason a reader
+    // opened the page, so it is a section on it.
     const store = await loaded(true);
     show(store, <FleetPage />);
 
-    expect(screen.getByText(/12 issue occurrences/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Needs attention' })).toBeInTheDocument();
+    expect(screen.getByText('System.NullReferenceException on payment:capture')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /see all/ })).toBeInTheDocument();
+  });
+
+  it('states the inbox window, because it is deliberately not the picked range', async () => {
+    const store = await loaded(true);
+    show(store, <FleetPage />);
+    expect(screen.getByText('last 24 hours')).toBeInTheDocument();
+  });
+
+  it('orders services worst-first, so the problem is met before the healthy ones', async () => {
+    // Manifest order is an arbitrary answer to "where is the problem".
+    const store = await loaded();
+    show(store, <FleetPage />);
+
+    const names = [...document.querySelectorAll('.bz-svc')].map((el) => el.getAttribute('data-service'));
+    expect(names).toEqual(['payments-api', 'shipping-api', 'orders-api']);
   });
 });
 

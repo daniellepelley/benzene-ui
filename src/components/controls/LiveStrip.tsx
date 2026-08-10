@@ -27,7 +27,6 @@ export function LiveStrip({ liveness, issueCount, diverged }: LiveStripProps) {
   return (
     <span
       className="bz-live"
-      style={{ display: 'inline-flex', gap: '0.4rem', alignItems: 'center' }}
     >
       <span title={TITLE[liveness]} aria-label={TITLE[liveness]} role="img" data-liveness={liveness}>
         {DOT[liveness]}

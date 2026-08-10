@@ -1,6 +1,5 @@
 import type { ManifestService, Rag } from '../../contracts';
 import { Badge } from '../primitives/Badge';
-import { StatusGlyph } from '../primitives/StatusGlyph';
 import type { ReactNode } from 'react';
 
 export interface ServiceCardProps {
@@ -33,9 +32,10 @@ export function ServiceCard({
   children,
 }: ServiceCardProps) {
   return (
-    <article className="bz-svc" data-service={service.name} data-expanded={expanded}>
+    <article className="bz-svc" data-service={service.name} data-expanded={expanded} data-rag={rag}>
       <div className="bz-svc-head">
-        <StatusGlyph rag={rag} />
+        {/* No standalone glyph: the rail and the filled badge already carry the status, and saying
+            one fact three times crowds the row without adding a signal. */}
         <Badge rag={rag}>{service.status}</Badge>
         {service.contractDrift && (
           <Badge rag="amber" title="The published spec has changed since the last snapshot">

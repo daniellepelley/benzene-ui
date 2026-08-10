@@ -41,8 +41,7 @@ export function FlowList({ view, failingOnly, onToggleFailing, onOpenService, su
       <>
         {view.sampledOut ? (
           <EmptyState
-            message={`Traffic was observed${about}, but this plane returned no flows to show. Flows are sampled and capped, so this is not evidence that nothing happened.`}
-          />
+            message={`Traffic was observed${about}, but this plane returned no flows to show. Flows are sampled and capped, so this is not evidence that nothing happened.`} tone="unknown" />
         ) : (
           <EmptyState
             message={

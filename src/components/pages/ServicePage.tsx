@@ -18,8 +18,10 @@ import { ServiceUsage } from '../sections/ServiceUsage';
 import { HealthChecks } from '../sections/HealthChecks';
 import { Thread } from '../sections/Thread';
 import { Composer } from '../sections/Composer';
-import { StatusGlyph } from '../primitives/StatusGlyph';
+import { PageHead } from '../controls/PageHead';
+import { Badge } from '../primitives/Badge';
 import { EmptyState } from '../primitives/EmptyState';
+import { Chip } from '../primitives/Chip';
 import type { RootState } from '../../store/store';
 
 export interface ServicePageProps {
@@ -56,11 +58,20 @@ export function ServicePage({ service }: ServicePageProps) {
 
   return (
     <div className="bz-page">
-      <header className="bz-page-head">
-        <StatusGlyph rag={ragForStatus(entry.status)} />
-        <h2>{service}</h2>
-        {live && <LiveStrip liveness={liveness} issueCount={issues.reduce((n, i) => n + i.count, 0)} diverged={entry.status === 'healthy' && liveness === 'stale'} />}
-      </header>
+      <PageHead
+        mono
+        breadcrumb={[{ label: 'Estate', onClick: () => dispatch(navigated({ page: 'fleet' })) }]}
+        title={service}
+        lede="What this service declares it does, what the collector has observed it doing, and where the two disagree."
+        badges={
+          <>
+            <Badge rag={ragForStatus(entry.status)}>{entry.status}</Badge>
+            {entry.contractDrift && <Badge rag="amber" title="The published spec changed since the last snapshot">drift</Badge>}
+            {entry.owningTeam && <Chip tone="accent">{entry.owningTeam}</Chip>}
+          </>
+        }
+        actions={live ? <LiveStrip liveness={liveness} issueCount={issues.reduce((n, i) => n + i.count, 0)} diverged={entry.status === 'healthy' && liveness === 'stale'} /> : undefined}
+      />
 
       <FeedHealthLine health={feedHealth} />
 
@@ -113,7 +124,7 @@ export function ServicePage({ service }: ServicePageProps) {
         <section>
           <h3>Issues</h3>
           {issues.length === 0 ? (
-            <EmptyState message="No issues observed for this service." />
+            <EmptyState message="No issues observed for this service." tone="clear" />
           ) : (
             issues.map((i) => (
               <IssueRow

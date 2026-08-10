@@ -15,7 +15,7 @@ export interface UsagePanelProps {
  */
 export function UsagePanel({ traffic, windowLabel }: UsagePanelProps) {
   if (!traffic.observed) {
-    return <EmptyState message="No usage source is wired, so traffic for this topic is unknown." />;
+    return <EmptyState message="No usage source is wired, so traffic for this topic is unknown." tone="unknown" />;
   }
 
   const failureRate = traffic.total > 0 ? traffic.failure / traffic.total : 0;

@@ -22,9 +22,10 @@ const meta = {
     docs: {
       description: {
         component:
-          'Classification drives severity: a mis-wiring is not the same as one bad payload. There is ' +
-          'no message on the wire by design — a per-occurrence sentence would shatter one recurring ' +
-          'failure into thousands of fingerprints — so the headline is composed from the stable parts.',
+          'Severity and classification are two axes. The dot carries severity; the classification is a ' +
+          'neutral label. Merging them painted a failing payload green, and green means healthy ' +
+          'everywhere else in this product. The "why" line exists because `config-wiring on ' +
+          'orders:create` tells a developer something and a business analyst nothing.',
       },
     },
   },

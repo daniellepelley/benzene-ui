@@ -25,7 +25,7 @@ const DIMENSIONS = [
  */
 export function ServiceUsage({ usage, showUtility, onToggleUtility }: ServiceUsageProps) {
   if (usage.mode === 'none') {
-    return <EmptyState message="No usage feed is wired, so traffic for this service is unknown." />;
+    return <EmptyState message="No usage feed is wired, so traffic for this service is unknown." tone="unknown" />;
   }
 
   const total = usage.entries.reduce((sum, e) => sum + e.count, 0);

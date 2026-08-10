@@ -1,73 +1,95 @@
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   selectEstateSummary, selectDivergences, selectIssueSummary, selectFleetAvailable,
-  selectFlaggedTopics, selectEdges, selectRangeMs, RANGE_OPTIONS, selectFlows, selectFailingFlowsOnly,
+  selectFlaggedTopics, selectEdges, selectFlows, selectFailingFlowsOnly, selectInboxIssues,
+  selectServiceRags,
 } from '../../store/selectors';
-import { navigated, rangeChanged, failingFlowsToggled } from '../../store/slices/viewSlice';
+import { navigated, failingFlowsToggled } from '../../store/slices/viewSlice';
 import { ServiceList } from '../containers/ServiceList';
 import { TopologyGraph } from '../sections/TopologyGraph';
 import { TopicList } from '../controls/TopicList';
-import { RangePicker } from '../controls/RangePicker';
 import { FlowList } from '../controls/FlowList';
+import { EstateStats } from '../controls/EstateStats';
+import { IssueRow } from '../controls/IssueRow';
 import { StatusGlyph } from '../primitives/StatusGlyph';
 import { Chip } from '../primitives/Chip';
 
-/** The estate at a glance: declared status, what the collector has observed, and the call graph. */
+/** How many issues the front door shows before handing off to the full inbox. */
+const INBOX_PREVIEW = 5;
+
+/**
+ * The estate at a glance.
+ *
+ * Ordered by the question the reader arrives with: *is anything wrong, and where*. So the counts
+ * come first and largest, then what needs attention, then the services themselves; the structural
+ * material — topology, flagged topics — sits below, because it answers a different question that
+ * nobody asks in the first ten seconds.
+ */
 export function FleetPage() {
   const dispatch = useAppDispatch();
   const summary = useAppSelector(selectEstateSummary);
   const divergences = useAppSelector(selectDivergences);
-  const issues = useAppSelector(selectIssueSummary);
+  const issueSummary = useAppSelector(selectIssueSummary);
+  const inbox = useAppSelector(selectInboxIssues);
   const liveAvailable = useAppSelector(selectFleetAvailable);
   const flagged = useAppSelector(selectFlaggedTopics);
   const edges = useAppSelector(selectEdges);
-  const rangeMs = useAppSelector(selectRangeMs);
+  const rags = useAppSelector(selectServiceRags);
   const flows = useAppSelector(selectFlows);
   const failingOnly = useAppSelector(selectFailingFlowsOnly);
 
+  const openService = (name: string) => dispatch(navigated({ page: 'service', selected: name }));
+
+  const stats = [
+    { key: 'total', value: summary.total, label: 'Services' },
+    { key: 'red', value: summary.counts.red, label: 'Unhealthy', rag: 'red' as const },
+    { key: 'amber', value: summary.counts.amber, label: 'Degraded', rag: 'amber' as const },
+    { key: 'gone', value: summary.counts.gone, label: 'Unreachable', rag: 'gone' as const },
+    { key: 'drift', value: summary.drift, label: 'Contract drift', rag: 'amber' as const },
+  ];
+
   return (
     <div className="bz-page">
-      <section className="bz-rollup">
-        <h2>Estate</h2>
-        <RangePicker
-          rangeMs={rangeMs}
-          options={RANGE_OPTIONS}
-          available={liveAvailable}
-          onChange={(ms) => dispatch(rangeChanged(ms))}
-        />
-        <p>
-          {summary.worst && <StatusGlyph rag={summary.worst} label={`worst: ${summary.worst}`} />}{' '}
-          <strong>{summary.total}</strong> services · {summary.counts.red} unhealthy ·{' '}
-          {summary.counts.amber} degraded · {summary.counts.gone} unreachable · {summary.drift} with drift
+      <EstateStats stats={stats} />
+
+      {/* Only meaningful with a collector — without one, every service is "never observed", and
+          reporting that as a divergence would make the feature useless the moment it is unwired. */}
+      {liveAvailable && divergences.length > 0 && (
+        <p className="bz-divergence">
+          <StatusGlyph rag="amber" label="divergence" /> {divergences.length} declaring healthy but
+          silent: {divergences.map((d) => <Chip key={d} tone="warn">{d}</Chip>)}
         </p>
-        {/* Only meaningful with a collector — without one, every service is "never observed". */}
-        {liveAvailable && divergences.length > 0 && (
-          <p className="bz-divergence">
-            <StatusGlyph rag="amber" label="divergence" /> {divergences.length} declaring healthy but
-            silent: {divergences.map((d) => <Chip key={d}>{d}</Chip>)}
-          </p>
-        )}
-        {liveAvailable && issues.occurrences > 0 && (
-          <p>
-            <button type="button" onClick={() => dispatch(navigated({ page: 'issue', selected: 'all' }))}>
-              {issues.occurrences.toLocaleString()} issue occurrences ({issues.distinct} distinct)
+      )}
+
+      {liveAvailable && inbox.length > 0 && (
+        <section>
+          <div className="bz-section-head">
+            <h2>Needs attention</h2>
+            {/* The window is stated because it is deliberately NOT the one the picker controls: an
+                overnight failure has to greet the morning check. */}
+            <span className="bz-page-note">last 24 hours</span>
+            <button
+              type="button"
+              className="bz-section-more"
+              onClick={() => dispatch(navigated({ page: 'issue', selected: 'all' }))}
+            >
+              see all {issueSummary.distinct} →
             </button>
-          </p>
-        )}
-      </section>
+          </div>
+          {inbox.slice(0, INBOX_PREVIEW).map((issue) => (
+            <IssueRow
+              key={issue.fingerprint}
+              issue={issue}
+              onOpen={(fingerprint) => dispatch(navigated({ page: 'issue', selected: fingerprint }))}
+            />
+          ))}
+        </section>
+      )}
 
       <section>
         <h2>Services</h2>
         {/* The spec view links back here, and self-reported URLs resolve against here. */}
         <ServiceList pageUrl={typeof location === 'undefined' ? '' : location.pathname + location.search} />
-      </section>
-
-      <section>
-        <h2>Topology</h2>
-        <TopologyGraph
-          edges={edges}
-          onOpen={(name) => dispatch(navigated({ page: 'service', selected: name }))}
-        />
       </section>
 
       {flows.available && (
@@ -77,7 +99,7 @@ export function FleetPage() {
             view={flows}
             failingOnly={failingOnly}
             onToggleFailing={() => dispatch(failingFlowsToggled())}
-            onOpenService={(name) => dispatch(navigated({ page: 'service', selected: name }))}
+            onOpenService={openService}
           />
         </section>
       )}
@@ -85,13 +107,15 @@ export function FleetPage() {
       {flagged.length > 0 && (
         <section>
           <h2>Topics needing attention</h2>
-          <TopicList
-            topics={flagged}
-            emptyMessage="Nothing flagged."
-            onOpen={(topic) => dispatch(navigated({ page: 'topic', selected: topic }))}
-          />
+          <TopicList topics={flagged} emptyMessage="Nothing flagged."
+            onOpen={(topic) => dispatch(navigated({ page: 'topic', selected: topic }))} />
         </section>
       )}
+
+      <section>
+        <h2>Topology</h2>
+        <TopologyGraph edges={edges} rags={rags} onOpen={openService} />
+      </section>
     </div>
   );
 }

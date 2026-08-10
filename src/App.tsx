@@ -4,14 +4,16 @@ import { loadManifest, loadService } from './store/slices/estateSlice';
 import { loadCatalog } from './store/slices/catalogSlice';
 import { loadAnnotations } from './store/slices/annotationsSlice';
 import { probeFleet, pollInbox, clockTicked, FLEET_POLL_MS, INBOX_POLL_MS } from './store/slices/fleetSlice';
-import { filterChanged, navigated } from './store/slices/viewSlice';
+import { filterChanged, navigated, rangeChanged } from './store/slices/viewSlice';
 import {
   selectLoad, selectError, selectPage, selectSelected, selectEstateSummary, selectFeedHealth,
+  RANGE_OPTIONS,
 } from './store/selectors';
 import { FleetPage, ServicePage, TopicPage, IssuePage, ComposePage, ValuePage } from './components/pages';
 import { FeedHealthLine } from './components/controls/FeedHealthLine';
 import { EmptyState } from './components/primitives/EmptyState';
 import { StatusGlyph } from './components/primitives/StatusGlyph';
+import { RangePicker } from './components/controls/RangePicker';
 
 /**
  * The composition root, and the only place effects are allowed — starting a load and running a clock
@@ -26,6 +28,8 @@ export function App() {
   const filter = useAppSelector((s) => s.view.filter);
   const summary = useAppSelector(selectEstateSummary);
   const feedHealth = useAppSelector(selectFeedHealth);
+  const generatedAtUtc = useAppSelector((s) => s.estate.generatedAtUtc);
+  const liveAvailable = useAppSelector((s) => s.fleet.available);
 
   useEffect(() => {
     void dispatch(loadManifest());
@@ -74,8 +78,20 @@ export function App() {
     <div className="bz-app">
       <header className="bz-app-head">
         <button type="button" className="bz-brand" onClick={() => dispatch(navigated({ page: 'fleet' }))}>
+          {/* The brand mark, inline: no font, no request, and it survives being embedded offline. */}
+          <svg viewBox="0 0 100 100" width="20" height="20" aria-hidden="true" focusable="false">
+            <polygon points="50,4 93,27 93,73 50,96 7,73 7,27" fill="none" stroke="currentColor" strokeWidth="8" />
+            <circle cx="50" cy="50" r="26" fill="none" stroke="currentColor" strokeWidth="8" />
+          </svg>
           Benzene Mesh
         </button>
+        {/* How old is what I am looking at. It is in the contract and was rendered nowhere — a
+            dashboard that will not say when it was last right is asking to be trusted blindly. */}
+        {generatedAtUtc && (
+          <span className="bz-app-meta" title="When the aggregator last published these artifacts">
+            generated {generatedAtUtc}
+          </span>
+        )}
         <nav className="bz-nav">
           <button
             type="button"
@@ -99,9 +115,17 @@ export function App() {
             <StatusGlyph rag={summary.worst} label={`worst status: ${summary.worst}`} />
           </span>
         )}
+        {/* The window governs every live figure on every page, so it belongs in the one place that
+            is on every page — not inside the Estate panel, where it vanished on navigation. */}
+        <RangePicker
+          rangeMs={rangeMs}
+          options={RANGE_OPTIONS}
+          available={liveAvailable}
+          onChange={(ms) => dispatch(rangeChanged(ms))}
+        />
         <input
-          aria-label="Filter"
-          placeholder="Filter…"
+          aria-label="Filter services"
+          placeholder="Filter services…"
           value={filter}
           onChange={(e) => dispatch(filterChanged(e.target.value))}
         />

@@ -24,12 +24,24 @@ const selectServices = (s: RootState) => s.estate.services;
 const selectExpanded = (s: RootState) => s.view.expandedServices;
 
 /** The filtered estate, memoised. Filtering is state-derived, so it is testable without a DOM. */
+const RAG_ORDER: Record<Rag, number> = { red: 0, amber: 1, gone: 2, green: 3 };
+
 export const selectVisibleServices = createSelector(
   [selectServices, selectFilter],
   (services, filter): ManifestService[] => {
     const needle = filter.trim().toLowerCase();
-    if (!needle) return services;
-    return services.filter((s) => s.name.toLowerCase().includes(needle));
+    const matching = needle
+      ? services.filter((s) => s.name.toLowerCase().includes(needle))
+      : services;
+    // Worst first, alphabetical within a tier. Manifest order is an arbitrary answer to "where is
+    // the problem", and a reader scanning top-down should meet it immediately.
+    return matching
+      .slice()
+      .sort(
+        (a, b) =>
+          RAG_ORDER[ragForStatus(a.status)] - RAG_ORDER[ragForStatus(b.status)] ||
+          a.name.localeCompare(b.name),
+      );
   },
 );
 
@@ -246,11 +258,17 @@ export const selectEdgesForService = createSelector(
 );
 
 export const selectTopicsForService = createSelector(
-  [selectTopics, (_: RootState, service: string) => service],
-  (topics, service) => ({
-    consumes: topics.filter((t) => t.consumers?.some((c) => c.service === service)),
-    produces: topics.filter((t) => t.producers?.some((p) => p.service === service)),
-  }),
+  [selectTopics, (s: RootState) => s.view.showUtility, (_: RootState, service: string) => service],
+  (topics, showUtility, service) => {
+    // Every Benzene service consumes the same reserved topics. Listing them beside the domain ones
+    // buries what this service is actually for — and every other traffic surface already hides them
+    // behind the same toggle, so leaving them here was an inconsistency as much as noise.
+    const visible = showUtility ? topics : topics.filter((t) => !t.reserved);
+    return {
+      consumes: visible.filter((t) => t.consumers?.some((c) => c.service === service)),
+      produces: visible.filter((t) => t.producers?.some((p) => p.service === service)),
+    };
+  },
 );
 
 export const selectTopic = createSelector(
@@ -1117,3 +1135,16 @@ export const selectSpecSchemas = createSelector([selectSpec], (spec) =>
     .map(([name, schema]) => ({ name, schema }))
     .sort((a, b) => a.name.localeCompare(b.name)),
 );
+
+/**
+ * Each service's RAG, keyed by name — for surfaces that draw services without holding the manifest.
+ *
+ * The topology graph is the case: it renders nodes from `topology.edges`, which carry no status, so
+ * it drew every node in the accent colour. That made the graph — sitting on the front door — the one
+ * surface where the estate's health was invisible.
+ */
+export const selectServiceRags = createSelector([selectServices], (services) => {
+  const rags: Record<string, Rag> = {};
+  for (const service of services) rags[service.name] = ragForStatus(service.status);
+  return rags;
+});

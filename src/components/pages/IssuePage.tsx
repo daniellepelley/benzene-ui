@@ -18,7 +18,7 @@ export function IssuePage({ selected }: IssuePageProps) {
 
   if (!available) {
     // No collector is not an empty inbox — saying "no issues" would be a lie of omission.
-    return <EmptyState message="No collector is wired, so no issues have been observed. This is not the same as there being none." />;
+    return <EmptyState message="No collector is wired, so no issues have been observed. This is not the same as there being none." tone="unknown" />;
   }
 
   if (selected !== 'all') {
@@ -53,7 +53,7 @@ export function IssuePage({ selected }: IssuePageProps) {
     );
   }
 
-  if (issues.length === 0) return <EmptyState message="No issues observed in the last 24 hours." />;
+  if (issues.length === 0) return <EmptyState message="No issues observed in the last 24 hours." tone="clear" />;
 
   return (
     <div className="bz-page">

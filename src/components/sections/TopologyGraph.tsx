@@ -1,26 +1,35 @@
 import { layoutTopology, NODE_H, type Layout } from './topologyLayout';
-import type { TopologyEdgesItem } from '../../contracts';
+import type { Rag, TopologyEdgesItem } from '../../contracts';
 import { EmptyState } from '../primitives/EmptyState';
 
 export interface TopologyGraphProps {
   edges: TopologyEdgesItem[];
   onOpen?: (service: string) => void;
+  /**
+   * Each node's declared status, keyed by service name.
+   *
+   * The edges carry no status, so without this every node draws identically — which made the graph
+   * the one surface on the front door where the estate's health was invisible. A node with no entry
+   * is drawn dashed: it was observed calling something but is not in the manifest, which is a real
+   * and interesting state, not a reason to guess green.
+   */
+  rags?: Record<string, Rag>;
   /** Above this, an edge is drawn as failing. */
   errorThreshold?: number;
 }
 
 /** Drawn from a precomputed layout — this component does no arithmetic beyond finding endpoints. */
-export function TopologyGraph({ edges, onOpen, errorThreshold = 0.05 }: TopologyGraphProps) {
+export function TopologyGraph({ edges, onOpen, rags = {}, errorThreshold = 0.05 }: TopologyGraphProps) {
   const layout: Layout = layoutTopology(edges);
 
   if (layout.nodes.length === 0) {
-    return <EmptyState message="No topology has been observed — no trace source is wired, or nothing has called anything yet." />;
+    return <EmptyState message="No topology has been observed — no trace source is wired, or nothing has called anything yet." tone="unknown" />;
   }
 
   const at = (name: string) => layout.nodes.find((n) => n.name === name);
 
   return (
-    <div className="bz-topo" style={{ overflowX: 'auto' }}>
+    <div className="bz-topo">
       <svg
         width={layout.width}
         height={layout.height}
@@ -69,7 +78,7 @@ export function TopologyGraph({ edges, onOpen, errorThreshold = 0.05 }: Topology
         })}
 
         {layout.nodes.map((n) => (
-          <g key={n.name} className="bz-topo-node" onClick={() => onOpen?.(n.name)}>
+          <g key={n.name} className="bz-topo-node" data-rag={rags[n.name] ?? 'unknown'} onClick={() => onOpen?.(n.name)}>
             <rect x={n.x} y={n.y} width={n.w} height={NODE_H} rx={6} />
             <text x={n.x + n.w / 2} y={n.y + NODE_H / 2 + 4} textAnchor="middle">
               {n.name}

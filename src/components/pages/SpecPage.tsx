@@ -35,8 +35,8 @@ export function SpecPage({ service, meshHref }: SpecPageProps) {
   const expanded = useAppSelector(selectExpandedOperations);
   const schemas = useAppSelector(selectSpecSchemas);
 
-  if (load === 'loading' || load === 'idle') return <EmptyState message="Loading the spec…" />;
-  if (load === 'failed') return <EmptyState message={error ?? 'The spec could not be loaded.'} />;
+  if (load === 'loading' || load === 'idle') return <EmptyState message="Loading the spec…" tone="unknown" />;
+  if (load === 'failed') return <EmptyState message={error ?? 'The spec could not be loaded.'} tone="unknown" />;
   if (!spec) {
     // The snapshot exists but carries no spec — the service is reachable and says nothing about
     // itself, which is a different problem from being unreachable.

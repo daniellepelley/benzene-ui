@@ -1,7 +1,7 @@
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   selectTopic, selectTrafficForTopic, selectThread, selectCanPost, selectCanAnnotate,
-  selectVersionCompatibility, selectHttpMappingsForTopic, selectLiveForTopic,
+  selectVersionCompatibility, selectHttpMappingsForTopic, selectLiveForTopic, versionLabel,
 } from '../../store/selectors';
 import { navigated } from '../../store/slices/viewSlice';
 import { draftChanged, draftAuthorChanged, postAnnotation } from '../../store/slices/annotationsSlice';
@@ -41,7 +41,7 @@ export function TopicPage({ topic }: TopicPageProps) {
     <div className="bz-page">
       <header className="bz-page-head">
         <h2>{entry.topic}</h2>
-        {entry.version && <Chip title="Payload schema version">v{entry.version}</Chip>}
+        {versionLabel(entry.version) && <Chip title="Payload schema version">{versionLabel(entry.version)}</Chip>}
         {entry.reserved && <Chip>reserved</Chip>}
         {entry.status && <Chip title="Flagged by the aggregator">{entry.status}</Chip>}
         {!entry.reserved && (

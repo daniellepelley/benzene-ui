@@ -67,10 +67,29 @@ export function App() {
         <button type="button" className="bz-brand" onClick={() => dispatch(navigated({ page: 'fleet' }))}>
           Benzene Mesh
         </button>
-        <button type="button" onClick={() => dispatch(navigated({ page: 'value' }))}>
-          Value
-        </button>
-        {summary.worst && <StatusGlyph rag={summary.worst} label={`worst status: ${summary.worst}`} />}
+        <nav className="bz-nav">
+          <button
+            type="button"
+            aria-current={page === 'fleet' ? 'page' : undefined}
+            onClick={() => dispatch(navigated({ page: 'fleet' }))}
+          >
+            Estate
+          </button>
+          <button
+            type="button"
+            aria-current={page === 'value' ? 'page' : undefined}
+            onClick={() => dispatch(navigated({ page: 'value' }))}
+          >
+            Value
+          </button>
+        </nav>
+        {/* The worst status in the estate, always in the same place — a reader who checks one thing
+            on arrival checks this, and it must not move about as the page changes. */}
+        {summary.worst && (
+          <span className="bz-app-worst" title={`Worst status in the estate: ${summary.worst}`}>
+            <StatusGlyph rag={summary.worst} label={`worst status: ${summary.worst}`} />
+          </span>
+        )}
         <input
           aria-label="Filter"
           placeholder="Filter…"

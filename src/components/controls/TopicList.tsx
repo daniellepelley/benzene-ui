@@ -1,5 +1,6 @@
 import type { TopicsTopicsItem } from '../../contracts';
 import { Chip } from '../primitives/Chip';
+import { versionLabel } from '../../store/selectors';
 import { EmptyState } from '../primitives/EmptyState';
 
 export interface TopicListProps {
@@ -24,7 +25,7 @@ export function TopicList({ topics, emptyMessage, onOpen }: TopicListProps) {
           <button type="button" className="bz-topic-name" onClick={() => onOpen?.(t.topic)}>
             {t.topic}
           </button>
-          {t.version && <Chip title="Payload schema version">v{t.version}</Chip>}
+          {versionLabel(t.version) && <Chip title="Payload schema version">{versionLabel(t.version)}</Chip>}
           {t.reserved && <Chip title="A topic Benzene itself owns">reserved</Chip>}
           {t.status && <Chip title={`Flagged: ${t.status}`}>{STATUS_LABEL[t.status] ?? t.status}</Chip>}
           {t.schemaMismatch && <Chip title="Producer and consumer schemas disagree">schema mismatch</Chip>}

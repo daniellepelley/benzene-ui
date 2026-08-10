@@ -104,9 +104,24 @@ Everything is exported, so a team can assemble their own mesh UI:
 
 ```tsx
 import { ServiceCard, StatusGlyph, ragForStatus } from '@benzene/ui';
+import '@benzene/ui/theme.css';
 
 <ServiceCard service={svc} rag={ragForStatus(svc.status)} expanded={open} onToggle={…} onOpen={…} />
 ```
 
 The components never reach for the store themselves — only the containers do — so they work equally
 well driven by your own state.
+
+The stylesheet is a separate import on purpose. A library that injects a stylesheet on import cannot
+be rendered server-side and cannot be overridden by your own cascade order; one explicit line buys
+you control of both. Every colour is a `--bz-*` custom property, so re-theming is overriding tokens
+rather than fighting selectors — including the base layer, which styles `html`/`body` too.
+
+React, React-DOM, React-Redux and Redux Toolkit are **peer** dependencies. Bundling them would give
+you two copies of React, and hooks throw across that boundary.
+
+`npm run test:package` builds the library and then uses it the way this section tells you to —
+imports the exports, renders a component from props, builds a store, renders a container through it,
+and checks the stylesheet is real. It exists because the library build was broken for this project's
+entire life without anything noticing: every other test imports from `src/`, so nothing had ever
+imported what a consumer imports.

@@ -886,3 +886,17 @@ export const selectVisibleServiceLinks = createSelector(
   (services, manifestUrl, pageUrl): ServiceLinkSet[] =>
     services.map((entry) => serviceLinksFor(entry, manifestUrl, pageUrl)),
 );
+
+/**
+ * A payload version as the reader should see it.
+ *
+ * Versions arrive from the aggregator however the service declared them — `v1` in one fleet, `1` or
+ * `2026-01` in another. A hardcoded `v` prefix rendered `vv1` for the common case; conditionally
+ * adding one would invent a convention for fleets that do not use it. So the string is shown as
+ * declared, and only the empty string (a genuinely unversioned handler) gets a word.
+ */
+export const versionLabel = (version: string | null | undefined): string | null =>
+  version == null || version === '' ? null : version;
+
+/** The unversioned case said out loud, for surfaces that must show something. */
+export const UNVERSIONED_LABEL = 'unversioned';

@@ -3,25 +3,34 @@
    components later without re-deriving the visual language. */
 :root {
   --bz-accent: #2f6f4e;
+  --bz-accent-contrast: #ffffff;
   --bz-bg: #ffffff;
+  --bz-surface: #ffffff;
+  --bz-sunken: #f7f8f7;
   --bz-fg: #1a1a1a;
   --bz-muted: #5a5a5a;
   --bz-border: #e2e2e2;
   --bz-code-bg: #f6f8f7;
 
   --bz-rag-red: #c0392b;
-  --bz-rag-amber: #c07a1e;
+  --bz-rag-amber: #a8690f;
   --bz-rag-green: #2f6f4e;
-  --bz-rag-gone: #8a8a8a;
+  --bz-rag-gone: #767676;
 
   --bz-radius: 6px;
   --bz-gap: 0.5rem;
+  --bz-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --bz-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --bz-shadow: 0 1px 2px rgb(0 0 0 / 6%);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --bz-accent: #6fcf9a;
+    --bz-accent-contrast: #10231a;
     --bz-bg: #14161a;
+    --bz-surface: #191c21;
+    --bz-sunken: #101216;
     --bz-fg: #e8e8e8;
     --bz-muted: #a3a3a3;
     --bz-border: #2c2f33;
@@ -29,8 +38,75 @@
     --bz-rag-red: #e8705f;
     --bz-rag-amber: #e0a94a;
     --bz-rag-green: #6fcf9a;
-    --bz-rag-gone: #7d7d7d;
+    --bz-rag-gone: #8b8b8b;
+    --bz-shadow: 0 1px 2px rgb(0 0 0 / 40%);
   }
+}
+
+/* ── Base ──────────────────────────────────────────────────────────────────────────────────────
+   The page itself, not just the components on it. Without this the app painted --bz-bg inside a
+   1100px box on a browser-default white body in Times New Roman — a dark rectangle floating on a
+   white page, which is exactly how it shipped. A component library still has to own the document
+   it is mounted into, or every consumer re-derives the same base layer and gets it slightly wrong.
+   Everything here is token-driven, so a consumer overriding the tokens re-themes the page too. */
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  background: var(--bz-bg);
+  color-scheme: light dark;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bz-bg);
+  color: var(--bz-fg);
+  font-family: var(--bz-font);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 { line-height: 1.25; font-weight: 650; letter-spacing: -0.01em; }
+p { margin: 0.4rem 0; }
+code, pre, .bz-mono { font-family: var(--bz-mono); }
+
+a { color: var(--bz-accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:hover { text-decoration-thickness: 2px; }
+
+/* Form controls do not inherit typography, so an unstyled button renders as OS chrome in the middle
+   of the page — which is what the header's "Value" button and every disclosure caret looked like. */
+button, input, select, textarea { font: inherit; color: inherit; }
+
+button {
+  cursor: pointer;
+  border: 1px solid var(--bz-border);
+  border-radius: var(--bz-radius);
+  background: var(--bz-surface);
+  padding: 0.25rem 0.6rem;
+  transition: border-color 120ms, background 120ms;
+}
+button:hover:not(:disabled) { border-color: var(--bz-accent); }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+input, select, textarea {
+  border: 1px solid var(--bz-border);
+  border-radius: var(--bz-radius);
+  background: var(--bz-surface);
+  padding: 0.3rem 0.5rem;
+}
+
+/* One visible focus ring for everything, since several controls are bare buttons that would
+   otherwise lose the default outline along with the default appearance. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--bz-accent);
+  outline-offset: 2px;
+  border-radius: var(--bz-radius);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
 
 .bz-badge {
@@ -76,9 +152,11 @@
   border: 1px solid var(--bz-border);
   border-radius: var(--bz-radius);
   padding: 0.75rem 0.9rem;
-  background: var(--bz-bg);
+  background: var(--bz-surface);
   color: var(--bz-fg);
+  box-shadow: var(--bz-shadow);
 }
+.bz-svc[data-expanded='true'] { border-color: var(--bz-accent); }
 .bz-svc-head { display: flex; align-items: center; gap: var(--bz-gap); flex-wrap: wrap; }
 .bz-svc-name {
   background: none; border: none; padding: 0; font: inherit; font-weight: 600;
@@ -120,7 +198,7 @@
 .bz-note p { margin: 0.35rem 0 0; }
 .bz-composer { display: flex; flex-direction: column; gap: 0.4rem; max-width: 40rem; }
 .bz-composer input, .bz-composer textarea { padding: 0.4rem 0.5rem; border: 1px solid var(--bz-border); border-radius: var(--bz-radius); background: var(--bz-bg); color: var(--bz-fg); font: inherit; }
-.bz-composer button { align-self: flex-start; padding: 0.35rem 1rem; border-radius: var(--bz-radius); border: 1px solid var(--bz-accent); background: var(--bz-accent); color: #fff; font-weight: 600; cursor: pointer; }
+.bz-composer button { align-self: flex-start; padding: 0.35rem 1rem; border-color: var(--bz-accent); background: var(--bz-accent); color: var(--bz-accent-contrast); font-weight: 600; }
 .bz-composer button:disabled { opacity: 0.5; cursor: not-allowed; }
 .bz-composer-error { color: var(--bz-rag-red); font-size: 0.85rem; margin: 0; }
 .bz-composer-readonly { color: var(--bz-muted); font-size: 0.88rem; font-style: italic; }
@@ -133,18 +211,29 @@
 .bz-topo-node:hover rect { fill: var(--bz-code-bg); }
 
 /* ── App shell ─────────────────────────────────────────────────────────────────────────────── */
-.bz-app { max-width: 1100px; margin: 0 auto; padding: 1.25rem; color: var(--bz-fg); background: var(--bz-bg); }
-.bz-app-head { display: flex; align-items: center; gap: 0.75rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--bz-border); margin-bottom: 1rem; }
-.bz-brand { background: none; border: none; padding: 0; font: inherit; font-size: 1.25rem; font-weight: 700; color: var(--bz-fg); cursor: pointer; }
-.bz-app-head input { margin-left: auto; padding: 0.3rem 0.5rem; border: 1px solid var(--bz-border); border-radius: var(--bz-radius); background: var(--bz-bg); color: var(--bz-fg); }
-.bz-page section { margin-bottom: 1.5rem; }
-.bz-page h2 { font-size: 1.15rem; margin: 0 0 0.5rem; }
-.bz-page h3 { font-size: 1rem; margin: 0 0 0.4rem; }
+.bz-app { max-width: 1100px; margin: 0 auto; padding: 1.25rem 1.25rem 4rem; }
+.bz-app-head {
+  display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+  padding-bottom: 0.75rem; border-bottom: 1px solid var(--bz-border); margin-bottom: 1.25rem;
+}
+/* The brand is a button because it navigates, but it must read as a wordmark, not as a control. */
+.bz-brand {
+  background: none; border: none; padding: 0; font-size: 1.15rem; font-weight: 700;
+  letter-spacing: -0.02em; color: var(--bz-fg);
+}
+.bz-brand:hover { border-color: transparent; color: var(--bz-accent); }
+.bz-nav { display: inline-flex; gap: 0.35rem; }
+.bz-nav button[aria-current='page'] { background: var(--bz-accent); color: var(--bz-accent-contrast); border-color: var(--bz-accent); }
+.bz-app-head input { margin-left: auto; min-width: 12rem; }
+.bz-page section { margin-bottom: 1.75rem; }
+.bz-page h2 { font-size: 1.15rem; margin: 0 0 0.6rem; }
+.bz-page h3 { font-size: 0.98rem; margin: 0 0 0.45rem; }
 .bz-page h4 { font-size: 0.85rem; margin: 0.6rem 0 0.2rem; color: var(--bz-muted); text-transform: uppercase; letter-spacing: 0.03em; }
 .bz-page-head { display: flex; align-items: center; gap: var(--bz-gap); margin-bottom: 0.75rem; }
 .bz-page-head h2 { margin: 0; }
 .bz-svc-list { display: flex; flex-direction: column; gap: 0.5rem; }
-.bz-rollup { border: 1px solid var(--bz-border); border-radius: var(--bz-radius); padding: 0.75rem 1rem; }
+.bz-rollup { border: 1px solid var(--bz-border); border-radius: var(--bz-radius); padding: 0.9rem 1rem; background: var(--bz-sunken); }
+.bz-rollup h2 { margin-bottom: 0.35rem; }
 .bz-rollup p { margin: 0.3rem 0; }
 .bz-divergence { color: var(--bz-rag-amber); }
 
@@ -156,7 +245,7 @@
 .bz-compose textarea { font-family: ui-monospace, monospace; font-size: 0.85rem; }
 .bz-compose textarea[aria-invalid='true'] { border-color: var(--bz-rag-red); }
 .bz-compose-invalid { color: var(--bz-rag-red); font-size: 0.8rem; }
-.bz-compose button { align-self: flex-start; padding: 0.35rem 1rem; border-radius: var(--bz-radius); border: 1px solid var(--bz-accent); background: var(--bz-accent); color: #fff; font-weight: 600; cursor: pointer; }
+.bz-compose button { align-self: flex-start; padding: 0.35rem 1rem; border-color: var(--bz-accent); background: var(--bz-accent); color: var(--bz-accent-contrast); font-weight: 600; }
 .bz-compose button:disabled { opacity: 0.5; cursor: not-allowed; }
 .bz-compose-result pre { background: var(--bz-code-bg); border: 1px solid var(--bz-border); border-radius: var(--bz-radius); padding: 0.75rem; overflow-x: auto; font-size: 0.85rem; }
 
@@ -236,3 +325,4 @@
 .bz-health-detail dt { color: var(--bz-muted); margin: 0; }
 .bz-health-detail dd { margin: 0; }
 .bz-health-detail-empty { margin: 0.2rem 0 0 1.4rem; font-size: 0.8rem; color: var(--bz-muted); font-style: italic; }
+.bz-app-worst { display: inline-flex; align-items: center; }

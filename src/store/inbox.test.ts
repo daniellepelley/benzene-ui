@@ -4,6 +4,7 @@ import { probeFleet, pollInbox, clockTicked, fleetObserved, INBOX_WINDOW } from 
 import { rangeChanged } from './slices/viewSlice';
 import { selectInboxIssues, selectIssueSummary } from './selectors';
 import { fakeMeshApi } from '../test/fakeMeshApi';
+import type { FleetQuery } from './slices/fleetSlice';
 import { fleetView, meshIssue } from '../test/fleetView';
 
 const NOW = Date.parse('2026-08-09T09:00:00Z');
@@ -17,7 +18,7 @@ describe('the issue inbox', () => {
   it('asks over a fixed 24 hours, whatever window the reader picked', async () => {
     // An overnight failure has to greet the morning check. Tying the inbox to a 15-minute picker
     // makes the thing that broke at 3am invisible at 9am — the one moment it most needs to be seen.
-    const getFleet = vi.fn(async () => fleetView());
+    const getFleet = vi.fn(async (_query: FleetQuery) => fleetView());
     const store = createStore(fakeMeshApi({ getFleet }));
 
     store.dispatch(rangeChanged(15 * 60_000));
@@ -29,7 +30,7 @@ describe('the issue inbox', () => {
   it('does not pay for flows it will not read', async () => {
     // On a trace-backed plane, a day of flows is a scan billed per trace scanned. The inbox reasons
     // over counts, so asking for them would be paying for nothing.
-    const getFleet = vi.fn(async () => fleetView());
+    const getFleet = vi.fn(async (_query: FleetQuery) => fleetView());
     const store = createStore(fakeMeshApi({ getFleet }));
 
     await store.dispatch(pollInbox());
@@ -38,7 +39,7 @@ describe('the issue inbox', () => {
   });
 
   it('keeps the picker poll and the inbox poll apart', async () => {
-    const getFleet = vi.fn(async () => fleetView());
+    const getFleet = vi.fn(async (_query: FleetQuery) => fleetView());
     const store = createStore(fakeMeshApi({ getFleet }));
 
     store.dispatch(rangeChanged(60 * 60_000));
@@ -96,7 +97,7 @@ describe('the issue inbox', () => {
     // Two independent questions. The 15-second poll decides availability; the inbox does not.
     const store = createStore(
       fakeMeshApi({
-        getFleet: async (query) => {
+        getFleet: async (query: FleetQuery) => {
           if (query.includeFlows === false) throw new Error('inbox scan timed out');
           return fleetView({ issues: [recent] });
         },

@@ -1,7 +1,7 @@
 {
   "name": "@benzene/ui",
   "version": "0.1.0",
-  "description": "React component library for the Benzene Mesh UI \u2014 cross-language, driven entirely by Redux state",
+  "description": "React component library for the Benzene Mesh UI — cross-language, driven entirely by Redux state",
   "license": "MIT",
   "type": "module",
   "files": [
@@ -32,9 +32,11 @@
     "build:storybook": "storybook build -o dist/storybook",
     "generate:contracts": "node scripts/generate-contracts.mjs",
     "test:package": "npm run build:lib && vitest run src/package.test.ts && node scripts/verify-package.mjs",
-    "build:spec": "vite build --config vite.spec.config.ts"
+    "build:spec": "vite build --config vite.spec.config.ts",
+    "shots": "node scripts/screenshots.mjs"
   },
   "devDependencies": {
+    "@reduxjs/toolkit": "^2.5.0",
     "@storybook/addon-essentials": "^8.4.7",
     "@storybook/react": "^8.4.7",
     "@storybook/react-vite": "^8.4.7",
@@ -45,24 +47,24 @@
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
     "jsdom": "^25.0.1",
+    "playwright": "^1.56.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-redux": "^9.2.0",
     "storybook": "^8.4.7",
     "typescript": "^5.7.2",
     "vite": "^6.0.5",
     "vite-plugin-singlefile": "^2.1.0",
-    "vitest": "^2.1.8",
-    "@reduxjs/toolkit": "^2.5.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-redux": "^9.2.0"
+    "vitest": "^2.1.8"
   },
   "module": "./dist/lib/index.js",
   "sideEffects": [
     "**/*.css"
   ],
   "peerDependencies": {
+    "@reduxjs/toolkit": ">=2",
     "react": ">=18",
     "react-dom": ">=18",
-    "react-redux": ">=9",
-    "@reduxjs/toolkit": ">=2"
+    "react-redux": ">=9"
   }
 }

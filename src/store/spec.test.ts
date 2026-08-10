@@ -144,3 +144,35 @@ describe('schema labels', () => {
     expect(schemaLabel(null)).toBe('—');
   });
 });
+
+describe('a spec this viewer does not understand', () => {
+  // A real estate has services on older Benzene versions, and benzene:spec is a topic anything can
+  // answer. A viewer that white-screens on an unfamiliar document is worse than one that shows what
+  // it can — and this is not hypothetical: the vendored sample carried a `{type, topics}` shape from
+  // an earlier spec format, and the page crashed on it with "Cannot read properties of undefined".
+  const loadedFrom = async (document: unknown) => {
+    const store = createStore(
+      fakeMeshApi({
+        getService: async () =>
+          ({ name: 'legacy-api', fetchedAtUtc: '2026-08-09T06:00:00Z', specJson: JSON.stringify(document),
+             specHash: null, previousSpecHash: null, contractDrift: false, health: null, error: null }) as ServiceSnapshot,
+      }),
+    );
+    await store.dispatch(loadSpec('legacy-api'));
+    return store;
+  };
+
+  it('survives a document with no requests or events', async () => {
+    const store = await loadedFrom({ type: 'benzene', topics: { 'orders:get-all': { response: 'OrderDto[]' } } });
+
+    expect(store.getState().spec.load).toBe('ready');
+    expect(selectOperations(store.getState())).toEqual([]);
+    expect(selectSpecSummary(store.getState())).toMatchObject({ topics: 0, events: 0, utilities: 0 });
+  });
+
+  it('survives a document with no info block', async () => {
+    const store = await loadedFrom({ requests: [], events: [] });
+    expect(store.getState().spec.load).toBe('ready');
+    expect(selectSpecSummary(store.getState())).not.toBeNull();
+  });
+});

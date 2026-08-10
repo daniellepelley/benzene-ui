@@ -1069,8 +1069,12 @@ export const selectOperations = createSelector(
   [selectSpec, selectSpecShowUtility],
   (spec, showUtility): SpecOperationModel[] => {
     if (!spec) return [];
-    const requests = spec.requests.map(requestOperation);
-    const events = spec.events.map(eventOperation);
+    // Defensive on purpose: `requests`/`events` are required by the contract, but a service on an
+    // older Benzene — or anything else answering benzene:spec — can publish a document without
+    // them, and a viewer that white-screens on an unfamiliar spec is worse than one that shows
+    // what it can. Absent is rendered as "nothing exposed", which is what it means.
+    const requests = (spec.requests ?? []).map(requestOperation);
+    const events = (spec.events ?? []).map(eventOperation);
     const all = [...requests, ...events];
     return showUtility ? all : all.filter((op) => !op.reserved);
   },
@@ -1095,13 +1099,13 @@ export interface SpecSummaryModel {
 /** The counts across the top. Derived, so the header and the sections cannot disagree. */
 export const selectSpecSummary = createSelector([selectSpec], (spec): SpecSummaryModel | null => {
   if (!spec) return null;
-  const domain = spec.requests.filter((r) => r.reserved !== true);
+  const domain = (spec.requests ?? []).filter((r) => r.reserved !== true);
   return {
     topics: domain.length,
     httpMapped: domain.filter((r) => (r.httpMappings ?? []).length > 0).length,
-    events: spec.events.length,
+    events: (spec.events ?? []).length,
     schemas: Object.keys((spec.components?.schemas ?? {}) as Record<string, unknown>).length,
-    utilities: spec.requests.length - domain.length,
+    utilities: (spec.requests ?? []).length - domain.length,
     transports: spec.transports ?? [],
     messageEndpoint: spec.messageEndpoint ?? null,
   };

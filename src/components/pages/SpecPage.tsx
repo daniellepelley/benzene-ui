@@ -46,8 +46,8 @@ export function SpecPage({ service, meshHref }: SpecPageProps) {
   return (
     <div className="bz-page bz-spec">
       <header className="bz-page-head">
-        <h2>{spec.info.title}</h2>
-        {spec.info.version && <span className="bz-page-note">v{spec.info.version}</span>}
+        <h2>{spec.info?.title ?? service ?? 'Service spec'}</h2>
+        {spec.info?.version && <span className="bz-page-note">v{spec.info.version}</span>}
         {meshHref && (
           <a className="bz-spec-back" href={meshHref}>
             ← back to the mesh
@@ -55,7 +55,7 @@ export function SpecPage({ service, meshHref }: SpecPageProps) {
         )}
       </header>
 
-      {spec.info.description && <p className="bz-spec-desc">{spec.info.description}</p>}
+      {spec.info?.description && <p className="bz-spec-desc">{spec.info.description}</p>}
 
       <SpecSummary summary={summary} />
 

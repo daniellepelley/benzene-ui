@@ -14,6 +14,7 @@ export * from './controls/EdgeList';
 export * from './controls/FeedHealthLine';
 export * from './controls/RetirementRow';
 export * from './controls/RangePicker';
+export * from './controls/FlowList';
 
 export * from './sections/SchemaTree';
 export * from './sections/HealthChecks';

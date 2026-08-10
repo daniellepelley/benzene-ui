@@ -3,7 +3,7 @@ import { useAppDispatch, useAppSelector } from './store/hooks';
 import { loadManifest, loadService } from './store/slices/estateSlice';
 import { loadCatalog } from './store/slices/catalogSlice';
 import { loadAnnotations } from './store/slices/annotationsSlice';
-import { probeFleet, clockTicked, FLEET_POLL_MS } from './store/slices/fleetSlice';
+import { probeFleet, pollInbox, clockTicked, FLEET_POLL_MS, INBOX_POLL_MS } from './store/slices/fleetSlice';
 import { filterChanged, navigated } from './store/slices/viewSlice';
 import {
   selectLoad, selectError, selectPage, selectSelected, selectEstateSummary, selectFeedHealth,
@@ -32,6 +32,15 @@ export function App() {
     void dispatch(loadCatalog());
     void dispatch(loadAnnotations());
     void dispatch(probeFleet());
+    void dispatch(pollInbox());
+  }, [dispatch]);
+
+  // The inbox is a separate question on a much slower cadence: a fixed 24 hours, counts only. A
+  // day-wide view does not need minute-fresh data, and on a trace-backed plane asking for it at the
+  // live cadence would scan — and bill for — a day of traces every fifteen seconds.
+  useEffect(() => {
+    const id = setInterval(() => void dispatch(pollInbox()), INBOX_POLL_MS);
+    return () => clearInterval(id);
   }, [dispatch]);
 
   // Staleness is computed from `fleet.now`, so something has to advance it. A selector reading the

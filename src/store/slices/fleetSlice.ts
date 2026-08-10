@@ -28,6 +28,23 @@ export const HEARTBEAT_STALE_MS = 90_000;
  *  selector needs it to decide when a failed poll has gone on long enough to call the plane stale. */
 export const FLEET_POLL_MS = 15_000;
 
+/**
+ * The issue inbox reasons over a fixed 24 hours, whatever window the reader picked.
+ *
+ * An overnight failure has to greet the morning check. Tying the inbox to a 15-minute picker means
+ * the thing that broke at 3am is invisible at 9am, which is the one moment it most needs to be seen.
+ */
+export const INBOX_WINDOW = 'now-24h';
+
+/**
+ * And on its own, much slower, cadence.
+ *
+ * A 24-hour window makes this the widest scan on the page. On a trace-backed plane that is a
+ * `GetTraceSummaries` over a full day, billed per trace scanned, so polling it at the live cadence
+ * is both expensive and pointless — a day-wide view does not need minute-fresh data.
+ */
+export const INBOX_POLL_MS = 300_000;
+
 export type FleetService = FleetViewServicesItem;
 export type FleetTopic = FleetViewTopicsItem;
 export type FleetTrace = FleetViewTracesItem;
@@ -62,6 +79,14 @@ export interface FleetState {
   topics: FleetTopic[];
   traces: FleetTrace[];
   issues: FleetIssue[];
+  /**
+   * The 24-hour inbox, answered by its own slow poll and never by the picker's window.
+   *
+   * Held apart from `issues` on purpose: `issues` is whatever the picked window returned, and the
+   * inbox is the standing "what has gone wrong today" list. Letting the picker narrow the inbox is
+   * how an overnight failure becomes invisible by morning.
+   */
+  inboxIssues: FleetIssue[];
   /**
    * The window the view answers, when the query carried one.
    *
@@ -98,6 +123,7 @@ const initialState: FleetState = {
   topics: [],
   traces: [],
   issues: [],
+  inboxIssues: [],
   window: null,
   now: 0,
   lastOkAt: null,
@@ -111,6 +137,20 @@ export const probeFleet = createAsyncThunk<
   { extra: MeshApi; state: { view: { rangeMs: number } } }
 >('fleet/probe', async (_, { extra, getState }) =>
   extra.getFleet ? extra.getFleet({ window: { from: relativeFrom(getState().view.rangeMs) } }) : null,
+);
+
+/**
+ * The inbox poll: a fixed 24 hours, counts only.
+ *
+ * `includeFlows: false` is a real cost control, not a micro-optimisation. On a trace-backed plane
+ * flows cost a scan of the whole window and are billed per trace scanned, and the inbox reasons over
+ * counts — so asking for a day of flows it will not read is paying for nothing. Flow evidence comes
+ * from the range-windowed poll instead.
+ */
+export const pollInbox = createAsyncThunk<FleetView | null, void, { extra: MeshApi }>(
+  'fleet/pollInbox',
+  async (_, { extra }) =>
+    extra.getFleet ? extra.getFleet({ window: { from: INBOX_WINDOW }, includeFlows: false }) : null,
 );
 
 /**
@@ -165,6 +205,11 @@ const fleetSlice = createSlice({
         state.available = true;
         state.load = 'live';
         applyView(state, action.payload);
+      })
+      // The inbox is a second, independent question. A failure here must not mark the whole live
+      // plane unavailable — the 15-second poll is the one that decides that.
+      .addCase(pollInbox.fulfilled, (state, action) => {
+        if (action.payload) state.inboxIssues = action.payload.issues;
       })
       .addCase(probeFleet.rejected, (state, action) => {
         state.available = false;

@@ -25,6 +25,14 @@ export interface ViewState {
    * captures — so counting them in by default buries the signal the reader came for.
    */
   showUtility: boolean;
+  /**
+   * Whether the flow lists show only failures.
+   *
+   * Off by default — a reader arriving at a topic wants to see what normal looks like before they
+   * can tell what abnormal looks like. On, it is the "240 errors, show me one" pivot: an error count
+   * that cannot be drilled into is a dead end, and a dead end teaches readers to stop looking.
+   */
+  failingFlowsOnly: boolean;
 }
 
 const initialState: ViewState = {
@@ -34,6 +42,7 @@ const initialState: ViewState = {
   expandedServices: [],
   rangeMs: 15 * 60 * 1000,
   showUtility: false,
+  failingFlowsOnly: false,
 };
 
 const viewSlice = createSlice({
@@ -62,9 +71,20 @@ const viewSlice = createSlice({
     utilityToggled(state) {
       state.showUtility = !state.showUtility;
     },
+    failingFlowsToggled(state) {
+      state.failingFlowsOnly = !state.failingFlowsOnly;
+    },
+    /** The pivot itself: open a topic with its failing flows already showing. */
+    pivotedToFailingFlows(state, action: PayloadAction<string>) {
+      state.page = 'topic';
+      state.selected = action.payload;
+      state.failingFlowsOnly = true;
+    },
   },
 });
 
-export const { navigated, filterChanged, serviceToggled, allCollapsed, rangeChanged, utilityToggled } =
-  viewSlice.actions;
+export const {
+  navigated, filterChanged, serviceToggled, allCollapsed, rangeChanged, utilityToggled,
+  failingFlowsToggled, pivotedToFailingFlows,
+} = viewSlice.actions;
 export default viewSlice.reducer;

@@ -2,13 +2,15 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   selectTopic, selectTrafficForTopic, selectThread, selectCanPost, selectCanAnnotate,
   selectVersionCompatibility, selectHttpMappingsForTopic, selectLiveForTopic, versionLabel,
+  selectFlowsForTopic, selectFailingFlowsOnly,
 } from '../../store/selectors';
-import { navigated } from '../../store/slices/viewSlice';
+import { navigated, failingFlowsToggled, pivotedToFailingFlows } from '../../store/slices/viewSlice';
 import { draftChanged, draftAuthorChanged, postAnnotation } from '../../store/slices/annotationsSlice';
 import { SchemaTree } from '../sections/SchemaTree';
 import { VersionCompatibility } from '../sections/VersionCompatibility';
 import { TopicLiveStrip } from '../sections/TopicLiveStrip';
 import { UsagePanel } from '../controls/UsagePanel';
+import { FlowList } from '../controls/FlowList';
 import { Thread } from '../sections/Thread';
 import { Composer } from '../sections/Composer';
 import { ValueRow } from '../controls/ValueRow';
@@ -32,6 +34,8 @@ export function TopicPage({ topic }: TopicPageProps) {
   const compatibility = useAppSelector((s: RootState) => selectVersionCompatibility(s, topic));
   const httpMappings = useAppSelector((s: RootState) => selectHttpMappingsForTopic(s, topic));
   const live = useAppSelector((s: RootState) => selectLiveForTopic(s, topic));
+  const flows = useAppSelector((s: RootState) => selectFlowsForTopic(s, topic));
+  const failingOnly = useAppSelector(selectFailingFlowsOnly);
 
   if (!entry) return <EmptyState message={`${topic} is not in the published catalog.`} />;
 
@@ -92,9 +96,26 @@ export function TopicPage({ topic }: TopicPageProps) {
       <section>
         <h3>Traffic</h3>
         {/* Two planes, two windows. The strip states its own; the panel states the feed's. */}
-        <TopicLiveStrip live={live} traffic={traffic} />
+        <TopicLiveStrip
+          live={live}
+          traffic={traffic}
+          onShowFailingFlows={() => dispatch(pivotedToFailingFlows(topic))}
+        />
         <UsagePanel traffic={traffic} windowLabel="over the usage feed's own window" />
       </section>
+
+      {flows.available && (
+        <section>
+          <h3>Flows</h3>
+          <FlowList
+            view={flows}
+            failingOnly={failingOnly}
+            subject={topic}
+            onToggleFailing={() => dispatch(failingFlowsToggled())}
+            onOpenService={openService}
+          />
+        </section>
+      )}
 
       <section>
         <h3>Payload</h3>

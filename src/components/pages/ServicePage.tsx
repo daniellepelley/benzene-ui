@@ -3,14 +3,16 @@ import {
   selectTopicsForService, selectEdgesForService, selectLiveness, selectIssuesForService,
   selectFleetAvailable, ragForStatus, selectThread, selectCanPost, selectCanAnnotate,
   selectServiceAbout, selectUsageForService, selectShowUtility, selectFeedHealth,
+  selectFlowsForService, selectFailingFlowsOnly,
 } from '../../store/selectors';
-import { navigated, utilityToggled } from '../../store/slices/viewSlice';
+import { navigated, utilityToggled, failingFlowsToggled } from '../../store/slices/viewSlice';
 import { draftChanged, draftAuthorChanged, postAnnotation } from '../../store/slices/annotationsSlice';
 import { TopicList } from '../controls/TopicList';
 import { EdgeList } from '../controls/EdgeList';
 import { LiveStrip } from '../controls/LiveStrip';
 import { IssueRow } from '../controls/IssueRow';
 import { FeedHealthLine } from '../controls/FeedHealthLine';
+import { FlowList } from '../controls/FlowList';
 import { ServiceAbout } from '../sections/ServiceAbout';
 import { ServiceUsage } from '../sections/ServiceUsage';
 import { HealthChecks } from '../sections/HealthChecks';
@@ -42,6 +44,8 @@ export function ServicePage({ service }: ServicePageProps) {
   const usage = useAppSelector((s: RootState) => selectUsageForService(s, service));
   const showUtility = useAppSelector(selectShowUtility);
   const feedHealth = useAppSelector(selectFeedHealth);
+  const flows = useAppSelector((s: RootState) => selectFlowsForService(s, service));
+  const failingOnly = useAppSelector(selectFailingFlowsOnly);
 
   if (!entry) {
     return <EmptyState message={`${service} is not in the estate manifest.`} />;
@@ -91,6 +95,19 @@ export function ServicePage({ service }: ServicePageProps) {
         <h4>Inbound</h4>
         <EdgeList edges={edges.inbound} show="client" emptyMessage="Nothing observed calling this." onOpen={open} />
       </section>
+
+      {live && (
+        <section>
+          <h3>Flows</h3>
+          <FlowList
+            view={flows}
+            failingOnly={failingOnly}
+            subject={service}
+            onToggleFailing={() => dispatch(failingFlowsToggled())}
+            onOpenService={open}
+          />
+        </section>
+      )}
 
       {live && (
         <section>

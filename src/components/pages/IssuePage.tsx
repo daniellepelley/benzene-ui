@@ -1,10 +1,9 @@
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { selectIssueSummary, selectFleetAvailable } from '../../store/selectors';
+import { selectIssueSummary, selectFleetAvailable, selectInboxIssues } from '../../store/selectors';
 import { navigated } from '../../store/slices/viewSlice';
 import { IssueRow, issueHeadline } from '../controls/IssueRow';
 import { EmptyState } from '../primitives/EmptyState';
 import { Chip } from '../primitives/Chip';
-import type { RootState } from '../../store/store';
 
 export interface IssuePageProps {
   /** An issue fingerprint, or 'all' for the inbox. */
@@ -14,7 +13,7 @@ export interface IssuePageProps {
 export function IssuePage({ selected }: IssuePageProps) {
   const dispatch = useAppDispatch();
   const available = useAppSelector(selectFleetAvailable);
-  const issues = useAppSelector((s: RootState) => s.fleet.issues);
+  const issues = useAppSelector(selectInboxIssues);
   const summary = useAppSelector(selectIssueSummary);
 
   if (!available) {
@@ -54,7 +53,7 @@ export function IssuePage({ selected }: IssuePageProps) {
     );
   }
 
-  if (issues.length === 0) return <EmptyState message="No issues observed in this window." />;
+  if (issues.length === 0) return <EmptyState message="No issues observed in the last 24 hours." />;
 
   return (
     <div className="bz-page">
@@ -63,6 +62,8 @@ export function IssuePage({ selected }: IssuePageProps) {
         <Chip title="Occurrences, not distinct issues">
           {summary.occurrences.toLocaleString()} occurrences · {summary.distinct} distinct
         </Chip>
+        {/* The window is stated, because it is deliberately NOT the one the picker controls. */}
+        <span className="bz-page-note">last 24 hours</span>
       </header>
       {issues.map((i) => (
         <IssueRow

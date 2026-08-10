@@ -326,3 +326,14 @@ input, select, textarea {
 .bz-health-detail dd { margin: 0; }
 .bz-health-detail-empty { margin: 0.2rem 0 0 1.4rem; font-size: 0.8rem; color: var(--bz-muted); font-style: italic; }
 .bz-app-worst { display: inline-flex; align-items: center; }
+
+/* ── Flows ─────────────────────────────────────────────────────────────────────────────────────── */
+.bz-live-pivot { padding: 0 0.35rem; border-color: var(--bz-rag-red); color: var(--bz-rag-red); font-weight: 600; }
+.bz-flow-toggle { font-size: 0.8rem; padding: 0.1rem 0.5rem; margin-bottom: 0.4rem; }
+.bz-flow-list { list-style: none; margin: 0; padding: 0; }
+.bz-flow-list li { display: flex; gap: 0.5rem; align-items: baseline; flex-wrap: wrap; padding: 0.35rem 0 0.35rem 0.5rem; border-left: 3px solid var(--bz-border); }
+.bz-flow-list li[data-failed] { border-left-color: var(--bz-rag-red); }
+.bz-flow-id { font-size: 0.78rem; color: var(--bz-muted); user-select: all; }
+.bz-flow-meta { font-size: 0.78rem; color: var(--bz-muted); }
+.bz-flow-services { display: inline-flex; gap: 0.3rem; flex-wrap: wrap; }
+.bz-flow-svc { background: none; border: none; padding: 0; font-size: 0.82rem; color: var(--bz-accent); text-decoration: underline; }

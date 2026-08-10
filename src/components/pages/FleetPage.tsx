@@ -1,13 +1,14 @@
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   selectEstateSummary, selectDivergences, selectIssueSummary, selectFleetAvailable,
-  selectFlaggedTopics, selectEdges, selectRangeMs, RANGE_OPTIONS,
+  selectFlaggedTopics, selectEdges, selectRangeMs, RANGE_OPTIONS, selectFlows, selectFailingFlowsOnly,
 } from '../../store/selectors';
-import { navigated, rangeChanged } from '../../store/slices/viewSlice';
+import { navigated, rangeChanged, failingFlowsToggled } from '../../store/slices/viewSlice';
 import { ServiceList } from '../containers/ServiceList';
 import { TopologyGraph } from '../sections/TopologyGraph';
 import { TopicList } from '../controls/TopicList';
 import { RangePicker } from '../controls/RangePicker';
+import { FlowList } from '../controls/FlowList';
 import { StatusGlyph } from '../primitives/StatusGlyph';
 import { Chip } from '../primitives/Chip';
 
@@ -21,6 +22,8 @@ export function FleetPage() {
   const flagged = useAppSelector(selectFlaggedTopics);
   const edges = useAppSelector(selectEdges);
   const rangeMs = useAppSelector(selectRangeMs);
+  const flows = useAppSelector(selectFlows);
+  const failingOnly = useAppSelector(selectFailingFlowsOnly);
 
   return (
     <div className="bz-page">
@@ -66,6 +69,18 @@ export function FleetPage() {
           onOpen={(name) => dispatch(navigated({ page: 'service', selected: name }))}
         />
       </section>
+
+      {flows.available && (
+        <section>
+          <h2>Recent flows</h2>
+          <FlowList
+            view={flows}
+            failingOnly={failingOnly}
+            onToggleFailing={() => dispatch(failingFlowsToggled())}
+            onOpenService={(name) => dispatch(navigated({ page: 'service', selected: name }))}
+          />
+        </section>
+      )}
 
       {flagged.length > 0 && (
         <section>

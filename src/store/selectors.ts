@@ -71,7 +71,25 @@ export const selectFleetLoad = (s: RootState) => s.fleet.load;
 const selectFleetServices = (s: RootState) => s.fleet.services;
 const selectFleetTopics = (s: RootState) => s.fleet.topics;
 const selectNow = (s: RootState) => s.fleet.now;
-const selectIssues = (s: RootState) => s.fleet.issues;
+/**
+ * The inbox, windowed on `lastSeen`.
+ *
+ * The collector returns its issue map unfiltered — the contract is explicit that it is a merged map
+ * and that readers window it themselves. Without that, the inbox shows every signature the collector
+ * has ever merged, including ones fixed weeks ago, and a list nobody can trust gets ignored.
+ */
+const selectIssues = createSelector(
+  [(s: RootState) => s.fleet.inboxIssues, (s: RootState) => s.fleet.issues, selectNow],
+  (inbox, windowed, now): FleetIssue[] => {
+    // Prefer the dedicated 24h poll; fall back to the picker's view until the first one lands.
+    const source = inbox.length > 0 ? inbox : windowed;
+    if (now === 0) return source; // clock not ticked yet — filtering would drop everything
+    return source.filter((issue) => now - Date.parse(issue.lastSeen) <= INBOX_WINDOW_MS);
+  },
+);
+
+/** The inbox window as milliseconds, for the client-side `lastSeen` filter. */
+export const INBOX_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export const selectFleetService = createSelector(
   [selectFleetServices, (_: RootState, service: string) => service],
@@ -97,6 +115,11 @@ export const selectLiveness = createSelector(
     const age = now - Date.parse(lastSeen);
     return age > HEARTBEAT_STALE_MS ? 'stale' : 'live';
   },
+);
+
+/** The 24-hour inbox, for anything that renders the list itself. */
+export const selectInboxIssues = createSelector([selectIssues], (issues) =>
+  issues.slice().sort((a, b) => Date.parse(b.lastSeen) - Date.parse(a.lastSeen)),
 );
 
 /** Issues for one service, newest activity first. */
@@ -900,3 +923,73 @@ export const versionLabel = (version: string | null | undefined): string | null 
 
 /** The unversioned case said out loud, for surfaces that must show something. */
 export const UNVERSIONED_LABEL = 'unversioned';
+
+// ── Flows (the evidence plane) ──────────────────────────────────────────────────────────────────
+
+import type { FleetTrace } from './slices/fleetSlice';
+
+export const selectFailingFlowsOnly = (s: RootState) => s.view.failingFlowsOnly;
+const selectTraces = (s: RootState) => s.fleet.traces;
+
+export interface FlowView {
+  /** False when no collector is wired: an empty list would otherwise read as "nothing happened". */
+  available: boolean;
+  flows: FleetTrace[];
+  /** How many of the matching flows failed, before any failing-only filter narrowed the list. */
+  failing: number;
+  /** Total matching the entity, ignoring the failing-only filter — so the toggle can say what it hides. */
+  total: number;
+  /**
+   * True when the plane returned no flows at all while reporting traffic.
+   *
+   * Flows are sampled and capped, and a counts-only poll asks for none deliberately, so an empty
+   * list is never evidence that nothing happened — it has to be said rather than left to look
+   * like silence.
+   */
+  sampledOut: boolean;
+}
+
+const newestFirst = (flows: FleetTrace[]) =>
+  flows.slice().sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt));
+
+function flowViewOf(traces: FleetTrace[], available: boolean, failingOnly: boolean, matching: FleetTrace[], sawTraffic: boolean): FlowView {
+  const failing = matching.filter((f) => f.failed).length;
+  return {
+    available,
+    flows: newestFirst(failingOnly ? matching.filter((f) => f.failed) : matching),
+    failing,
+    total: matching.length,
+    sampledOut: traces.length === 0 && sawTraffic,
+  };
+}
+
+const sawAnyTraffic = (s: RootState) =>
+  s.fleet.topics.some((t) => !t.missingFeeds.includes('stats') && t.invocations > 0);
+
+/** Every recent flow the plane returned. */
+export const selectFlows = createSelector(
+  [selectTraces, selectFleetAvailable, selectFailingFlowsOnly, sawAnyTraffic],
+  (traces, available, failingOnly, sawTraffic): FlowView =>
+    flowViewOf(traces, available, failingOnly, traces, sawTraffic),
+);
+
+/**
+ * Flows whose entry topic is this one.
+ *
+ * `topic` is optional on the wire — a summary-plane row that mapped no Benzene spans cannot be
+ * attributed — so an unattributed flow is simply not claimed for any topic rather than guessed at.
+ */
+export const selectFlowsForTopic = createSelector(
+  [selectTraces, selectFleetAvailable, selectFailingFlowsOnly, sawAnyTraffic,
+    (_: RootState, topic: string) => topic],
+  (traces, available, failingOnly, sawTraffic, topic): FlowView =>
+    flowViewOf(traces, available, failingOnly, traces.filter((f) => f.topic === topic), sawTraffic),
+);
+
+/** Flows this service took part in, at any point in the chain. */
+export const selectFlowsForService = createSelector(
+  [selectTraces, selectFleetAvailable, selectFailingFlowsOnly, sawAnyTraffic,
+    (_: RootState, service: string) => service],
+  (traces, available, failingOnly, sawTraffic, service): FlowView =>
+    flowViewOf(traces, available, failingOnly, traces.filter((f) => f.services.includes(service)), sawTraffic),
+);

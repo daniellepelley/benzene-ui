@@ -25,7 +25,8 @@ actions and assert on output, never simulate clicks to drive state.
 `dist/index.html` inlines all JS and CSS and makes **zero external requests**. `Benzene.Mesh.Ui`
 embeds it and serves it from inside a running service — no CDN, no static hosting. CI asserts this.
 Consequences: no code splitting, no dynamic import, no runtime CDN anything, and bundle size is a
-budget (currently 237 KB against the 274 KB hand-written UI it replaces).
+budget (currently 250 KB for the mesh UI and 218 KB for the spec viewer, against the 274 KB
+and 955-line hand-written pages they replace).
 
 ## The collector is a Benzene service, not a REST API
 
@@ -52,9 +53,23 @@ Inference gives structure, not meaning: it produces `status: string`, never the 
 are spec decisions and live in `src/contracts/mesh.ts`, pinned to the generated shapes by
 `contracts.test.ts`.
 
+## Two pages, one library
+
+`npm run build` produces **two** self-contained files, from two entries:
+
+- `dist/index.html` → `build/mesh-ui.html` — the estate view.
+- `dist/spec/spec.html` → `build/mesh-spec-ui.html` — one service's contract. The same artifact
+  serves `Benzene.Mesh.Ui`'s per-service spec view, `Benzene.Spec.Ui`'s standalone viewer, and the
+  website demo, because the *reading* is identical and only the fetch differs: `?service=` reads the
+  aggregator's stored snapshot, `?url=`/`data-spec-url`/`./spec.json` fetches a document. Two pages
+  for that would drift, and the two they replaced had.
+
+Separate builds rather than two entries in one, because `vite-plugin-singlefile` inlines a whole
+build into a page — two entries in one build inline each other's code into both.
+
 ## State slices
 
-Seven, and the separation is load-bearing:
+Eight, and the separation is load-bearing:
 
 - `estate` — what services **declare** (the aggregator's manifest and snapshots).
 - `fleet` — what the collector has **observed**, stored as the `FleetView` wire contract itself
@@ -73,6 +88,9 @@ Seven, and the separation is load-bearing:
 - `capabilities` — what this mesh can actually do (`fleet`, `annotate`, `invoke`), derived from the
   API once at store creation. **Optional endpoints are state.** A component must never inspect the
   API object to decide what to render; if it did, "the UI is a function of the store" would be a lie.
+- `spec` — one service's own spec document, fetched on demand. Separate from `catalog` because the
+  catalog is the aggregator's cross-service view and this is a single service's self-description:
+  different source, different lifetime, different failure mode.
 - `view` — everything the user has done to the view: page, selection, filter, expansion, the live
   window, and whether benzene's own utility traffic counts toward the traffic surfaces.
 

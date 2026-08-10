@@ -24,27 +24,36 @@ jobs:
       # serving it from inside a Benzene service, where there is no CDN to reach.
       - name: Assert the artifact is self-contained
         run: |
-          if grep -oE '<(script|link)[^>]*(src|href)="(https?:)?//' dist/index.html; then
-            echo "::error::dist/index.html makes an external request"; exit 1
-          fi
-          echo "self-contained: $(stat -c%s dist/index.html) bytes"
+          for page in dist/index.html dist/spec/spec.html; do
+            if grep -oE '<(script|link)[^>]*(src|href)="(https?:)?//' "$page"; then
+              echo "::error::$page makes an external request"; exit 1
+            fi
+            echo "self-contained: $page $(stat -c%s "$page") bytes"
+          done
 
       # The consumers vendor a committed build output rather than running a Node toolchain inside a
       # NuGet package build. A committed artifact can drift from its source in silence, so a fresh
       # rebuild has to reproduce it byte for byte.
-      - name: Assert the committed artifact is current
+      - name: Assert the committed artifacts are current
         run: |
+          fail=0
           if ! cmp -s dist/index.html build/mesh-ui.html; then
             echo "::error::build/mesh-ui.html is stale. Run: npm run build && cp dist/index.html build/mesh-ui.html"
-            diff <(wc -c < dist/index.html) <(wc -c < build/mesh-ui.html) || true
-            exit 1
+            fail=1
           fi
+          if ! cmp -s dist/spec/spec.html build/mesh-spec-ui.html; then
+            echo "::error::build/mesh-spec-ui.html is stale. Run: npm run build && cp dist/spec/spec.html build/mesh-spec-ui.html"
+            fail=1
+          fi
+          exit $fail
 
       # MeshUiPage.GetHtml injects the deployment's endpoints by rewriting this exact opening tag.
       # If the build ever emits a different one, the embedded dashboard loses its live plane silently.
       - name: Assert the host's injection point survived the build
         run: |
-          grep -qF '<html lang="en">' build/mesh-ui.html || {
-            echo '::error::build/mesh-ui.html no longer contains <html lang="en">, which MeshUiPage rewrites'
-            exit 1
-          }
+          for page in build/mesh-ui.html build/mesh-spec-ui.html; do
+            grep -qF '<html lang="en">' "$page" || {
+              echo "::error::$page no longer contains <html lang=\"en\">, which MeshUiPage rewrites"
+              exit 1
+            }
+          done

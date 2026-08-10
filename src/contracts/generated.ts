@@ -9,8 +9,14 @@
  * sample infers as null-only. Widen by adding a sample, not by editing this file — otherwise the next
  * generation silently reverts it.
  *
- * Generated roots: Manifest, Topology, Usage, Topics, Annotations, FleetView, ServiceSnapshot
+ * Generated roots: Manifest, Topology, Usage, Topics, Annotations, FleetView, ServiceSpec, ServiceSnapshot
  */
+
+/** The spec's schema bag, keyed by type name. Open, so it is declared, not inferred. */
+export interface SpecComponents {
+  schemas?: Record<string, JsonSchema>;
+  [section: string]: unknown;
+}
 
 /** A JSON Schema document. Open and recursive by definition, so it is declared, not inferred. */
 export interface JsonSchema {
@@ -212,6 +218,50 @@ export interface FleetViewWindow {
   to: string;
   countsWindowed: boolean;
   countsSince?: string;
+}
+
+export interface ServiceSpec {
+  openapi: string;
+  info: ServiceSpecInfo;
+  tags?: ServiceSpecTagsItem[];
+  messageEndpoint?: string;
+  transports?: string[];
+  requests: ServiceSpecRequestsItem[];
+  events: ServiceSpecEventsItem[];
+  components: SpecComponents;
+}
+
+export interface ServiceSpecInfo {
+  title: string;
+  description?: string;
+  version: string;
+}
+
+export interface ServiceSpecTagsItem {
+  name: string;
+  description: string;
+}
+
+export interface ServiceSpecRequestsItem {
+  topic: string;
+  version?: string;
+  httpMappings?: ServiceSpecRequestsItemHttpMappingsItem[];
+  request: JsonSchema;
+  response: JsonSchema;
+  example?: unknown;
+  reserved?: boolean;
+}
+
+export interface ServiceSpecRequestsItemHttpMappingsItem {
+  method: string;
+  path: string;
+}
+
+export interface ServiceSpecEventsItem {
+  topic: string;
+  version?: string;
+  message: JsonSchema;
+  example?: unknown;
 }
 
 export interface ServiceSnapshot {

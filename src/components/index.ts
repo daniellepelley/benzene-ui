@@ -24,6 +24,8 @@ export * from './sections/TopologyGraph';
 export * from './sections/MessageComposer';
 export * from './sections/VersionCompatibility';
 export * from './sections/TopicLiveStrip';
+export * from './sections/SpecOperation';
+export * from './sections/SpecSummary';
 export * from './sections/ServiceAbout';
 export * from './sections/ServiceUsage';
 export * from './sections/topologyLayout';

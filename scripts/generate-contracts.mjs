@@ -79,6 +79,14 @@ const OPAQUE = new Map([
   ['requestSchema', 'JsonSchema'],
   ['responseSchema', 'JsonSchema'],
   ['messageSchema', 'JsonSchema'],
+  // A service spec is an OpenAPI document, so every payload shape in it is a JSON Schema. Inferring
+  // them would mint one interface per property of whatever the sample happened to declare.
+  ['request', 'JsonSchema'],
+  ['response', 'JsonSchema'],
+  ['message', 'JsonSchema'],
+  ['components', 'SpecComponents'],
+  // An example payload is, by definition, whatever the topic's schema says. There is no shape here.
+  ['example', 'unknown'],
   // Keyed by whatever statuses were observed. Inferring it produces one interface per status the
   // sample happened to contain, which then churns on any traffic mix — and describes nothing.
   ['statusCounts', 'Record<string, number>'],
@@ -142,6 +150,7 @@ for (const [stem, typeName] of [
   ['topics', 'Topics'],
   ['annotations', 'Annotations'],
   ['fleet', 'FleetView'],
+  ['spec', 'ServiceSpec'],
 ]) {
   const node = loadSamples(stem);
   if (!node) continue;
@@ -164,7 +173,13 @@ if (existsSync(dir)) {
 
 const specVersion = readFileSync(join(root, 'contracts', 'SPEC_VERSION'), 'utf8').trim();
 
-const opaqueTypes = `/** A JSON Schema document. Open and recursive by definition, so it is declared, not inferred. */
+const opaqueTypes = `/** The spec's schema bag, keyed by type name. Open, so it is declared, not inferred. */
+export interface SpecComponents {
+  schemas?: Record<string, JsonSchema>;
+  [section: string]: unknown;
+}
+
+/** A JSON Schema document. Open and recursive by definition, so it is declared, not inferred. */
 export interface JsonSchema {
   type?: string | string[];
   title?: string;

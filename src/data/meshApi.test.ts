@@ -50,3 +50,35 @@ describe('deployment configuration', () => {
     });
   });
 });
+
+describe('the spec viewer’s source', () => {
+  // Mirrors spec-main.tsx's precedence. Kept as a test because the three-way fallback is the thing
+  // that lets one artifact serve the mesh, an embedded host, and a static directory.
+  const specSource = (search: string, attributes: Record<string, string> = {}, service?: string) => {
+    const params = new URLSearchParams(search);
+    const root = doc(attributes);
+    return params.get('url') ?? root.getAttribute('data-spec-url') ?? (service ? null : 'spec.json');
+  };
+
+  it('prefers an explicit url', () => {
+    expect(specSource('?url=/artifacts/orders.json', { 'data-spec-url': '/baked.json' })).toBe(
+      '/artifacts/orders.json',
+    );
+  });
+
+  it('falls back to what an embedding host baked in', () => {
+    // Benzene.Spec.Ui injects exactly this when it serves the page from inside a service.
+    expect(specSource('', { 'data-spec-url': '/benzene/spec' })).toBe('/benzene/spec');
+  });
+
+  it('defaults to the document beside it, needing no configuration at all', () => {
+    // The same convention the mesh UI uses for manifest.json: the realistic static deployment is
+    // this page sitting next to what it renders.
+    expect(specSource('')).toBe('spec.json');
+  });
+
+  it('does not fetch a document when a mesh service was named instead', () => {
+    // In mesh mode the spec comes from the aggregator's stored snapshot, not from a URL.
+    expect(specSource('', {}, 'orders-api')).toBeNull();
+  });
+});

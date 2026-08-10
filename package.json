@@ -23,7 +23,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && npm run build:spec",
     "build:lib": "vite build --config vite.lib.config.ts && tsc -p tsconfig.lib.json",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -31,7 +31,8 @@
     "storybook": "storybook dev -p 6006",
     "build:storybook": "storybook build -o dist/storybook",
     "generate:contracts": "node scripts/generate-contracts.mjs",
-    "test:package": "npm run build:lib && vitest run src/package.test.ts && node scripts/verify-package.mjs"
+    "test:package": "npm run build:lib && vitest run src/package.test.ts && node scripts/verify-package.mjs",
+    "build:spec": "vite build --config vite.spec.config.ts"
   },
   "devDependencies": {
     "@storybook/addon-essentials": "^8.4.7",

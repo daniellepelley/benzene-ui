@@ -46,18 +46,19 @@ src/
   components/
     primitives/ Badge · Chip · EmptyState · StatusGlyph
     controls/   ServiceCard · LiveStrip · IssueRow · ValueRow · UsagePanel · TopicList · EdgeList
-                FeedHealthLine · RetirementRow · RangePicker
+                FeedHealthLine · RetirementRow · RangePicker · FlowList · ServiceLinks
     sections/   TopologyGraph (+ pure topologyLayout) · SchemaTree · HealthChecks · Thread · Composer
                 MessageComposer · VersionCompatibility · ServiceAbout · ServiceUsage · TopicLiveStrip
+                SpecOperation · SpecSummary
     containers/ ServiceList — the only place a component meets the store
-    pages/      Fleet · Service · Topic · Issue · Compose · Value
+    pages/      Fleet · Service · Topic · Issue · Compose · Value · Spec
   data/         the mesh HTTP client, injected into the store
   theme/        design tokens
 contracts/      vendored sample artifacts + SPEC_VERSION (codegen input)
 scripts/        generate-contracts.mjs
 ```
 
-## Seven slices
+## Eight slices
 
 | Slice | Holds |
 |---|---|
@@ -67,6 +68,7 @@ scripts/        generate-contracts.mjs
 | `annotations` | Discussion threads. The only read-**write** data, hence its own slice |
 | `compose` | The try-it workflow — topic, version, transport, body, headers, result |
 | `capabilities` | What this mesh can do — derived from the injected API, not guessed at |
+| `spec` | One service's own spec document, fetched on demand. Powers the spec viewer |
 | `view` | Page, selection, filter, expansion, live window, utility toggle — everything the user has done |
 
 Keeping `estate` and `fleet` apart is what makes `selectDivergences` expressible: services declaring
@@ -81,13 +83,14 @@ healthy that have stopped reporting. That is the single most useful thing the li
 | `npm run build` | The single self-contained `dist/index.html` |
 | `npm run build:storybook` | Static Storybook, publishable to benzene.app |
 
-## The build target is one file
+## The build targets are two files
 
-`dist/index.html` has **no external requests** — JS and CSS are inlined. `Benzene.Mesh.Ui` embeds it
+`npm run build` emits the estate view (`build/mesh-ui.html`) and the spec viewer
+(`build/mesh-spec-ui.html`). Both have **no external requests** — JS and CSS are inlined. `Benzene.Mesh.Ui` embeds it
 as a resource and serves it from inside the running service: no CDN, no static hosting, no network
 egress. That rules out code splitting and makes bundle size a budget.
 
-Current: **237 KB**, against the 274 KB hand-written UI it replaces. React and Redux Toolkit
+Current: **250 KB** and **218 KB**, against the 274 KB and 955-line hand-written pages they replace. React and Redux Toolkit
 included, the whole application is *smaller* than what it replaces, because a minifier beats
 hand-maintained source. CI asserts there are no external requests.
 

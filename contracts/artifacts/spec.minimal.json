@@ -1,0 +1,7 @@
+{
+  "openapi": "3.0.1",
+  "info": { "title": "Quiet Service", "version": "0.1.0" },
+  "requests": [],
+  "events": [],
+  "components": { "schemas": {} }
+}

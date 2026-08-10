@@ -993,3 +993,123 @@ export const selectFlowsForService = createSelector(
   (traces, available, failingOnly, sawTraffic, service): FlowView =>
     flowViewOf(traces, available, failingOnly, traces.filter((f) => f.services.includes(service)), sawTraffic),
 );
+
+// ── Service spec ────────────────────────────────────────────────────────────────────────────────
+
+import type { ServiceSpecRequestsItem, ServiceSpecEventsItem, JsonSchema } from '../contracts';
+
+export const selectSpecLoad = (s: RootState) => s.spec.load;
+export const selectSpecError = (s: RootState) => s.spec.error;
+export const selectSpec = (s: RootState) => s.spec.spec;
+export const selectSpecShowUtility = (s: RootState) => s.spec.showUtility;
+export const selectExpandedOperations = (s: RootState) => s.spec.expanded;
+
+/** One operation on a service, request/response or event, in the shape the card renders. */
+export interface SpecOperationModel {
+  /** Stable within a document: topic plus version plus kind, so two versions do not collide. */
+  id: string;
+  kind: 'request' | 'event';
+  topic: string;
+  version: string | null;
+  reserved: boolean;
+  httpMappings: { method: string; path: string }[];
+  /** Request/response for a request; message for an event. */
+  input: JsonSchema | null;
+  output: JsonSchema | null;
+  example: unknown;
+}
+
+/** A schema's display name — its title, its array-of-title, or the shape word itself. */
+export const schemaLabel = (schema: JsonSchema | null | undefined): string => {
+  if (!schema) return '—';
+  if (typeof schema.title === 'string') return schema.title;
+  if (schema.type === 'array') {
+    const items = Array.isArray(schema.items) ? schema.items[0] : schema.items;
+    const inner = items && typeof items.title === 'string' ? items.title : (items?.type ?? 'item');
+    return `${String(inner)}[]`;
+  }
+  return typeof schema.type === 'string' ? schema.type : 'object';
+};
+
+const operationId = (kind: string, topic: string, version: string | null) =>
+  `${kind}:${topic}${version ? `@${version}` : ''}`;
+
+const requestOperation = (r: ServiceSpecRequestsItem): SpecOperationModel => ({
+  id: operationId('request', r.topic, r.version || null),
+  kind: 'request',
+  topic: r.topic,
+  version: r.version || null,
+  reserved: r.reserved === true,
+  httpMappings: r.httpMappings ?? [],
+  input: r.request ?? null,
+  output: r.response ?? null,
+  example: r.example,
+});
+
+const eventOperation = (e: ServiceSpecEventsItem): SpecOperationModel => ({
+  id: operationId('event', e.topic, e.version || null),
+  kind: 'event',
+  topic: e.topic,
+  version: e.version || null,
+  reserved: false,
+  httpMappings: [],
+  input: e.message ?? null,
+  output: null,
+  example: e.example,
+});
+
+/**
+ * The service's domain operations — requests first, then events.
+ *
+ * Reserved topics are held back rather than mixed in. Every Benzene service carries the same
+ * handful of utility topics, and a reader opening a spec is asking what *this* service does; the
+ * utilities are the answer to a different question and are available on request.
+ */
+export const selectOperations = createSelector(
+  [selectSpec, selectSpecShowUtility],
+  (spec, showUtility): SpecOperationModel[] => {
+    if (!spec) return [];
+    const requests = spec.requests.map(requestOperation);
+    const events = spec.events.map(eventOperation);
+    const all = [...requests, ...events];
+    return showUtility ? all : all.filter((op) => !op.reserved);
+  },
+);
+
+/** The reserved operations, counted so their absence can be stated rather than hidden. */
+export const selectUtilityOperations = createSelector([selectSpec], (spec): SpecOperationModel[] =>
+  (spec?.requests ?? []).map(requestOperation).filter((op) => op.reserved),
+);
+
+export interface SpecSummaryModel {
+  topics: number;
+  httpMapped: number;
+  events: number;
+  schemas: number;
+  utilities: number;
+  transports: string[];
+  /** Present when the service exposes a BenzeneMessage-over-HTTP endpoint — the send capability. */
+  messageEndpoint: string | null;
+}
+
+/** The counts across the top. Derived, so the header and the sections cannot disagree. */
+export const selectSpecSummary = createSelector([selectSpec], (spec): SpecSummaryModel | null => {
+  if (!spec) return null;
+  const domain = spec.requests.filter((r) => r.reserved !== true);
+  return {
+    topics: domain.length,
+    httpMapped: domain.filter((r) => (r.httpMappings ?? []).length > 0).length,
+    events: spec.events.length,
+    schemas: Object.keys((spec.components?.schemas ?? {}) as Record<string, unknown>).length,
+    utilities: spec.requests.length - domain.length,
+    transports: spec.transports ?? [],
+    messageEndpoint: spec.messageEndpoint ?? null,
+  };
+});
+
+/** Named schemas from the document's component bag, for the reference section. */
+export const selectSpecSchemas = createSelector([selectSpec], (spec) =>
+  Object.entries((spec?.components?.schemas ?? {}) as Record<string, JsonSchema>)
+    .map(([name, schema]) => ({ name, schema }))
+    .sort((a, b) => a.name.localeCompare(b.name)),
+);

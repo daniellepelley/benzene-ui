@@ -60,20 +60,33 @@ describe('the base layer', () => {
 });
 
 describe('the token set', () => {
-  const tokens = (block: string) => new Set([...block.matchAll(/(--bz-[a-z-]+)\s*:/g)].map((m) => m[1]));
+  const declarations = (block: string) =>
+    new Map([...block.matchAll(/(--bz-[a-z0-9-]+)\s*:\s*([^;]+);/g)].map((m) => [m[1]!, m[2]!.trim()]));
+
+  /** A value that renders as a colour, whatever notation it is written in. */
+  const isColour = (value: string) => /(^|\s)(#[0-9a-f]{3,8}|rgb|hsl|oklch|color-mix)/i.test(value);
 
   it('redefines every colour token in dark mode', () => {
-    // A token defined only in light mode keeps its light value on a dark background — the failure is
+    // A colour defined only in light mode keeps its light value on a dark background. The failure is
     // silent and looks like one stubbornly wrong element rather than a missing declaration.
+    //
+    // Derived from the values rather than an exemption list: a hardcoded list of non-colour tokens
+    // goes stale the moment one is added, and then either nags about a radius or — worse — quietly
+    // stops checking a colour someone spelled differently.
     const light = css.slice(css.indexOf(':root {'), css.indexOf('@media (prefers-color-scheme: dark)'));
     const dark = css.slice(css.indexOf('@media (prefers-color-scheme: dark)'));
 
-    const colourish = [...tokens(light)].filter(
-      (t) => !['--bz-radius', '--bz-gap', '--bz-font', '--bz-mono'].includes(t!),
-    );
-    const inDark = tokens(dark.slice(0, dark.indexOf('\n}')));
+    const colours = [...declarations(light)].filter(([, value]) => isColour(value)).map(([name]) => name);
+    const inDark = new Set(declarations(dark.slice(0, dark.indexOf('\n}'))).keys());
 
-    expect([...colourish].filter((t) => !inDark.has(t))).toEqual([]);
+    expect(colours.filter((name) => !inDark.has(name))).toEqual([]);
+  });
+
+  it('checks enough tokens for that to mean something', () => {
+    // A parity test over an empty set passes for the wrong reason.
+    const light = css.slice(css.indexOf(':root {'), css.indexOf('@media (prefers-color-scheme: dark)'));
+    const colours = [...declarations(light)].filter(([, value]) => isColour(value));
+    expect(colours.length).toBeGreaterThan(15);
   });
 
   it('never hardcodes a hex colour outside the token blocks', () => {

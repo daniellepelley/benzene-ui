@@ -1,45 +1,92 @@
-/* Design tokens. The 30 class names shared across mesh-ui, mesh-spec-ui and spec-ui by copy-paste
-   become one layer here — that shared layer is why the other two UIs can be rebuilt on these
-   components later without re-deriving the visual language. */
+/* Design tokens — the whole visual system.
+   The 30 class names shared across mesh-ui, mesh-spec-ui and spec-ui by copy-paste become one layer
+   here; that shared layer is why the other two UIs can be rebuilt on these components.
+
+   The set below is deliberately *semantic and plural*. An earlier version of this file collapsed it
+   to nine colours, one border weight, one radius and a flat shadow, and the result was a product of
+   evenly-weighted boxes where nothing drew the eye — the reader had to read a sentence to learn the
+   estate was broken. Restoring the distinctions restores the hierarchy, because hierarchy is built
+   out of exactly these: page vs card, boundary vs divider, container vs control.
+
+   Anything colour-valued MUST appear in both blocks. `theme.test.ts` enforces that, and enforces
+   that no hex literal appears below this section — a hardcoded colour in a component rule is one
+   element that silently ignores the theme. */
 :root {
-  --bz-accent: #2f6f4e;
-  --bz-accent-contrast: #ffffff;
-  --bz-bg: #ffffff;
+  /* Ground. The page is NOT the card: a card floats, and floating is what makes a list of cards
+     scannable rather than a wall. Light mode had both at #ffffff, which is why the flatness read
+     as a light-mode-only problem. */
+  --bz-bg: #eef0f6;
   --bz-surface: #ffffff;
-  --bz-sunken: #f7f8f7;
-  --bz-fg: #1a1a1a;
-  --bz-muted: #5a5a5a;
-  --bz-border: #e2e2e2;
-  --bz-code-bg: #f6f8f7;
+  --bz-surface-2: #f5f6fb;
+  --bz-sunken: #eceef6;
 
-  --bz-rag-red: #c0392b;
-  --bz-rag-amber: #a8690f;
-  --bz-rag-green: #2f6f4e;
-  --bz-rag-gone: #767676;
+  /* Two weights, two jobs: `border` bounds an object, `border-soft` divides inside one. Collapsing
+     them makes a card's edge and the hairline between two rows the same, so the card stops cohering
+     as a single thing. */
+  --bz-border: #dde0ee;
+  --bz-border-soft: #e8eaf4;
 
-  --bz-radius: 6px;
+  --bz-fg: #1a1c28;
+  --bz-muted: #595e78;
+
+  /* The accent is interactive — links, current nav, primary action. It is deliberately NOT the same
+     value as rag-green: when they were identical, "healthy", "clickable" and "you are here" were one
+     colour, and the current-page pill read as a status indicator. */
+  --bz-accent: #2f6f4e;
+  --bz-accent-soft: #37855e;
+  --bz-accent-tint: #e5f2ea;
+  --bz-accent-contrast: #ffffff;
+
+  /* Status. Each has a tint, because a filled pill carries far more signal than an outlined one and
+     never competes with a real control. */
+  --bz-rag-red: #d6453f;
+  --bz-rag-red-bg: #fce4e3;
+  --bz-rag-amber: #c47d10;
+  --bz-rag-amber-bg: #fbf0da;
+  --bz-rag-green: #159a6b;
+  --bz-rag-green-bg: #e2f6ee;
+  --bz-rag-gone: #767b93;
+  --bz-rag-gone-bg: #eceef8;
+
+  --bz-chip-bg: #eceef8;
+  --bz-chip-fg: #414763;
+  --bz-code-bg: #f5f6fb;
+
+  --bz-radius: 10px;
+  --bz-radius-sm: 6px;
   --bz-gap: 0.5rem;
   --bz-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --bz-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  --bz-shadow: 0 1px 2px rgb(0 0 0 / 6%);
+  /* Two layers: a tight contact shadow plus a wide soft one. One flat 6% shadow reads as a border. */
+  --bz-shadow: 0 1px 2px rgb(24 27 49 / 5%), 0 8px 24px -14px rgb(24 27 49 / 28%);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
+    --bz-bg: #0e0f17;
+    --bz-surface: #171926;
+    --bz-surface-2: #1c1f2e;
+    --bz-sunken: #12131d;
+    --bz-border: #262a3d;
+    --bz-border-soft: #202332;
+    --bz-fg: #e6e8f2;
+    --bz-muted: #9aa0bd;
     --bz-accent: #6fcf9a;
+    --bz-accent-soft: #82d9a9;
+    --bz-accent-tint: #14332a;
     --bz-accent-contrast: #10231a;
-    --bz-bg: #14161a;
-    --bz-surface: #191c21;
-    --bz-sunken: #101216;
-    --bz-fg: #e8e8e8;
-    --bz-muted: #a3a3a3;
-    --bz-border: #2c2f33;
-    --bz-code-bg: #1c1f23;
-    --bz-rag-red: #e8705f;
-    --bz-rag-amber: #e0a94a;
-    --bz-rag-green: #6fcf9a;
-    --bz-rag-gone: #8b8b8b;
-    --bz-shadow: 0 1px 2px rgb(0 0 0 / 40%);
+    --bz-rag-red: #f4756f;
+    --bz-rag-red-bg: #351b1a;
+    --bz-rag-amber: #e0a848;
+    --bz-rag-amber-bg: #33270f;
+    --bz-rag-green: #46c98f;
+    --bz-rag-green-bg: #133026;
+    --bz-rag-gone: #8b90ad;
+    --bz-rag-gone-bg: #232739;
+    --bz-chip-bg: #232739;
+    --bz-chip-fg: #b6bad4;
+    --bz-code-bg: #12131d;
+    --bz-shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 12px 30px -18px rgb(0 0 0 / 80%);
   }
 }
 
@@ -111,20 +158,24 @@ input, select, textarea {
 
 .bz-badge {
   display: inline-block;
-  padding: 0.1rem 0.45rem;
-  border-radius: var(--bz-radius);
-  font-size: 0.75rem;
+  font-family: var(--bz-mono);
+  font-size: 10.5px;
   font-weight: 700;
-  text-transform: lowercase;
-  border: 1px solid var(--bz-border);
-  color: var(--bz-fg);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border: none;
+  border-radius: var(--bz-radius-sm);
+  line-height: 1.35;
+  background: var(--bz-chip-bg);
+  color: var(--bz-chip-fg);
 }
-.bz-badge[data-rag='red']   { border-color: var(--bz-rag-red);   color: var(--bz-rag-red); }
-.bz-badge[data-rag='amber'] { border-color: var(--bz-rag-amber); color: var(--bz-rag-amber); }
-.bz-badge[data-rag='green'] { border-color: var(--bz-rag-green); color: var(--bz-rag-green); }
-.bz-badge[data-rag='gone']  { border-color: var(--bz-rag-gone);  color: var(--bz-rag-gone); }
+.bz-badge[data-rag='red']   { color: var(--bz-rag-red);   background: var(--bz-rag-red-bg); }
+.bz-badge[data-rag='amber'] { color: var(--bz-rag-amber); background: var(--bz-rag-amber-bg); }
+.bz-badge[data-rag='green'] { color: var(--bz-rag-green); background: var(--bz-rag-green-bg); }
+.bz-badge[data-rag='gone']  { color: var(--bz-rag-gone);  background: var(--bz-rag-gone-bg); }
 
-.bz-rag { font-size: 0.85em; line-height: 1; }
+.bz-rag { font-size: 0.95em; line-height: 1; }
 .bz-rag[data-rag='red']   { color: var(--bz-rag-red); }
 .bz-rag[data-rag='amber'] { color: var(--bz-rag-amber); }
 .bz-rag[data-rag='green'] { color: var(--bz-rag-green); }
@@ -132,12 +183,20 @@ input, select, textarea {
 
 .bz-chip {
   display: inline-block;
-  padding: 0.1rem 0.5rem;
-  border: 1px solid var(--bz-border);
-  border-radius: 999px;
-  font-size: 0.78rem;
-  color: var(--bz-muted);
+  font-family: var(--bz-mono);
+  font-size: 10.5px;
+  padding: 2px 7px;
+  border: none;
+  border-radius: var(--bz-radius-sm);
+  line-height: 1.5;
+  background: var(--bz-chip-bg);
+  color: var(--bz-chip-fg);
+  white-space: nowrap;
 }
+.bz-chip[data-tone='accent'] { background: var(--bz-accent-tint); color: var(--bz-accent); }
+.bz-chip[data-tone='count']  { font-variant-numeric: tabular-nums; font-weight: 700; }
+.bz-chip[data-tone='warn']   { background: var(--bz-rag-amber-bg); color: var(--bz-rag-amber); }
+.bz-chip[data-tone='bad']    { background: var(--bz-rag-red-bg);   color: var(--bz-rag-red); }
 
 .bz-empty {
   padding: 1rem;
@@ -164,7 +223,7 @@ input, select, textarea {
 }
 .bz-svc-name:hover { color: var(--bz-accent); text-decoration: underline; }
 .bz-svc-team { color: var(--bz-muted); font-size: 0.82rem; margin-left: auto; }
-.bz-svc-body { margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid var(--bz-border); }
+.bz-svc-body { margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid var(--bz-border-soft); }
 
 /* ── Controls ──────────────────────────────────────────────────────────────────────────────── */
 .bz-issue { display: flex; align-items: baseline; gap: var(--bz-gap); padding: 0.4rem 0; border-bottom: 1px solid var(--bz-border); flex-wrap: wrap; }
@@ -172,8 +231,9 @@ input, select, textarea {
 .bz-issue-msg:hover { color: var(--bz-accent); text-decoration: underline; }
 .bz-issue-meta { display: inline-flex; gap: 0.35rem; }
 
-.bz-value { display: flex; gap: var(--bz-gap); padding: 0.25rem 0; align-items: baseline; flex-wrap: wrap; }
-.bz-value-label { color: var(--bz-muted); min-width: 9rem; font-size: 0.85rem; }
+.bz-value { display: flex; gap: var(--bz-gap); padding: 8px 0; align-items: baseline; flex-wrap: wrap; border-top: 1px solid var(--bz-border-soft); }
+.bz-value:first-child { border-top: none; }
+.bz-value-label { color: var(--bz-muted); min-width: 7.5rem; font-size: 0.85rem; }
 .bz-value-body { display: inline-flex; gap: 0.35rem; flex-wrap: wrap; align-items: baseline; }
 .bz-value-body button { background: none; border: none; padding: 0; font: inherit; color: var(--bz-accent); cursor: pointer; text-decoration: underline; }
 
@@ -184,8 +244,8 @@ input, select, textarea {
 .bz-usage-note { margin: 0.2rem 0 0; font-size: 0.82rem; color: var(--bz-muted); font-style: italic; }
 
 .bz-topic-list, .bz-edge-list, .bz-health, .bz-thread, .bz-schema, .bz-schema-children { list-style: none; margin: 0; padding: 0; }
-.bz-schema-children { padding-left: 1.1rem; border-left: 1px solid var(--bz-border); margin-left: 0.3rem; }
-.bz-topic-list li, .bz-edge-list li, .bz-health li, .bz-schema-node { display: flex; gap: 0.4rem; align-items: baseline; padding: 0.25rem 0; flex-wrap: wrap; }
+.bz-schema-children { padding-left: 1.1rem; border-left: 1px solid var(--bz-border-soft); margin-left: 0.3rem; }
+.bz-topic-list li, .bz-edge-list li, .bz-health li, .bz-schema-node { display: flex; gap: 0.4rem; align-items: baseline; padding: 0.3rem 0; flex-wrap: wrap; }
 .bz-topic-name, .bz-edge-peer { background: none; border: none; padding: 0; font: inherit; font-weight: 600; color: var(--bz-fg); cursor: pointer; }
 .bz-topic-name:hover, .bz-edge-peer:hover { color: var(--bz-accent); text-decoration: underline; }
 .bz-schema-name { font-family: ui-monospace, monospace; font-size: 0.88rem; }
@@ -193,7 +253,7 @@ input, select, textarea {
 .bz-health-msg { color: var(--bz-muted); font-size: 0.85rem; }
 
 /* ── Discussion ────────────────────────────────────────────────────────────────────────────── */
-.bz-note { border: 1px solid var(--bz-border); border-radius: var(--bz-radius); padding: 0.6rem 0.8rem; margin-bottom: 0.5rem; }
+.bz-note { border: 1px solid var(--bz-border-soft); border-radius: var(--bz-radius); padding: 0.6rem 0.8rem; margin-bottom: 0.5rem; }
 .bz-note header { display: flex; justify-content: space-between; gap: var(--bz-gap); font-size: 0.82rem; color: var(--bz-muted); }
 .bz-note p { margin: 0.35rem 0 0; }
 .bz-composer { display: flex; flex-direction: column; gap: 0.4rem; max-width: 40rem; }
@@ -211,7 +271,7 @@ input, select, textarea {
 .bz-topo-node:hover rect { fill: var(--bz-code-bg); }
 
 /* ── App shell ─────────────────────────────────────────────────────────────────────────────── */
-.bz-app { max-width: 1100px; margin: 0 auto; padding: 1.25rem 1.25rem 4rem; }
+.bz-app { max-width: 1100px; margin: 0 auto; padding: 1.25rem clamp(18px, 4vw, 44px) 4rem; }
 .bz-app-head {
   display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
   padding-bottom: 0.75rem; border-bottom: 1px solid var(--bz-border); margin-bottom: 1.25rem;
@@ -343,7 +403,7 @@ input, select, textarea {
 .bz-spec-back { margin-left: auto; font-size: 0.85rem; }
 .bz-spec-summary { display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: flex-start; margin-bottom: 1.5rem; }
 .bz-stats { display: flex; gap: 0.75rem; flex-wrap: wrap; }
-.bz-stat { display: flex; flex-direction: column; min-width: 5.5rem; padding: 0.6rem 0.8rem; border: 1px solid var(--bz-border); border-radius: var(--bz-radius); background: var(--bz-sunken); }
+.bz-stat { display: flex; flex: 1 1 8rem; flex-direction: column; padding: 13px 15px; border: 1px solid var(--bz-border); border-radius: var(--bz-radius); background: var(--bz-surface); box-shadow: var(--bz-shadow); }
 .bz-stat[data-accent] { border-color: var(--bz-accent); }
 .bz-stat-n { font-size: 1.4rem; font-weight: 700; line-height: 1.1; }
 .bz-stat-l { font-size: 0.75rem; color: var(--bz-muted); text-transform: uppercase; letter-spacing: 0.04em; }
@@ -366,7 +426,7 @@ input, select, textarea {
 .bz-op-io { font-size: 0.82rem; color: var(--bz-muted); font-family: var(--bz-mono); }
 .bz-op-arrow { color: var(--bz-accent); }
 .bz-op-chev { margin-left: auto; color: var(--bz-muted); }
-.bz-op-body { padding: 0 0.8rem 0.8rem; border-top: 1px solid var(--bz-border); }
+.bz-op-body { padding: 0 0.8rem 0.8rem; border-top: 1px solid var(--bz-border-soft); }
 .bz-op-http { list-style: none; margin: 0.6rem 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
 .bz-op-http li { display: flex; gap: 0.4rem; align-items: baseline; }
 .bz-op-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; }

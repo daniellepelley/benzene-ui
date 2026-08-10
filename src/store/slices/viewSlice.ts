@@ -33,7 +33,23 @@ export interface ViewState {
    * that cannot be drilled into is a dead end, and a dead end teaches readers to stop looking.
    */
   failingFlowsOnly: boolean;
+  /** The catalog's own filter, separate from the service filter — two lists, two questions. */
+  topicFilter: string;
+  /** Which column the catalog is sorted by. State, so it survives navigating away and back. */
+  topicSort: { key: string; direction: 'asc' | 'desc' };
+  /** Sections a reader has put away. The header stays visible; only the body is hidden. */
+  collapsedSections: string[];
+  /**
+   * Which theme the page is painted in.
+   *
+   * `system` is the default and the honest one — it means nobody has expressed a preference, which
+   * is different from having chosen light. The distinction matters because a reader on a machine
+   * that switches at dusk should switch with it unless they said otherwise.
+   */
+  theme: Theme;
 }
+
+export type Theme = 'system' | 'light' | 'dark';
 
 const initialState: ViewState = {
   page: 'fleet',
@@ -43,7 +59,14 @@ const initialState: ViewState = {
   rangeMs: 15 * 60 * 1000,
   showUtility: false,
   failingFlowsOnly: false,
+  topicFilter: '',
+  topicSort: { key: 'traffic', direction: 'desc' },
+  collapsedSections: [],
+  theme: 'system',
 };
+
+/** The order the toggle cycles in. System first, because it is the state a reader can lose. */
+const THEME_CYCLE: Theme[] = ['system', 'light', 'dark'];
 
 const viewSlice = createSlice({
   name: 'view',
@@ -74,6 +97,30 @@ const viewSlice = createSlice({
     failingFlowsToggled(state) {
       state.failingFlowsOnly = !state.failingFlowsOnly;
     },
+    topicFilterChanged(state, action: PayloadAction<string>) {
+      state.topicFilter = action.payload;
+    },
+    /** Clicking the active column flips it; clicking another switches to it, descending. */
+    topicSorted(state, action: PayloadAction<string>) {
+      const key = action.payload;
+      if (state.topicSort.key === key) {
+        state.topicSort.direction = state.topicSort.direction === 'asc' ? 'desc' : 'asc';
+      } else {
+        state.topicSort = { key, direction: 'desc' };
+      }
+    },
+    sectionToggled(state, action: PayloadAction<string>) {
+      const at = state.collapsedSections.indexOf(action.payload);
+      if (at === -1) state.collapsedSections.push(action.payload);
+      else state.collapsedSections.splice(at, 1);
+    },
+    themeCycled(state) {
+      state.theme = THEME_CYCLE[(THEME_CYCLE.indexOf(state.theme) + 1) % THEME_CYCLE.length]!;
+    },
+    /** Restoring a remembered choice, which is not the same event as a reader making one. */
+    themeRestored(state, action: PayloadAction<Theme>) {
+      state.theme = action.payload;
+    },
     /** The pivot itself: open a topic with its failing flows already showing. */
     pivotedToFailingFlows(state, action: PayloadAction<string>) {
       state.page = 'topic';
@@ -85,6 +132,7 @@ const viewSlice = createSlice({
 
 export const {
   navigated, filterChanged, serviceToggled, allCollapsed, rangeChanged, utilityToggled,
-  failingFlowsToggled, pivotedToFailingFlows,
+  failingFlowsToggled, pivotedToFailingFlows, topicFilterChanged, topicSorted, sectionToggled,
+  themeCycled, themeRestored,
 } = viewSlice.actions;
 export default viewSlice.reducer;

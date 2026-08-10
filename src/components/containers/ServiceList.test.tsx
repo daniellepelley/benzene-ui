@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { createStore } from '../../store/store';
 import { manifestRefreshed } from '../../store/slices/estateSlice';
+import { loadCatalog } from '../../store/slices/catalogSlice';
 import { fakeMeshApi } from '../../test/fakeMeshApi';
 import { filterChanged, serviceToggled } from '../../store/slices/viewSlice';
 import { ServiceList } from './ServiceList';
@@ -62,6 +63,22 @@ describe('ServiceList — the UI is a function of the store', () => {
     });
 
     expect(screen.getByRole('button', { name: 'Collapse orders-api' })).toBeInTheDocument();
+  });
+
+  it('puts something in the disclosure it opens', async () => {
+    // It used to open an empty box. An affordance that promises detail and delivers nothing is worse
+    // than no affordance, because a reader concludes the data is missing rather than the control is.
+    const store = withEstate();
+    await store.dispatch(loadCatalog());
+    renderWith(store);
+
+    act(() => {
+      store.dispatch(serviceToggled('orders-api'));
+    });
+
+    expect(screen.getByRole('heading', { name: 'Consumes' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Produces' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /orders:create/ })).toBeInTheDocument();
   });
 
   it('says why the list is empty rather than showing nothing', () => {

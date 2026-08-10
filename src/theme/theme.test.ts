@@ -89,6 +89,27 @@ describe('the token set', () => {
     expect(colours.length).toBeGreaterThan(15);
   });
 
+  it('keeps the OS dark block and the forced dark block identical', () => {
+    // Dark is declared twice — once behind `prefers-color-scheme` and once behind `data-theme` — so
+    // a reader can force a theme against their OS. CSS cannot name a block of declarations, so the
+    // duplication is real and the only defence against it drifting is this. Half-dark is worse than
+    // either theme: the reader sees one stubbornly wrong panel and blames the data.
+    const media = css.slice(css.indexOf('@media (prefers-color-scheme: dark)'));
+    const fromOs = declarations(media.slice(0, media.indexOf('\n}')));
+    const forced = declarations(
+      css.slice(css.indexOf(":root[data-theme='dark'] {")).split('\n}')[0]!,
+    );
+
+    expect(Object.fromEntries(forced)).toEqual(Object.fromEntries(fromOs));
+  });
+
+  it('sets color-scheme for a forced theme, not only for the OS one', () => {
+    // Native controls and scrollbars ignore the tokens. Without this a forced dark page has white
+    // dropdowns and a white scrollbar — the same class of bug as the missing body background.
+    expect(css).toMatch(/:root\[data-theme='dark'\]\s*\{[^}]*color-scheme:\s*dark/);
+    expect(css).toMatch(/:root\[data-theme='light'\]\s*\{[^}]*color-scheme:\s*light/);
+  });
+
   it('never hardcodes a hex colour outside the token blocks', () => {
     // One hardcoded colour in a component rule is one element that ignores the theme.
     const afterTokens = css.slice(css.indexOf('*, *::before'));

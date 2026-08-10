@@ -271,6 +271,23 @@ export const selectTopicsForService = createSelector(
   },
 );
 
+/**
+ * The same, for the whole visible list, as ONE memoised array.
+ *
+ * Mapping the per-service selector inside the component mints a new array on every store read, which
+ * makes react-redux re-render the list continuously — and say so, loudly, in development.
+ */
+export const selectVisibleServiceTopics = createSelector(
+  [selectVisibleServices, selectTopics, (s: RootState) => s.view.showUtility],
+  (services, topics, showUtility) => {
+    const visible = showUtility ? topics : topics.filter((t) => !t.reserved);
+    return services.map((service) => ({
+      consumes: visible.filter((t) => t.consumers?.some((c) => c.service === service.name)),
+      produces: visible.filter((t) => t.producers?.some((p) => p.service === service.name)),
+    }));
+  },
+);
+
 export const selectTopic = createSelector(
   [selectTopics, (_: RootState, topic: string) => topic],
   (topics, topic) => topics.find((t) => t.topic === topic) ?? null,
@@ -1148,3 +1165,75 @@ export const selectServiceRags = createSelector([selectServices], (services) => 
   for (const service of services) rags[service.name] = ragForStatus(service.status);
   return rags;
 });
+
+// ── The topics catalog ──────────────────────────────────────────────────────────────────────────
+
+export const selectTopicFilter = (s: RootState) => s.view.topicFilter;
+export const selectTopicSort = (s: RootState) => s.view.topicSort;
+export const selectCollapsedSections = (s: RootState) => s.view.collapsedSections;
+export const selectIsCollapsed = (s: RootState, section: string) =>
+  s.view.collapsedSections.includes(section);
+
+export interface CatalogRow {
+  topic: string;
+  version: string | null;
+  reserved: boolean;
+  producers: string[];
+  consumers: string[];
+  httpMappings: { method: string; path: string }[];
+  status: string | null;
+  schemaMismatch: boolean;
+  /** Observed messages, or null when nothing is measuring — never conflated with zero. */
+  traffic: number | null;
+}
+
+/**
+ * Every topic in the estate, as one table.
+ *
+ * The guide calls the functional map the centrepiece, and it had no estate-level surface at all —
+ * only "topics needing attention". A reader asking the product's first question, *what do these
+ * services actually do*, had to open each service in turn and assemble the answer themselves.
+ *
+ * Traffic is `null` rather than `0` when no usage feed is wired, so the column can render "—" and a
+ * reader sorting by it is not told that everything is unused.
+ */
+export const selectCatalogRows = createSelector(
+  [selectTopics, selectUsageRaw, (s: RootState) => s.catalog.usage != null, selectShowUtility, selectTopicFilter],
+  (topics, usageRows, feedWired, showUtility, filter): CatalogRow[] => {
+    const entries = usageRows as UsageEntriesItem[];
+    const needle = filter.trim().toLowerCase();
+
+    return topics
+      .filter((t) => showUtility || !t.reserved)
+      .filter((t) => {
+        if (!needle) return true;
+        // Match the service names too: "who talks to payments-api" is the same question asked of
+        // this table, and making the reader know the topic name first defeats the point.
+        const haystack = [
+          t.topic,
+          ...(t.producers ?? []).map((p) => p.service),
+          ...(t.consumers ?? []).map((c) => c.service),
+        ].join(' ').toLowerCase();
+        return haystack.includes(needle);
+      })
+      .map((t) => ({
+        topic: t.topic,
+        version: t.version || null,
+        reserved: t.reserved,
+        producers: (t.producers ?? []).map((p) => p.service),
+        consumers: (t.consumers ?? []).map((c) => c.service),
+        httpMappings: (t.consumers ?? []).flatMap((c) => c.httpMappings ?? []),
+        status: t.status,
+        schemaMismatch: t.schemaMismatch,
+        traffic: feedWired
+          ? entries.filter((e) => e.topic === t.topic).reduce((sum, e) => sum + e.count, 0)
+          : null,
+      }));
+  },
+);
+
+/** How many topics the filter is hiding, so the reader knows the table is not the whole estate. */
+export const selectCatalogTotal = createSelector(
+  [selectTopics, selectShowUtility],
+  (topics, showUtility) => topics.filter((t) => showUtility || !t.reserved).length,
+);

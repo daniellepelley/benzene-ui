@@ -2,6 +2,7 @@ export * from './primitives/Badge';
 export * from './primitives/Chip';
 export * from './primitives/EmptyState';
 export * from './primitives/StatusGlyph';
+export * from './primitives/DataTable';
 
 export * from './controls/ServiceCard';
 export * from './controls/ServiceLinks';
@@ -15,6 +16,10 @@ export * from './controls/FeedHealthLine';
 export * from './controls/RetirementRow';
 export * from './controls/RangePicker';
 export * from './controls/FlowList';
+export * from './controls/EstateStats';
+export * from './controls/PageHead';
+export * from './controls/CollapsibleSection';
+export * from './controls/ThemeToggle';
 
 export * from './sections/SchemaTree';
 export * from './sections/HealthChecks';
@@ -31,4 +36,5 @@ export * from './sections/ServiceUsage';
 export * from './sections/topologyLayout';
 
 export * from './containers/ServiceList';
+export * from './containers/TopicCatalog';
 export * from './pages';

@@ -61,8 +61,13 @@
   --bz-shadow: 0 1px 2px rgb(24 27 49 / 5%), 0 8px 24px -14px rgb(24 27 49 / 28%);
 }
 
+/* Dark, twice: once for readers who never touch a toggle (the OS decides) and once for readers who
+   do (`data-theme` decides, and beats the OS in both directions). The `:not([data-theme='light'])`
+   guard is what lets a reader force light on a dark machine. The two blocks are duplicated rather
+   than shared because CSS has no way to name a block of declarations — `theme.test.ts` asserts they
+   stay identical, so drift is a test failure rather than a half-dark page. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bz-bg: #0e0f17;
     --bz-surface: #171926;
     --bz-surface-2: #1c1f2e;
@@ -89,6 +94,38 @@
     --bz-shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 12px 30px -18px rgb(0 0 0 / 80%);
   }
 }
+
+:root[data-theme='dark'] {
+  --bz-bg: #0e0f17;
+  --bz-surface: #171926;
+  --bz-surface-2: #1c1f2e;
+  --bz-sunken: #12131d;
+  --bz-border: #262a3d;
+  --bz-border-soft: #202332;
+  --bz-fg: #e6e8f2;
+  --bz-muted: #9aa0bd;
+  --bz-accent: #6fcf9a;
+  --bz-accent-soft: #82d9a9;
+  --bz-accent-tint: #14332a;
+  --bz-accent-contrast: #10231a;
+  --bz-rag-red: #f4756f;
+  --bz-rag-red-bg: #351b1a;
+  --bz-rag-amber: #e0a848;
+  --bz-rag-amber-bg: #33270f;
+  --bz-rag-green: #46c98f;
+  --bz-rag-green-bg: #133026;
+  --bz-rag-gone: #8b90ad;
+  --bz-rag-gone-bg: #232739;
+  --bz-chip-bg: #232739;
+  --bz-chip-fg: #b6bad4;
+  --bz-code-bg: #12131d;
+  --bz-shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 12px 30px -18px rgb(0 0 0 / 80%);
+}
+
+/* Form controls and scrollbars follow `color-scheme`, not the tokens, so a forced theme has to say
+   so here too — otherwise a reader forcing dark gets a dark page with white dropdowns. */
+:root[data-theme='dark'] { color-scheme: dark; }
+:root[data-theme='light'] { color-scheme: light; }
 
 /* ── Base ──────────────────────────────────────────────────────────────────────────────────────
    The page itself, not just the components on it. Without this the app painted --bz-bg inside a
@@ -320,7 +357,11 @@ input, select, textarea {
 .bz-brand:hover { border-color: transparent; color: var(--bz-accent); }
 .bz-nav { display: inline-flex; gap: 0.35rem; }
 .bz-nav button[aria-current='page'] { background: var(--bz-accent); color: var(--bz-accent-contrast); border-color: var(--bz-accent); }
-.bz-app-head input { margin-left: auto; min-width: 12rem; }
+/* The window picker holds the right-hand end of the bar. The service filter used to sit here and
+   moved to the list it filters; nothing else in the header belongs on that side. */
+/* The toggle is always rendered and always last, so it — not the window picker, which disappears
+   with the live plane — is what holds the right-hand end of the bar. */
+.bz-theme-toggle { margin-left: auto; width: 1.9rem; padding: 0.15rem 0; text-align: center; line-height: 1.3; }
 .bz-page section { margin-bottom: 1.75rem; }
 .bz-page h2 { font-size: 1.15rem; margin: 0 0 0.6rem; }
 .bz-page h3 { font-size: 0.98rem; margin: 0 0 0.45rem; }
@@ -502,6 +543,9 @@ input, select, textarea {
 .bz-section-head { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
 .bz-section-head h2 { margin: 0; }
 .bz-section-more { margin-left: auto; font-size: 12px; padding: 0.15rem 0.5rem; }
+/* A filter inline with its heading holds the right-hand end, so the two lists on this page put
+   their filter in the same place relative to the list rather than in the same place on screen. */
+.bz-section-head .bz-catalog-filter { margin-left: auto; }
 .bz-divergence { display: flex; align-items: baseline; gap: 0.35rem; flex-wrap: wrap; color: var(--bz-rag-amber); margin-bottom: 1.25rem; }
 
 /* ── Page head ─────────────────────────────────────────────────────────────────────────────────
@@ -534,3 +578,45 @@ input, select, textarea {
 .bz-app-head { position: sticky; top: 0; z-index: 40; background: var(--bz-bg); padding-top: 0.75rem; }
 .bz-brand { display: inline-flex; align-items: center; gap: 0.45rem; }
 .bz-app-meta { font-family: var(--bz-mono); font-size: 11.5px; color: var(--bz-muted); padding-left: 0.75rem; border-left: 1px solid var(--bz-border); }
+
+/* ── Tables ────────────────────────────────────────────────────────────────────────────────────
+   For data a reader compares down a column. Numbers are right-aligned with tabular figures, and
+   rows do not wrap, so scanning is scanning rather than reading. */
+.bz-table-wrap { overflow-x: auto; background: var(--bz-surface); border: 1px solid var(--bz-border); border-radius: var(--bz-radius); box-shadow: var(--bz-shadow); }
+.bz-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.bz-table-caption { padding: 10px 13px 0; text-align: left; font-size: 12px; color: var(--bz-muted); }
+.bz-table th { padding: 10px 13px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--bz-muted); white-space: nowrap; }
+.bz-table th[data-numeric], .bz-table td[data-numeric] { text-align: right; }
+.bz-table td[data-numeric] { font-variant-numeric: tabular-nums; }
+.bz-table td { padding: 9px 13px; border-top: 1px solid var(--bz-border-soft); white-space: nowrap; vertical-align: baseline; }
+.bz-table td[data-wrap] { white-space: normal; min-width: 14rem; }
+.bz-table tbody tr:hover td { background: var(--bz-surface-2); }
+.bz-th-sort { background: none; border: none; padding: 0; font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit; display: inline-flex; gap: 0.25rem; align-items: baseline; }
+.bz-th-sort:hover { color: var(--bz-accent); border-color: transparent; }
+.bz-table th[aria-sort]:not([aria-sort='none']) .bz-th-sort { color: var(--bz-accent); }
+.bz-th-mark { font-size: 0.9em; }
+
+/* ── Text buttons ──────────────────────────────────────────────────────────────────────────────
+   One rule: a link-like button is accent-coloured and underlines on hover. A permanent underline is
+   reserved for real anchors, so "this navigates away" stays distinguishable from "this acts here". */
+.bz-value-body button, .bz-flow-svc, .bz-vd-topic, .bz-topic-name, .bz-edge-peer, .bz-crumb {
+  background: none; border: none; padding: 0; font: inherit; color: var(--bz-accent); text-decoration: none;
+}
+.bz-value-body button:hover, .bz-flow-svc:hover, .bz-vd-topic:hover, .bz-topic-name:hover, .bz-edge-peer:hover {
+  text-decoration: underline; border-color: transparent;
+}
+
+/* A section a reader can put away. The header stays, so it is never hidden — only quiet. */
+.bz-section-toggle { font-size: 11.5px; padding: 0.1rem 0.5rem; }
+
+/* ── Topics catalog ────────────────────────────────────────────────────────────────────────────── */
+.bz-catalog-controls { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.5rem; }
+.bz-catalog-filter { width: 16rem; max-width: 100%; font-size: 12.5px; padding: 0.25rem 0.5rem; }
+.bz-catalog-count { font-size: 11.5px; color: var(--bz-muted); }
+.bz-cat-topic-cell { display: inline-flex; gap: 0.35rem; align-items: baseline; }
+.bz-cat-svcs { display: inline-flex; gap: 0.3rem; flex-wrap: wrap; }
+.bz-cat-svc { background: var(--bz-surface-2); border: none; border-radius: var(--bz-radius-sm); padding: 2px 7px; font-family: var(--bz-mono); font-size: 10.5px; color: var(--bz-fg); }
+.bz-cat-svc:hover { background: var(--bz-accent-tint); color: var(--bz-accent); border-color: transparent; }
+.bz-cat-none { color: var(--bz-muted); }
+.bz-svc-topics { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 1rem; }
+.bz-svc-topics h4 { font-size: 11px; margin: 0 0 0.2rem; color: var(--bz-muted); text-transform: uppercase; letter-spacing: 0.08em; }

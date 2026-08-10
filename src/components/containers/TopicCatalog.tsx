@@ -1,0 +1,160 @@
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import {
+  selectCatalogRows, selectCatalogTotal, selectTopicFilter, selectTopicSort, selectShowUtility,
+  formatCount, versionLabel, type CatalogRow,
+} from '../../store/selectors';
+import { navigated, topicFilterChanged, topicSorted, utilityToggled } from '../../store/slices/viewSlice';
+import { DataTable, type DataColumn } from '../primitives/DataTable';
+import { EmptyState } from '../primitives/EmptyState';
+import { Badge } from '../primitives/Badge';
+import { Chip } from '../primitives/Chip';
+
+/**
+ * Every topic in the estate, in one table.
+ *
+ * This is the functional map — the product's answer to *what do these services actually do*, and
+ * the guide's "centrepiece". It had no estate-level surface at all: the front door showed only
+ * flagged topics, so a reader had to open each service in turn and assemble the map themselves.
+ *
+ * A table rather than cards because this is data a reader compares down a column — which topic
+ * carries the most traffic, which have no consumer, which are reachable over HTTP. Cards make each
+ * row an island; a column makes them a ranking.
+ */
+export function TopicCatalog() {
+  const dispatch = useAppDispatch();
+  const rows = useAppSelector(selectCatalogRows);
+  const total = useAppSelector(selectCatalogTotal);
+  const filter = useAppSelector(selectTopicFilter);
+  const sort = useAppSelector(selectTopicSort);
+  const showUtility = useAppSelector(selectShowUtility);
+
+  const openTopic = (topic: string) => dispatch(navigated({ page: 'topic', selected: topic }));
+  const openService = (service: string) => dispatch(navigated({ page: 'service', selected: service }));
+
+  const services = (names: string[]) =>
+    names.length === 0 ? (
+      <span className="bz-cat-none">none</span>
+    ) : (
+      names.map((name) => (
+        <button type="button" key={name} className="bz-cat-svc" onClick={() => openService(name)}>
+          {name}
+        </button>
+      ))
+    );
+
+  const columns: DataColumn<CatalogRow>[] = [
+    {
+      key: 'topic',
+      header: 'Topic',
+      sortValue: (r) => r.topic,
+      render: (r) => (
+        <span className="bz-cat-topic-cell">
+          <button type="button" className="bz-topic-name" onClick={() => openTopic(r.topic)}>
+            {r.topic}
+          </button>
+          {r.reserved && <Chip title="A topic Benzene itself owns">reserved</Chip>}
+        </span>
+      ),
+    },
+    {
+      key: 'version',
+      header: 'Version',
+      sortValue: (r) => r.version ?? '',
+      render: (r) => versionLabel(r.version) ?? <span className="bz-cat-none">—</span>,
+    },
+    {
+      key: 'producers',
+      header: 'Producers',
+      sortValue: (r) => r.producers.length,
+      render: (r) => <span className="bz-cat-svcs">{services(r.producers)}</span>,
+    },
+    {
+      key: 'consumers',
+      header: 'Consumers',
+      sortValue: (r) => r.consumers.length,
+      render: (r) => <span className="bz-cat-svcs">{services(r.consumers)}</span>,
+    },
+    {
+      key: 'http',
+      header: 'HTTP',
+      render: (r) =>
+        r.httpMappings.length === 0 ? (
+          // Not a gap: most topics are message-only, and that is the normal case, not a lack.
+          <span className="bz-cat-none">—</span>
+        ) : (
+          r.httpMappings.map((m) => (
+            <Chip key={`${m.method} ${m.path}`}>{m.method.toUpperCase()} {m.path}</Chip>
+          ))
+        ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      sortValue: (r) => r.status ?? '',
+      render: (r) => (
+        <>
+          {r.status && (
+            <Badge rag={r.status === 'gap' ? 'amber' : 'red'}>{r.status.replace(/-/g, ' ')}</Badge>
+          )}
+          {r.schemaMismatch && <Badge rag="red">schema mismatch</Badge>}
+          {!r.status && !r.schemaMismatch && <span className="bz-cat-none">ok</span>}
+        </>
+      ),
+    },
+    {
+      key: 'traffic',
+      header: 'Traffic',
+      numeric: true,
+      // Unmeasured sorts below zero, so "nothing is measuring this" never outranks a real count.
+      sortValue: (r) => r.traffic ?? -1,
+      render: (r) =>
+        r.traffic == null ? (
+          <span className="bz-cat-none" title="No usage feed is wired, so traffic is unknown">
+            —
+          </span>
+        ) : (
+          formatCount(r.traffic)
+        ),
+    },
+  ];
+
+  return (
+    <div className="bz-catalog">
+      <div className="bz-catalog-controls">
+        <input
+          className="bz-catalog-filter"
+          aria-label="Filter topics"
+          placeholder="Filter topics or services…"
+          value={filter}
+          onChange={(e) => dispatch(topicFilterChanged(e.target.value))}
+        />
+        <button type="button" onClick={() => dispatch(utilityToggled())}>
+          {showUtility ? 'hide' : 'show'} benzene utilities
+        </button>
+        {filter.trim() !== '' && (
+          <span className="bz-catalog-count">
+            {rows.length} of {total}
+          </span>
+        )}
+      </div>
+
+      <DataTable
+        columns={columns}
+        rows={rows}
+        rowKey={(r) => `${r.topic}@${r.version ?? ''}`}
+        sort={sort}
+        onSort={(key) => dispatch(topicSorted(key))}
+        empty={
+          filter.trim() !== '' ? (
+            <EmptyState message={`No topic or service matches “${filter}”.`} />
+          ) : (
+            <EmptyState
+              message="No topics are published. The aggregator has run but no service declared one."
+              tone="unknown"
+            />
+          )
+        }
+      />
+    </div>
+  );
+}

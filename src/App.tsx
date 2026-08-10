@@ -4,7 +4,7 @@ import { loadManifest, loadService } from './store/slices/estateSlice';
 import { loadCatalog } from './store/slices/catalogSlice';
 import { loadAnnotations } from './store/slices/annotationsSlice';
 import { probeFleet, pollInbox, clockTicked, FLEET_POLL_MS, INBOX_POLL_MS } from './store/slices/fleetSlice';
-import { filterChanged, navigated, rangeChanged } from './store/slices/viewSlice';
+import { navigated, rangeChanged, themeCycled, themeRestored, type Theme } from './store/slices/viewSlice';
 import {
   selectLoad, selectError, selectPage, selectSelected, selectEstateSummary, selectFeedHealth,
   RANGE_OPTIONS,
@@ -14,6 +14,12 @@ import { FeedHealthLine } from './components/controls/FeedHealthLine';
 import { EmptyState } from './components/primitives/EmptyState';
 import { StatusGlyph } from './components/primitives/StatusGlyph';
 import { RangePicker } from './components/controls/RangePicker';
+import { ThemeToggle } from './components/controls/ThemeToggle';
+
+/** Where a reader's theme choice is remembered between visits. */
+const THEME_KEY = 'benzene.mesh.theme';
+const isTheme = (value: unknown): value is Theme =>
+  value === 'system' || value === 'light' || value === 'dark';
 
 /**
  * The composition root, and the only place effects are allowed — starting a load and running a clock
@@ -25,11 +31,11 @@ export function App() {
   const error = useAppSelector(selectError);
   const page = useAppSelector(selectPage);
   const selected = useAppSelector(selectSelected);
-  const filter = useAppSelector((s) => s.view.filter);
   const summary = useAppSelector(selectEstateSummary);
   const feedHealth = useAppSelector(selectFeedHealth);
   const generatedAtUtc = useAppSelector((s) => s.estate.generatedAtUtc);
   const liveAvailable = useAppSelector((s) => s.fleet.available);
+  const theme = useAppSelector((s) => s.view.theme);
 
   useEffect(() => {
     void dispatch(loadManifest());
@@ -46,6 +52,31 @@ export function App() {
     const id = setInterval(() => void dispatch(pollInbox()), INBOX_POLL_MS);
     return () => clearInterval(id);
   }, [dispatch]);
+
+  // The theme is store state; the document attribute and the remembered choice are the effects of
+  // it. Both live here rather than in the toggle, so the control stays a pure function of a prop —
+  // and so a consumer embedding these components can persist the choice their own way.
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(THEME_KEY);
+      if (isTheme(saved)) dispatch(themeRestored(saved));
+    } catch {
+      // Storage can be unavailable (private mode, an embedding iframe). Following the OS is a fine
+      // outcome; failing to render the page over a preference is not.
+    }
+  }, [dispatch]);
+
+  useEffect(() => {
+    // Absent, not "system" — the stylesheet's `:not([data-theme='light'])` guard reads an absent
+    // attribute as "no preference expressed", which is exactly what `system` means.
+    if (theme === 'system') delete document.documentElement.dataset.theme;
+    else document.documentElement.dataset.theme = theme;
+    try {
+      localStorage.setItem(THEME_KEY, theme);
+    } catch {
+      // As above: the page works, the choice just does not outlive the tab.
+    }
+  }, [theme]);
 
   // Staleness is computed from `fleet.now`, so something has to advance it. A selector reading the
   // clock directly would be neither memoisable nor testable.
@@ -123,12 +154,7 @@ export function App() {
           available={liveAvailable}
           onChange={(ms) => dispatch(rangeChanged(ms))}
         />
-        <input
-          aria-label="Filter services"
-          placeholder="Filter services…"
-          value={filter}
-          onChange={(e) => dispatch(filterChanged(e.target.value))}
-        />
+        <ThemeToggle theme={theme} onCycle={() => dispatch(themeCycled())} />
       </header>
 
       {/* Only when something is wrong: a green line here would be chrome in the place a warning

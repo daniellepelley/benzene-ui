@@ -2,12 +2,13 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   selectEstateSummary, selectDivergences, selectIssueSummary, selectFleetAvailable,
   selectFlaggedTopics, selectEdges, selectFlows, selectFailingFlowsOnly, selectInboxIssues,
-  selectServiceRags,
+  selectServiceRags, selectCollapsedSections, selectFilter, selectVisibleServices,
 } from '../../store/selectors';
-import { navigated, failingFlowsToggled } from '../../store/slices/viewSlice';
+import { navigated, failingFlowsToggled, sectionToggled, filterChanged } from '../../store/slices/viewSlice';
 import { ServiceList } from '../containers/ServiceList';
+import { TopicCatalog } from '../containers/TopicCatalog';
+import { CollapsibleSection } from '../controls/CollapsibleSection';
 import { TopologyGraph } from '../sections/TopologyGraph';
-import { TopicList } from '../controls/TopicList';
 import { FlowList } from '../controls/FlowList';
 import { EstateStats } from '../controls/EstateStats';
 import { IssueRow } from '../controls/IssueRow';
@@ -37,6 +38,15 @@ export function FleetPage() {
   const rags = useAppSelector(selectServiceRags);
   const flows = useAppSelector(selectFlows);
   const failingOnly = useAppSelector(selectFailingFlowsOnly);
+  const collapsed = useAppSelector(selectCollapsedSections);
+  const filter = useAppSelector(selectFilter);
+  const visible = useAppSelector(selectVisibleServices);
+
+  // A default-collapsed section inverts the flag rather than seeding the store, so a reader who
+  // opens one keeps it open without the store carrying a special case for it.
+  const isOpen = (id: string, collapsedByDefault = false) =>
+    collapsedByDefault ? collapsed.includes(id) : !collapsed.includes(id);
+  const toggle = (id: string) => dispatch(sectionToggled(id));
 
   const openService = (name: string) => dispatch(navigated({ page: 'service', selected: name }));
 
@@ -87,7 +97,24 @@ export function FleetPage() {
       )}
 
       <section>
-        <h2>Services</h2>
+        {/* The filter sits with the list it filters. It used to live in the app header, where it was
+            on every page but only did anything on this one — a control that visibly does nothing is
+            worse than a missing one, because a reader concludes the search found nothing. */}
+        <div className="bz-section-head">
+          <h2>Services</h2>
+          <input
+            className="bz-catalog-filter"
+            aria-label="Filter services"
+            placeholder="Filter services…"
+            value={filter}
+            onChange={(e) => dispatch(filterChanged(e.target.value))}
+          />
+          {filter.trim() !== '' && (
+            <span className="bz-catalog-count">
+              {visible.length} of {summary.total}
+            </span>
+          )}
+        </div>
         {/* The spec view links back here, and self-reported URLs resolve against here. */}
         <ServiceList pageUrl={typeof location === 'undefined' ? '' : location.pathname + location.search} />
       </section>
@@ -104,18 +131,29 @@ export function FleetPage() {
         </section>
       )}
 
-      {flagged.length > 0 && (
-        <section>
-          <h2>Topics needing attention</h2>
-          <TopicList topics={flagged} emptyMessage="Nothing flagged."
-            onOpen={(topic) => dispatch(navigated({ page: 'topic', selected: topic }))} />
-        </section>
-      )}
+      {/* The functional map: what these services actually do. The product's first question, and
+          until now answerable only by opening every service in turn.
+          This also subsumes the old "topics needing attention" list — every flagged topic is a row
+          here with its status, so keeping a second surface for the same rows was duplication, and
+          duplication is how the page this replaced grew to five thousand lines. */}
+      <CollapsibleSection
+        id="topics"
+        title="Topics"
+        note={flagged.length > 0 ? `${flagged.length} flagged` : undefined}
+        open={isOpen('topics')}
+        onToggle={toggle}
+      >
+        <TopicCatalog />
+      </CollapsibleSection>
 
-      <section>
-        <h2>Topology</h2>
+      <CollapsibleSection
+        id="topology"
+        title="Topology"
+        open={isOpen('topology', true)}
+        onToggle={toggle}
+      >
         <TopologyGraph edges={edges} rags={rags} onOpen={openService} />
-      </section>
+      </CollapsibleSection>
     </div>
   );
 }

@@ -1,8 +1,9 @@
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { selectVisibleServices, ragForStatus, selectVisibleServiceLinks } from '../../store/selectors';
+import { selectVisibleServices, ragForStatus, selectVisibleServiceLinks, selectVisibleServiceTopics } from '../../store/selectors';
 import { serviceToggled, navigated } from '../../store/slices/viewSlice';
 import { ServiceCard } from '../controls/ServiceCard';
 import { ServiceLinks } from '../controls/ServiceLinks';
+import { TopicList } from '../controls/TopicList';
 import { EmptyState } from '../primitives/EmptyState';
 
 /**
@@ -26,6 +27,10 @@ export function ServiceList({ pageUrl = '' }: ServiceListProps = {}) {
   const services = useAppSelector(selectVisibleServices);
   const expanded = useAppSelector((s) => s.view.expandedServices);
   const links = useAppSelector((s) => selectVisibleServiceLinks(s, pageUrl));
+  // What each service handles, so the disclosure has something to disclose. It previously opened an
+  // empty box: the affordance promised detail and delivered nothing, which is worse than no
+  // affordance, because a reader concludes the data is missing rather than the control is broken.
+  const topics = useAppSelector(selectVisibleServiceTopics);
   const dispatch = useAppDispatch();
 
   if (services.length === 0) {
@@ -43,7 +48,26 @@ export function ServiceList({ pageUrl = '' }: ServiceListProps = {}) {
           expanded={expanded.includes(service.name)}
           onToggle={(name) => dispatch(serviceToggled(name))}
           onOpen={(name) => dispatch(navigated({ page: 'service', selected: name }))}
-        />
+        >
+          <div className="bz-svc-topics">
+            <div>
+              <h4>Consumes</h4>
+              <TopicList
+                topics={topics[i]?.consumes ?? []}
+                emptyMessage="Consumes nothing."
+                onOpen={(topic) => dispatch(navigated({ page: 'topic', selected: topic }))}
+              />
+            </div>
+            <div>
+              <h4>Produces</h4>
+              <TopicList
+                topics={topics[i]?.produces ?? []}
+                emptyMessage="Produces nothing."
+                onOpen={(topic) => dispatch(navigated({ page: 'topic', selected: topic }))}
+              />
+            </div>
+          </div>
+        </ServiceCard>
       ))}
     </div>
   );

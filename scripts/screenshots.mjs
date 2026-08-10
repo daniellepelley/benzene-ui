@@ -77,6 +77,10 @@ const PAGES = [
   { name: 'topic', path: '/#topic/payment%3Acapture' },
   { name: 'value', path: '/#value' },
   { name: 'spec', path: '/mesh-spec-ui.html?service=orders-api&mesh=/', click: '.bz-op-head' },
+  // Dark declared through `data-theme` rather than the OS. It is a second copy of the dark token
+  // block, so it is the one that can silently drift into a half-dark page; the run above with
+  // `--scheme dark` never exercises it.
+  { name: 'forced-dark', path: '/', click: ['.bz-theme-toggle', '.bz-theme-toggle'] },
 ];
 
 const browser = await chromium.launch();
@@ -96,8 +100,8 @@ const index = [];
 for (const { name, path, click } of PAGES) {
   await page.goto(base + path, { waitUntil: 'networkidle' });
   await page.waitForTimeout(400);
-  if (click) {
-    const target = page.locator(click).first();
+  for (const selector of [click].flat().filter(Boolean)) {
+    const target = page.locator(selector).first();
     if (await target.count()) {
       await target.click();
       await page.waitForTimeout(250);

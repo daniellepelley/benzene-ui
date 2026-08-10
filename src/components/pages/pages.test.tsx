@@ -67,8 +67,10 @@ describe('FleetPage', () => {
     expect(tiles).toMatchObject({ Services: '3', Unhealthy: '1', Unreachable: '1' });
     // The name appears in the service list AND in the topology graph, so query the card's button —
     // the graph draws SVG text, not buttons.
-    expect(screen.getByRole('button', { name: 'orders-api' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'payments-api' })).toBeInTheDocument();
+    // Scoped to the service list: the topics catalog renders service names as buttons too.
+    const cards = [...document.querySelectorAll('.bz-svc')].map((el) => el.getAttribute('data-service'));
+    expect(cards).toContain('orders-api');
+    expect(cards).toContain('payments-api');
   });
 
   it('hides the live sections entirely when no collector is wired', async () => {

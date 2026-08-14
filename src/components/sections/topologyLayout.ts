@@ -30,7 +30,8 @@ export interface Edge {
   to: string;
   /** null when the trace source reported no error rate — not the same as zero. */
   errorRate: number | null;
-  requestsPerMinute: number;
+  /** null on a structural edge — declared by contract, never observed by a trace source. */
+  requestsPerMinute: number | null;
 }
 
 export interface Layout {
@@ -106,7 +107,7 @@ export function layoutTopology(edges: TopologyEdgesItem[]): Layout {
       from: e.client,
       to: e.server,
       errorRate: e.errorRate ?? null,
-      requestsPerMinute: e.requestsPerMinute,
+      requestsPerMinute: e.requestsPerMinute ?? null,
     })),
     width: x - COL_GAP + PAD,
     height: PAD * 2 + maxRows * (NODE_H + ROW_GAP) - ROW_GAP,

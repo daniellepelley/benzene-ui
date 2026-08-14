@@ -59,11 +59,11 @@ export interface TopologyEdgesItem {
   client: string;
   server: string;
   source: string;
-  requestsPerMinute: number;
-  errorRate: number | null;
-  p50LatencyMs: number;
-  p95LatencyMs: number;
-  p99LatencyMs: number;
+  requestsPerMinute?: number;
+  errorRate?: number | null;
+  p50LatencyMs?: number;
+  p95LatencyMs?: number;
+  p99LatencyMs?: number;
 }
 
 export interface Usage {

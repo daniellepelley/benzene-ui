@@ -1,0 +1,10 @@
+{
+  "generatedAtUtc": "2026-07-16T09:15:00Z",
+  "edges": [
+    {
+      "client": "orders-api",
+      "server": "payments-api",
+      "source": "structural"
+    }
+  ]
+}

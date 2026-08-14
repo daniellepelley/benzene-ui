@@ -71,7 +71,9 @@ export function TopologyGraph({ edges, onOpen, rags = {}, errorThreshold = 0.05 
               x2={to.x}
               y2={to.y + NODE_H / 2}
               className={failing ? 'bz-edge-err' : 'bz-edge-ok'}
-              strokeWidth={Math.max(1, Math.min(6, Math.log10(e.requestsPerMinute + 1) * 3))}
+              // A structural edge (no observed traffic) draws at the minimum weight rather than NaN —
+              // `undefined + 1` would poison the whole width calculation.
+              strokeWidth={Math.max(1, Math.min(6, Math.log10((e.requestsPerMinute ?? 0) + 1) * 3))}
               markerEnd={`url(#${failing ? 'bz-arrow-err' : 'bz-arrow'})`}
             />
           );

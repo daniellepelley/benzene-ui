@@ -5,3 +5,4 @@ export * from './IssuePage';
 export * from './ComposePage';
 export * from './ValuePage';
 export * from './SpecPage';
+export * from './TestConsolePage';

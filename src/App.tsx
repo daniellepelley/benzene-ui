@@ -6,10 +6,12 @@ import { loadAnnotations } from './store/slices/annotationsSlice';
 import { probeFleet, pollInbox, clockTicked, FLEET_POLL_MS, INBOX_POLL_MS } from './store/slices/fleetSlice';
 import { navigated, rangeChanged, themeCycled, themeRestored, type Theme } from './store/slices/viewSlice';
 import {
-  selectLoad, selectError, selectPage, selectSelected, selectEstateSummary, selectFeedHealth,
-  RANGE_OPTIONS,
+  selectLoad, selectError, selectPage, selectSelected, selectSelectedService, selectEstateSummary,
+  selectFeedHealth, RANGE_OPTIONS,
 } from './store/selectors';
-import { FleetPage, ServicePage, TopicPage, IssuePage, ComposePage, ValuePage } from './components/pages';
+import {
+  FleetPage, ServicePage, TopicPage, IssuePage, ComposePage, ValuePage, TestConsolePage,
+} from './components/pages';
 import { FeedHealthLine } from './components/controls/FeedHealthLine';
 import { EmptyState } from './components/primitives/EmptyState';
 import { StatusGlyph } from './components/primitives/StatusGlyph';
@@ -31,6 +33,7 @@ export function App() {
   const error = useAppSelector(selectError);
   const page = useAppSelector(selectPage);
   const selected = useAppSelector(selectSelected);
+  const selectedService = useAppSelector(selectSelectedService);
   const summary = useAppSelector(selectEstateSummary);
   const feedHealth = useAppSelector(selectFeedHealth);
   const generatedAtUtc = useAppSelector((s) => s.estate.generatedAtUtc);
@@ -151,6 +154,13 @@ export function App() {
           >
             Value
           </button>
+          <button
+            type="button"
+            aria-current={page === 'test' ? 'page' : undefined}
+            onClick={() => dispatch(navigated({ page: 'test' }))}
+          >
+            Test
+          </button>
         </nav>
         {/* The worst status in the estate, always in the same place — a reader who checks one thing
             on arrival checks this, and it must not move about as the page changes. */}
@@ -183,8 +193,9 @@ export function App() {
             {page === 'service' && selected && <ServicePage service={selected} />}
             {page === 'topic' && selected && <TopicPage topic={selected} />}
             {page === 'issue' && <IssuePage selected={selected ?? 'all'} />}
-            {page === 'compose' && selected && <ComposePage topic={selected} />}
+            {page === 'compose' && selected && <ComposePage topic={selected} service={selectedService} />}
             {page === 'value' && <ValuePage />}
+            {page === 'test' && <TestConsolePage service={selectedService} topic={selected} />}
           </>
         )}
       </main>

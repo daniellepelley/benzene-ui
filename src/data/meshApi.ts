@@ -1,6 +1,8 @@
 import type { FleetView, Manifest, ServiceSnapshot, Topics, Topology, Usage } from '../contracts';
 import type { MeshApi } from '../store/slices/estateSlice';
 import type { Annotation } from '../store/slices/annotationsSlice';
+import type { ComposeResult } from '../store/slices/composeSlice';
+import { MeshDispatchBlockedError } from '../store/slices/composeSlice';
 
 /**
  * Resolves an artifact path against the manifest's location, then the page.
@@ -58,6 +60,57 @@ async function meshQuery<T>(endpoint: string, topic: string, body: unknown): Pro
   return JSON.parse(envelope.body ?? '{}') as T;
 }
 
+/**
+ * Dispatches a `mesh:dispatch` message to `endpoint` and returns the target service's own response.
+ *
+ * `benzene:mesh:dispatch` answers over the same wire envelope every mesh query does, but its outer
+ * envelope status means something different: it reports whether the *mesh itself* would even attempt
+ * the send (`ok`, or `forbidden`/`bad-request`/`not-found`/`not-implemented` — see
+ * `Benzene.Mesh.Dispatch.MeshDispatchMessageHandler`), never the target service's own outcome. That
+ * lives one layer in, as the `MeshDispatchResult` JSON the outer `ok` envelope's `body` carries. So a
+ * non-`ok` outer status is not "the send failed" — usually it is a safety gate (most commonly
+ * `MeshDispatchGate`'s Production check) refusing to even try, and the composer needs to say that
+ * distinctly rather than folding it into "the target returned an error", which the inner
+ * `ComposeResult.statusCode` already covers.
+ */
+async function dispatchMessage(
+  endpoint: string,
+  request: { service: string; topic: string; headers: Record<string, string>; body: string },
+): Promise<ComposeResult> {
+  const envelope = await postJson<{ statusCode: string; body?: string }>(endpoint, {
+    topic: 'benzene:mesh:dispatch',
+    headers: {},
+    body: JSON.stringify(request),
+  });
+
+  if (envelope.statusCode !== 'ok') {
+    throw new MeshDispatchBlockedError(describeBlockedDispatch(envelope), envelope.statusCode);
+  }
+
+  return JSON.parse(envelope.body ?? '{}') as ComposeResult;
+}
+
+/**
+ * The blocked/refused envelope's `body` is whatever the failing `IBenzeneResult`'s message
+ * serializes to — not guaranteed to be a `RawStringMessage`-shaped JSON string the way a successful
+ * dispatch's body is, so this reads it defensively rather than assuming one shape.
+ */
+function describeBlockedDispatch(envelope: { statusCode: string; body?: string }): string {
+  const raw = envelope.body?.trim();
+  if (!raw) return `The mesh refused this dispatch (${envelope.statusCode}).`;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (typeof parsed === 'string') return parsed;
+    if (parsed && typeof parsed === 'object' && 'message' in parsed) {
+      const message = (parsed as { message?: unknown }).message;
+      if (typeof message === 'string') return message;
+    }
+  } catch {
+    // Not JSON — the raw text itself is the message.
+  }
+  return raw;
+}
+
 export interface MeshApiOptions {
   /** Where the aggregator published its artifacts. Everything else resolves relative to it. */
   manifestUrl?: string;
@@ -65,6 +118,13 @@ export interface MeshApiOptions {
   fleetEndpoint?: string;
   /** Set when annotations are writable. Absent means a read-only mesh. */
   annotationsEndpoint?: string;
+  /**
+   * Set when the mesh also wires `Benzene.Mesh.Dispatch`'s `UseMeshDispatch()`. Absent means the Test
+   * Console renders read-only (compose and copy a payload, no send button) — a deliberate, separate
+   * opt-in from `fleetEndpoint`: a mesh that wires only the collector's read-only fleet queries must
+   * not have this silently also turn on live dispatch, even though the two often share one endpoint.
+   */
+  dispatchEndpoint?: string;
 }
 
 /**
@@ -84,6 +144,7 @@ export function optionsFromDocument(location: Location, root: HTMLElement): Mesh
     manifestUrl: pick('url', 'data-manifest-url'),
     fleetEndpoint: pick('fleet', 'data-fleet-url'),
     annotationsEndpoint: pick('annotations', 'data-annotations-url'),
+    dispatchEndpoint: pick('dispatch', 'data-dispatch-url'),
   };
 }
 
@@ -104,5 +165,8 @@ export const createMeshApi = (options: MeshApiOptions = {}): MeshApi => ({
         postAnnotation: (request) =>
           postJson<Annotation>(options.annotationsEndpoint!, request),
       }
+    : {}),
+  ...(options.dispatchEndpoint
+    ? { sendMessage: (message) => dispatchMessage(options.dispatchEndpoint!, message) }
     : {}),
 });

@@ -401,6 +401,10 @@ input, select, textarea {
 .bz-compose button { align-self: flex-start; padding: 0.35rem 1rem; border-color: var(--bz-accent); background: var(--bz-accent); color: var(--bz-accent-contrast); font-weight: 600; }
 .bz-compose button:disabled { opacity: 0.5; cursor: not-allowed; }
 .bz-compose-result pre { background: var(--bz-code-bg); border: 1px solid var(--bz-border); border-radius: var(--bz-radius); padding: 0.75rem; overflow-x: auto; font-size: 0.85rem; }
+.bz-composer-send { display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+.bz-composer-confirm { display: flex; align-items: flex-start; gap: 0.4rem; font-size: 0.85rem; color: var(--bz-muted); cursor: pointer; }
+.bz-composer-confirm input { margin-top: 0.15rem; }
+.bz-composer-blocked { color: var(--bz-rag-amber); background: var(--bz-rag-amber-bg); border-radius: var(--bz-radius); padding: 0.5rem 0.75rem; font-size: 0.85rem; margin: 0; }
 
 /* ── Feed health ───────────────────────────────────────────────────────────────────────────── */
 /* Deliberately not a banner. The line sits inline in the reading order so it is impossible to

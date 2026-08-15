@@ -97,8 +97,14 @@ export interface MeshApi {
     author: string;
     text: string;
   }): Promise<import('./annotationsSlice').Annotation>;
-  /** Optional: absent on a read-only mesh, which disables the composer rather than hiding it. */
+  /**
+   * Optional: absent when no dispatch endpoint is configured, which disables the composer's send
+   * button rather than hiding it. Throws {@link import('./composeSlice').MeshDispatchBlockedError}
+   * when the mesh itself refused the dispatch (most commonly `MeshDispatchGate`'s Production check) —
+   * as opposed to resolving with whatever the target service's own handler returned, however unhappy.
+   */
   sendMessage?(message: {
+    service: string;
     topic: string;
     headers: Record<string, string>;
     body: string;

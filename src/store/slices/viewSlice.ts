@@ -1,6 +1,6 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
-export type Page = 'fleet' | 'service' | 'topic' | 'issue' | 'compose' | 'value';
+export type Page = 'fleet' | 'service' | 'topic' | 'issue' | 'compose' | 'value' | 'test';
 
 /**
  * View state lives here, not in components.
@@ -14,6 +14,13 @@ export interface ViewState {
   page: Page;
   /** The entity the current page is about — a service name, topic id, or issue id. */
   selected: string | null;
+  /**
+   * The service half of the `test` page's selection. `test` is the one page whose entity is a
+   * *pair* — a service and a topic together, since dispatch needs both to know where to send a
+   * message — so it needs a second slot alongside `selected` (the topic half) rather than forcing
+   * a composite string through the single-entity shape every other page uses.
+   */
+  selectedService: string | null;
   filter: string;
   expandedServices: string[];
   /** Millisecond window the live planes are reporting over. */
@@ -54,6 +61,7 @@ export type Theme = 'system' | 'light' | 'dark';
 const initialState: ViewState = {
   page: 'fleet',
   selected: null,
+  selectedService: null,
   filter: '',
   expandedServices: [],
   rangeMs: 15 * 60 * 1000,
@@ -72,9 +80,10 @@ const viewSlice = createSlice({
   name: 'view',
   initialState,
   reducers: {
-    navigated(state, action: PayloadAction<{ page: Page; selected?: string | null }>) {
+    navigated(state, action: PayloadAction<{ page: Page; selected?: string | null; selectedService?: string | null }>) {
       state.page = action.payload.page;
       state.selected = action.payload.selected ?? null;
+      state.selectedService = action.payload.selectedService ?? null;
     },
     filterChanged(state, action: PayloadAction<string>) {
       state.filter = action.payload;

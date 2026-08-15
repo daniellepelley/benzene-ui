@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { optionsFromDocument } from './meshApi';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { optionsFromDocument, createMeshApi } from './meshApi';
+import { MeshDispatchBlockedError } from '../store/slices/composeSlice';
 
 const doc = (attributes: Record<string, string> = {}) => {
   const root = document.createElement('html');
@@ -19,6 +20,7 @@ describe('deployment configuration', () => {
         'data-manifest-url': '/artifacts/manifest.json',
         'data-fleet-url': '/benzene/mesh',
         'data-annotations-url': '/benzene/annotations',
+        'data-dispatch-url': '/benzene/invoke',
       }),
     );
 
@@ -26,18 +28,20 @@ describe('deployment configuration', () => {
       manifestUrl: '/artifacts/manifest.json',
       fleetEndpoint: '/benzene/mesh',
       annotationsEndpoint: '/benzene/annotations',
+      dispatchEndpoint: '/benzene/invoke',
     });
   });
 
   it('lets a query parameter point the page at another estate', () => {
     // A link has to be able to override a baked-in default, or one dashboard can never show another.
     const options = optionsFromDocument(
-      loc('?url=https://other.example/manifest.json&fleet=https://other.example/mesh'),
+      loc('?url=https://other.example/manifest.json&fleet=https://other.example/mesh&dispatch=https://other.example/invoke'),
       doc({ 'data-manifest-url': '/artifacts/manifest.json', 'data-fleet-url': '/benzene/mesh' }),
     );
 
     expect(options.manifestUrl).toBe('https://other.example/manifest.json');
     expect(options.fleetEndpoint).toBe('https://other.example/mesh');
+    expect(options.dispatchEndpoint).toBe('https://other.example/invoke');
   });
 
   it('configures nothing when the deployment says nothing', () => {
@@ -47,7 +51,68 @@ describe('deployment configuration', () => {
       manifestUrl: undefined,
       fleetEndpoint: undefined,
       annotationsEndpoint: undefined,
+      dispatchEndpoint: undefined,
     });
+  });
+
+  it('does not wire sendMessage without a dispatch endpoint', () => {
+    // Fleet and dispatch are deliberately independent opt-ins — a mesh that wires only the read-only
+    // collector must not have this silently also turn on live dispatch.
+    const api = createMeshApi({ fleetEndpoint: '/benzene/invoke' });
+    expect(api.sendMessage).toBeUndefined();
+  });
+});
+
+describe('sending a test message', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('POSTs a benzene:mesh:dispatch envelope carrying the service, topic, headers and body', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => ({
+      ok: true,
+      json: async () => ({ statusCode: 'ok', body: JSON.stringify({ statusCode: 'created', body: '{"id":"1"}', headers: {} }) }),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const api = createMeshApi({ dispatchEndpoint: '/benzene/invoke' });
+    const result = await api.sendMessage!({ service: 'orders-api', topic: 'order:create', headers: { a: 'b' }, body: '{}' });
+
+    expect(result).toEqual({ statusCode: 'created', body: '{"id":"1"}', headers: {} });
+    const [, init] = fetchMock.mock.calls[0]!;
+    const posted = JSON.parse(init!.body as string);
+    expect(posted.topic).toBe('benzene:mesh:dispatch');
+    expect(JSON.parse(posted.body)).toEqual({ service: 'orders-api', topic: 'order:create', headers: { a: 'b' }, body: '{}' });
+  });
+
+  it('throws MeshDispatchBlockedError, not a generic failure, when the mesh refuses the dispatch', async () => {
+    // Most commonly MeshDispatchGate's Production check — a safety gate working as intended, which
+    // the composer needs to tell apart from "the target service returned an error".
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        statusCode: 'forbidden',
+        body: JSON.stringify('Mesh dispatch is disabled in this environment.'),
+      }),
+    })));
+
+    const api = createMeshApi({ dispatchEndpoint: '/benzene/invoke' });
+    const send = api.sendMessage!({ service: 'orders-api', topic: 'order:create', headers: {}, body: '{}' });
+
+    await expect(send).rejects.toBeInstanceOf(MeshDispatchBlockedError);
+    await expect(send).rejects.toThrow('Mesh dispatch is disabled in this environment.');
+  });
+
+  it('describes a blocked dispatch even when the reason is not JSON', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ statusCode: 'not-found', body: "No service named 'unknown' is registered in the mesh." }),
+    })));
+
+    const api = createMeshApi({ dispatchEndpoint: '/benzene/invoke' });
+    const send = api.sendMessage!({ service: 'unknown', topic: 'order:create', headers: {}, body: '{}' });
+
+    await expect(send).rejects.toThrow("No service named 'unknown' is registered in the mesh.");
   });
 });
 

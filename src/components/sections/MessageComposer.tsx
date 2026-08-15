@@ -16,10 +16,13 @@ export interface MessageComposerProps {
   send: SendState;
   error: string | null;
   result: ComposeResult | null;
+  /** The required "I understand this runs the real handler" acknowledgement — see `canSend`. */
+  confirmed: boolean;
   onVersion: (index: number) => void;
   onTransport: (transport: string) => void;
   onBody: (json: string) => void;
   onHeaders: (json: string) => void;
+  onConfirmToggle: () => void;
   /** Absent on a read-only mesh — the composer then explains itself rather than disappearing. */
   onSend?: () => void;
 }
@@ -32,8 +35,8 @@ export interface MessageComposerProps {
  */
 export function MessageComposer({
   versions, versionIndex, transports, transport, headersJson, bodyJson,
-  bodyValid, headersValid, canSend, send, error, result,
-  onVersion, onTransport, onBody, onHeaders, onSend,
+  bodyValid, headersValid, canSend, send, error, result, confirmed,
+  onVersion, onTransport, onBody, onHeaders, onConfirmToggle, onSend,
 }: MessageComposerProps) {
   if (versions.length === 0) {
     return <EmptyState message="This topic has no non-reserved version to compose against." />;
@@ -79,16 +82,30 @@ export function MessageComposer({
       </label>
 
       {onSend ? (
-        <button type="button" disabled={!canSend} onClick={onSend}>
-          {send === 'sending' ? 'Sending…' : 'Send'}
-        </button>
+        <div className="bz-composer-send">
+          <label className="bz-composer-confirm">
+            <input type="checkbox" checked={confirmed} onChange={onConfirmToggle} />
+            This sends a real message to the service's real handler — it is not a dry run.
+          </label>
+          <button type="button" disabled={!canSend} onClick={onSend}>
+            {send === 'sending' ? 'Sending…' : 'Send'}
+          </button>
+        </div>
       ) : (
         <p className="bz-composer-readonly">
           This mesh has no invoke endpoint configured, so messages can be composed but not sent.
         </p>
       )}
 
-      {error && <p className="bz-composer-error">{error}</p>}
+      {/* A blocked dispatch is a safety gate working as intended (most often MeshDispatchGate's
+          Production check), not a failure to explain away — it gets its own tone and its own words
+          rather than folding into the same red box a genuine send failure gets. */}
+      {send === 'blocked' && (
+        <p className="bz-composer-blocked">
+          <strong>Blocked:</strong> {error}
+        </p>
+      )}
+      {send === 'failed' && error && <p className="bz-composer-error">{error}</p>}
 
       {result && (
         <section className="bz-compose-result">

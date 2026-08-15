@@ -20,6 +20,7 @@ export const selectError = (s: RootState) => s.estate.error;
 export const selectFilter = (s: RootState) => s.view.filter;
 export const selectPage = (s: RootState) => s.view.page;
 export const selectSelected = (s: RootState) => s.view.selected;
+export const selectSelectedService = (s: RootState) => s.view.selectedService;
 const selectServices = (s: RootState) => s.estate.services;
 const selectExpanded = (s: RootState) => s.view.expandedServices;
 
@@ -202,7 +203,7 @@ export const selectCatalogLoad = (s: RootState) => s.catalog.load;
  * downstream of an unloaded artifact recomputes on every single store read and Reselect's dev-mode
  * stability check fires. One frozen constant makes absence a stable value.
  */
-const NONE: readonly never[] = Object.freeze([]);
+export const NONE: readonly never[] = Object.freeze([]);
 
 const selectTopicsRaw = (s: RootState) => s.catalog.topics?.topics ?? NONE;
 const selectEdgesRaw = (s: RootState) => s.catalog.topology?.edges ?? NONE;
@@ -716,6 +717,23 @@ export const selectCanPost = (s: RootState) =>
 import { exampleFromSchema, inboundSchema } from './exampleFromSchema';
 import { RAW_TRANSPORT } from './slices/composeSlice';
 
+/**
+ * Every distinct service that produces a topic, across its versions — `ComposePage`'s way of
+ * resolving *which* service to dispatch to when it's entered from a topic rather than a service (a
+ * topic can have more than one producer, or none listed at all, so this is an answer to check, not
+ * one to assume).
+ */
+export const selectProducerServicesForTopic = createSelector(
+  [selectTopicEntries],
+  (entries): string[] => {
+    const services = new Set<string>();
+    for (const t of entries) {
+      for (const p of t.producers ?? []) services.add(p.service);
+    }
+    return [...services].sort();
+  },
+);
+
 /** Every version of a topic, sorted by version string — the payload picker's options. */
 export const selectTopicVersions = createSelector(
   [selectTopics, (_: RootState, topic: string) => topic],
@@ -763,6 +781,11 @@ export interface ComposeValidity {
 /**
  * Whether the composed message is sendable. Parsing lives here rather than in the form, so "is this
  * valid JSON" is one memoised answer both the Send button and the error message read.
+ *
+ * `confirmed` gates `canSend` alongside the target and the JSON validity: dispatch fires a real
+ * handler with real side-effects, so the Send button itself stays disabled until the reader has
+ * acknowledged that — the same "component holds no state" rule that puts everything else here means
+ * the acknowledgement is `compose.confirmed`, not a checkbox's own local state.
  */
 export const selectComposeValidity = createSelector(
   [(s: RootState) => s.compose],
@@ -780,7 +803,9 @@ export const selectComposeValidity = createSelector(
     return {
       bodyValid,
       headersValid,
-      canSend: bodyValid && headersValid && compose.send !== 'sending' && compose.topic != null,
+      canSend:
+        bodyValid && headersValid && compose.send !== 'sending' && compose.confirmed
+        && compose.topic != null && compose.service != null,
     };
   },
 );
@@ -790,6 +815,22 @@ export const selectComposeValidity = createSelector(
 export const selectCapabilities = (s: RootState) => s.capabilities;
 export const selectCanInvoke = (s: RootState) => s.capabilities.invoke;
 export const selectCanAnnotate = (s: RootState) => s.capabilities.annotate;
+
+// ── Test Console ────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Every non-reserved topic a service produces or consumes, for the Test Console's topic picker —
+ * either direction is a legitimate thing to test (send a domain event a service consumes, or replay
+ * one it produces), so this offers both rather than picking a side for the reader.
+ */
+export const selectComposableTopicsForService = createSelector(
+  [selectTopicsForService],
+  ({ consumes, produces }): TopicsTopicsItem[] => {
+    const byTopic = new Map<string, TopicsTopicsItem>();
+    for (const t of [...consumes, ...produces]) byTopic.set(t.topic, t);
+    return [...byTopic.values()].sort((a, b) => a.topic.localeCompare(b.topic));
+  },
+);
 
 // ── The live window ─────────────────────────────────────────────────────────────────────────────
 

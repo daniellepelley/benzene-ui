@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { createStore } from './store';
 import { loadCatalog } from './slices/catalogSlice';
 import {
-  composeOpened, versionSelected, bodyEdited, headersEdited, transportSelected, sendComposed,
+  composeOpened, versionSelected, bodyEdited, headersEdited, transportSelected,
+  sendConfirmationToggled, sendComposed, MeshDispatchBlockedError,
   RAW_TRANSPORT,
 } from './slices/composeSlice';
 import { selectComposeValidity, selectTransportsForTopic, selectTopicVersions, selectExampleBody } from './selectors';
@@ -20,37 +21,51 @@ describe('compose', () => {
     const topic = 'orders:create';
     const example = selectExampleBody(store.getState(), topic, 0);
 
-    store.dispatch(composeOpened({ topic, exampleBody: example, transports: [RAW_TRANSPORT] }));
+    store.dispatch(composeOpened({ service: 'orders-api', topic, exampleBody: example, transports: [RAW_TRANSPORT] }));
 
+    expect(store.getState().compose.service).toBe('orders-api');
     expect(store.getState().compose.topic).toBe(topic);
     expect(JSON.parse(store.getState().compose.bodyJson)).toBeTypeOf('object');
   });
 
-  it('does not discard an edited draft when the same topic is reopened', async () => {
+  it('does not discard an edited draft when the same target is reopened', async () => {
     // Re-entering the page must not throw away five minutes of typing.
     const store = await ready();
-    store.dispatch(composeOpened({ topic: 'orders:create', exampleBody: '{"a":1}', transports: [RAW_TRANSPORT] }));
+    const target = { service: 'orders-api', topic: 'orders:create', exampleBody: '{"a":1}', transports: [RAW_TRANSPORT] };
+    store.dispatch(composeOpened(target));
     store.dispatch(bodyEdited('{"mine":true}'));
 
-    store.dispatch(composeOpened({ topic: 'orders:create', exampleBody: '{"a":1}', transports: [RAW_TRANSPORT] }));
+    store.dispatch(composeOpened(target));
 
     expect(store.getState().compose.bodyJson).toBe('{"mine":true}');
   });
 
   it('reseeds when a different topic is opened', async () => {
     const store = await ready();
-    store.dispatch(composeOpened({ topic: 'a', exampleBody: '{"a":1}', transports: [RAW_TRANSPORT] }));
+    store.dispatch(composeOpened({ service: 's', topic: 'a', exampleBody: '{"a":1}', transports: [RAW_TRANSPORT] }));
     store.dispatch(bodyEdited('{"mine":true}'));
 
-    store.dispatch(composeOpened({ topic: 'b', exampleBody: '{"b":2}', transports: [RAW_TRANSPORT] }));
+    store.dispatch(composeOpened({ service: 's', topic: 'b', exampleBody: '{"b":2}', transports: [RAW_TRANSPORT] }));
 
     expect(store.getState().compose.bodyJson).toBe('{"b":2}');
     expect(store.getState().compose.dirty).toBe(false);
   });
 
+  it('reseeds when the same topic is reopened against a different service', async () => {
+    // The topic could be unambiguous under one producer but the reader is deliberately targeting a
+    // different one — that is a new target, not a re-entry of the same one.
+    const store = await ready();
+    store.dispatch(composeOpened({ service: 's1', topic: 'a', exampleBody: '{"a":1}', transports: [RAW_TRANSPORT] }));
+    store.dispatch(bodyEdited('{"mine":true}'));
+
+    store.dispatch(composeOpened({ service: 's2', topic: 'a', exampleBody: '{"b":2}', transports: [RAW_TRANSPORT] }));
+
+    expect(store.getState().compose.bodyJson).toBe('{"b":2}');
+  });
+
   it('reseeds on a version change even when dirty — the old body was for a different schema', async () => {
     const store = await ready();
-    store.dispatch(composeOpened({ topic: 'a', exampleBody: '{"v1":1}', transports: [RAW_TRANSPORT] }));
+    store.dispatch(composeOpened({ service: 's', topic: 'a', exampleBody: '{"v1":1}', transports: [RAW_TRANSPORT] }));
     store.dispatch(bodyEdited('{"edited":true}'));
 
     store.dispatch(versionSelected({ index: 1, exampleBody: '{"v2":2}' }));
@@ -62,14 +77,20 @@ describe('compose', () => {
     const store = await ready();
     store.dispatch(transportSelected('http'));
 
-    store.dispatch(composeOpened({ topic: 'a', exampleBody: '{}', transports: [RAW_TRANSPORT] }));
+    store.dispatch(composeOpened({ service: 's', topic: 'a', exampleBody: '{}', transports: [RAW_TRANSPORT] }));
 
     expect(store.getState().compose.transport).toBe(RAW_TRANSPORT);
   });
 
-  it('will not send invalid JSON', async () => {
+  it('will not send without a service, without confirmation, or with invalid JSON', async () => {
     const store = await ready();
-    store.dispatch(composeOpened({ topic: 'a', exampleBody: '{}', transports: [RAW_TRANSPORT] }));
+    store.dispatch(composeOpened({ service: null, topic: 'a', exampleBody: '{}', transports: [RAW_TRANSPORT] }));
+    expect(selectComposeValidity(store.getState()).canSend).toBe(false);
+
+    store.dispatch(composeOpened({ service: 's', topic: 'a', exampleBody: '{}', transports: [RAW_TRANSPORT] }));
+    expect(selectComposeValidity(store.getState()).canSend).toBe(false); // not confirmed yet
+
+    store.dispatch(sendConfirmationToggled());
     expect(selectComposeValidity(store.getState()).canSend).toBe(true);
 
     store.dispatch(bodyEdited('{ not json'));
@@ -80,11 +101,21 @@ describe('compose', () => {
     expect(selectComposeValidity(store.getState())).toMatchObject({ headersValid: false, canSend: false });
   });
 
+  it('un-confirms when the draft or the target changes, so a stale confirmation never covers a new send', async () => {
+    const store = await ready();
+    store.dispatch(composeOpened({ service: 's', topic: 'a', exampleBody: '{}', transports: [RAW_TRANSPORT] }));
+    store.dispatch(sendConfirmationToggled());
+    expect(store.getState().compose.confirmed).toBe(true);
+
+    store.dispatch(bodyEdited('{"edited":true}'));
+    expect(store.getState().compose.confirmed).toBe(false);
+  });
+
   it('reports a read-only mesh rather than failing silently', async () => {
     const store = await ready();
-    store.dispatch(composeOpened({ topic: 'a', exampleBody: '{}', transports: [RAW_TRANSPORT] }));
+    store.dispatch(composeOpened({ service: 's', topic: 'a', exampleBody: '{}', transports: [RAW_TRANSPORT] }));
 
-    await store.dispatch(sendComposed({ topic: 'a', headers: {}, body: '{}' }));
+    await store.dispatch(sendComposed({ service: 's', topic: 'a', headers: {}, body: '{}' }));
 
     expect(store.getState().compose.send).toBe('failed');
     expect(store.getState().compose.error).toContain('read-only');
@@ -94,12 +125,32 @@ describe('compose', () => {
     const store = await ready({
       sendMessage: async () => ({ statusCode: 'created', body: '{"id":"1"}', headers: {} }),
     });
-    store.dispatch(composeOpened({ topic: 'a', exampleBody: '{}', transports: [RAW_TRANSPORT] }));
+    store.dispatch(composeOpened({ service: 's', topic: 'a', exampleBody: '{}', transports: [RAW_TRANSPORT] }));
+    store.dispatch(sendConfirmationToggled());
 
-    await store.dispatch(sendComposed({ topic: 'a', headers: {}, body: '{}' }));
+    await store.dispatch(sendComposed({ service: 's', topic: 'a', headers: {}, body: '{}' }));
 
     expect(store.getState().compose.send).toBe('sent');
     expect(store.getState().compose.result?.statusCode).toBe('created');
+    // A completed send clears the acknowledgement — the next one needs its own.
+    expect(store.getState().compose.confirmed).toBe(false);
+  });
+
+  it('renders a blocked dispatch distinctly from a failed one', async () => {
+    // The mesh itself refusing to attempt the send (MeshDispatchGate's Production check, most
+    // commonly) is not the same statement as "something went wrong" — it needs its own send state
+    // so the composer can say "this is a safety gate working as intended" instead of a generic error.
+    const store = await ready({
+      sendMessage: async () => {
+        throw new MeshDispatchBlockedError('Mesh dispatch is disabled in this environment.', 'forbidden');
+      },
+    });
+    store.dispatch(composeOpened({ service: 's', topic: 'a', exampleBody: '{}', transports: [RAW_TRANSPORT] }));
+
+    await store.dispatch(sendComposed({ service: 's', topic: 'a', headers: {}, body: '{}' }));
+
+    expect(store.getState().compose.send).toBe('blocked');
+    expect(store.getState().compose.error).toContain('disabled in this environment');
   });
 
   it('always offers the raw transport, and adds http where a consumer maps it', async () => {

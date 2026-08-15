@@ -14,6 +14,8 @@ import { ServicePage } from './ServicePage';
 import { TopicPage } from './TopicPage';
 import { IssuePage } from './IssuePage';
 import { ComposePage } from './ComposePage';
+import { TestConsolePage } from './TestConsolePage';
+import { sendConfirmationToggled } from '../../store/slices/composeSlice';
 import type { ReactElement } from 'react';
 
 const loaded = async (withFleet = false) => {
@@ -183,7 +185,7 @@ describe('ComposePage', () => {
   it('seeds the body from the topic schema', async () => {
     const store = await loaded();
     const topic = store.getState().catalog.topics!.topics.find((t) => t.requestSchema && !t.reserved)!;
-    show(store, <ComposePage topic={topic.topic} />);
+    show(store, <ComposePage topic={topic.topic} service="orders-api" />);
 
     const body = screen.getByLabelText(/Body/) as HTMLTextAreaElement;
     // Deterministic, so this is a real assertion rather than "something appeared".
@@ -194,21 +196,21 @@ describe('ComposePage', () => {
   it('offers the raw transport for every topic', async () => {
     const store = await loaded();
     const topic = store.getState().catalog.topics!.topics.find((t) => !t.reserved)!;
-    show(store, <ComposePage topic={topic.topic} />);
+    show(store, <ComposePage topic={topic.topic} service="orders-api" />);
 
     expect(screen.getByRole('option', { name: /raw \(benzene-message\)/ })).toBeInTheDocument();
   });
 
   it('says so when a topic cannot be composed against', async () => {
     const store = await loaded();
-    show(store, <ComposePage topic="not-a-topic" />);
+    show(store, <ComposePage topic="not-a-topic" service="orders-api" />);
     expect(screen.getByText(/no composable version/)).toBeInTheDocument();
   });
 
   it('explains a read-only mesh instead of offering a dead Send button', async () => {
     const store = await loaded();
     const topic = store.getState().catalog.topics!.topics.find((t) => !t.reserved)!;
-    show(store, <ComposePage topic={topic.topic} />);
+    show(store, <ComposePage topic={topic.topic} service="orders-api" />);
 
     // fakeMeshApi has no sendMessage, so `capabilities.invoke` is false and the composer says why
     // rather than rendering a button that cannot work.
@@ -216,14 +218,87 @@ describe('ComposePage', () => {
     expect(screen.getByText(/no invoke endpoint configured/)).toBeInTheDocument();
   });
 
-  it('offers Send when the mesh advertises an invoke endpoint', async () => {
+  it('offers Send, disabled, when the mesh advertises an invoke endpoint but sending is unconfirmed', async () => {
     const store = createStore(
       fakeMeshApi({ sendMessage: async () => ({ statusCode: 'ok', body: '{}', headers: {} }) }),
     );
     await store.dispatch(loadCatalog());
     const topic = store.getState().catalog.topics!.topics.find((t) => !t.reserved)!;
-    show(store, <ComposePage topic={topic.topic} />);
+    show(store, <ComposePage topic={topic.topic} service="orders-api" />);
+
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
+  });
+
+  it('enables Send once the real-handler acknowledgement is confirmed', async () => {
+    const store = createStore(
+      fakeMeshApi({ sendMessage: async () => ({ statusCode: 'ok', body: '{}', headers: {} }) }),
+    );
+    await store.dispatch(loadCatalog());
+    const topic = store.getState().catalog.topics!.topics.find((t) => !t.reserved)!;
+    show(store, <ComposePage topic={topic.topic} service="orders-api" />);
+
+    act(() => store.dispatch(sendConfirmationToggled()));
 
     expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled();
+  });
+
+  it('resolves the service silently when a topic has exactly one producer', async () => {
+    const store = await loaded();
+    // payment:capture is produced by orders-api alone in the fixture.
+    show(store, <ComposePage topic="payment:capture" service={null} />);
+
+    // No service picker shown, and the composer renders straight away.
+    expect(screen.queryByLabelText('Service')).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/Body/)).toBeInTheDocument();
+  });
+
+  it('asks which service when a topic has more than one producer', async () => {
+    const store = await loaded();
+    // shipping:book is produced by both orders-api and payments-api in the fixture.
+    show(store, <ComposePage topic="shipping:book" service={null} />);
+
+    expect(screen.getByLabelText('Service')).toBeInTheDocument();
+    // Nothing chosen yet, so the composer itself does not render.
+    expect(screen.queryByLabelText(/Body/)).not.toBeInTheDocument();
+  });
+});
+
+describe('TestConsolePage', () => {
+  it('starts with a service picker and no topic picker until one is chosen', async () => {
+    const store = await loaded();
+    show(store, <TestConsolePage service={null} topic={null} />);
+
+    expect(screen.getByLabelText('Service')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Topic')).not.toBeInTheDocument();
+  });
+
+  it('offers only the topics a service produces or consumes, once picked', async () => {
+    const store = await loaded();
+    show(store, <TestConsolePage service="orders-api" topic={null} />);
+
+    // orders:create is consumed by orders-api in the fixture.
+    expect(screen.getByRole('option', { name: 'orders:create' })).toBeInTheDocument();
+    // Reserved utility topics never belong in the composable list.
+    expect(screen.queryByRole('option', { name: 'spec' })).not.toBeInTheDocument();
+  });
+
+  it('renders the composer once both service and topic are chosen', async () => {
+    const store = await loaded();
+    show(store, <TestConsolePage service="orders-api" topic="orders:create" />);
+
+    expect(screen.getByLabelText(/Body/)).toBeInTheDocument();
+  });
+
+  it('lands directly on a pre-filled composer, for a runbook-style deep link', async () => {
+    // The whole point of a service+topic prop pair: a link that already names both renders straight
+    // to the composer, with no picking required.
+    const store = createStore(
+      fakeMeshApi({ sendMessage: async () => ({ statusCode: 'ok', body: '{}', headers: {} }) }),
+    );
+    await store.dispatch(loadCatalog());
+    show(store, <TestConsolePage service="orders-api" topic="payment:capture" />);
+
+    expect(screen.getByLabelText(/Body/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Send' })).toBeInTheDocument();
   });
 });

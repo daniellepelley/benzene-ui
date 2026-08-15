@@ -19,18 +19,22 @@ const meta = {
     headersJson: '{}',
     bodyJson: '{\n  "orderId": "00000000-0000-0000-0000-000000000000",\n  "amount": 0\n}',
     bodyValid: true, headersValid: true, canSend: true, send: 'idle', error: null, result: null,
+    confirmed: true,
     onVersion: () => {}, onTransport: () => {}, onBody: () => {}, onHeaders: () => {}, onSend: () => {},
+    onConfirmToggle: () => {},
   },
 } satisfies Meta<typeof MessageComposer>;
 export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Ready: Story = {};
+export const Unconfirmed: Story = { args: { confirmed: false, canSend: false } };
 export const MultipleVersions: Story = { args: { versions: [v({ version: '' }), v({ version: '2' }), v({ version: '3', requestSchema: null, messageSchema: null })] } };
 export const InvalidBody: Story = { args: { bodyJson: '{ not json', bodyValid: false, canSend: false } };
 export const InvalidHeaders: Story = { args: { headersJson: 'nope', headersValid: false, canSend: false } };
 export const Sending: Story = { args: { send: 'sending', canSend: false } };
 export const Succeeded: Story = { args: { send: 'sent', result: { statusCode: 'created', body: '{"id":"9f2"}', headers: {} } } };
-export const Failed: Story = { args: { send: 'failed', result: { statusCode: 'bad-request', body: '{"errors":["orderId is required"]}', headers: {} } } };
+export const Failed: Story = { args: { send: 'failed', error: 'Timed out reaching the target service.', result: { statusCode: 'bad-request', body: '{"errors":["orderId is required"]}', headers: {} } } };
+export const Blocked: Story = { args: { send: 'blocked', error: 'Mesh dispatch is disabled in this environment. It invokes a service\'s real handler with the supplied payload (real side-effects execute), so it is off in Production unless MeshDispatchOptions.AllowInProduction is explicitly set.', canSend: false } };
 export const ReadOnlyMesh: Story = { args: { onSend: undefined } };
 export const NoComposableVersion: Story = { args: { versions: [] } };

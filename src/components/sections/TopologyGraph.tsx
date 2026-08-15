@@ -1,4 +1,5 @@
 import { layoutTopology, NODE_H, type Layout } from './topologyLayout';
+import { edgeLivenessFromField } from '../../contracts/mesh';
 import type { Rag, TopologyEdgesItem } from '../../contracts';
 import { EmptyState } from '../primitives/EmptyState';
 
@@ -12,6 +13,9 @@ export interface TopologyGraphProps {
    * the one surface on the front door where the estate's health was invisible. A node with no entry
    * is drawn dashed: it was observed calling something but is not in the manifest, which is a real
    * and interesting state, not a reason to guess green.
+   *
+   * A dashed *edge* means something different (mesh.md §4.2): a declared producer/consumer pair no
+   * trace has ever exercised, drawn that way only when `TopologyEdgesItem.lastObservedAt` says so.
    */
   rags?: Record<string, Rag>;
   /** Above this, an edge is drawn as failing. */
@@ -23,7 +27,10 @@ export function TopologyGraph({ edges, onOpen, rags = {}, errorThreshold = 0.05 
   const layout: Layout = layoutTopology(edges);
 
   if (layout.nodes.length === 0) {
-    return <EmptyState message="No topology has been observed — no trace source is wired, or nothing has called anything yet." tone="unknown" />;
+    // mesh.md §4: the graph is declared (from `topics`/`consumes`), not derived from trace
+    // parentage — an empty graph means no service has registered a cross-service edge yet, not
+    // "nothing has been observed". A trace source being unwired never explains an empty graph.
+    return <EmptyState message="No producer/consumer edges are declared yet — no registered service consumes another's topic." tone="unknown" />;
   }
 
   const at = (name: string) => layout.nodes.find((n) => n.name === name);
@@ -63,6 +70,11 @@ export function TopologyGraph({ edges, onOpen, rags = {}, errorThreshold = 0.05 
           if (!from || !to) return null;
           // A null error rate is "not reported", so it must not be drawn as failing.
           const failing = e.errorRate != null && e.errorRate > errorThreshold;
+          // mesh.md §4.2: a declared edge the collector has never traced is a decommission
+          // candidate, drawn dashed so it reads as distinct from a confirmed (declared *and*
+          // observed) edge without inventing a fourth colour. Absent `lastObservedAt` (the
+          // aggregator hasn't wired the signal) draws solid, exactly as before.
+          const unobserved = edgeLivenessFromField(e.lastObservedAt) === 'unobserved';
           return (
             <line
               key={`${e.from}->${e.to}`}
@@ -74,8 +86,11 @@ export function TopologyGraph({ edges, onOpen, rags = {}, errorThreshold = 0.05 
               // A structural edge (no observed traffic) draws at the minimum weight rather than NaN —
               // `undefined + 1` would poison the whole width calculation.
               strokeWidth={Math.max(1, Math.min(6, Math.log10((e.requestsPerMinute ?? 0) + 1) * 3))}
+              strokeDasharray={unobserved ? '5 4' : undefined}
               markerEnd={`url(#${failing ? 'bz-arrow-err' : 'bz-arrow'})`}
-            />
+            >
+              {unobserved && <title>declared, never observed — a decommission candidate (mesh.md §4.2)</title>}
+            </line>
           );
         })}
 

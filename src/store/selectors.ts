@@ -1,6 +1,7 @@
 import { createSelector } from '@reduxjs/toolkit';
 import type { RootState } from './store';
 import type { ManifestService, Rag, ServiceStatus } from '../contracts';
+import { edgeLivenessOf } from '../contracts/mesh';
 
 /** Declared status → RAG. The single place the mapping lives; the old UI spread it across classes. */
 const STATUS_RAG: Record<ServiceStatus, Rag> = {
@@ -674,6 +675,24 @@ export const selectRetirementView = createSelector(
       } else {
         tier = 'ok';
         evidence.push('declared consumers, no usage feed to check against');
+      }
+
+      // mesh.md §4.2: a declared edge no trace has ever exercised is a decommission *candidate* in
+      // its own right, independent of the usage-feed tiering above (a topic can carry real traffic
+      // from most of its declared consumers and still have one nobody has ever seen call it).
+      // Additive evidence only — it never changes the tier, and stays silent entirely when the
+      // aggregator hasn't projected the signal (`edgeLivenessOf` returns 'unknown' for every peer).
+      const unobservedConsumers = (entry.consumers ?? [])
+        .filter((c) => edgeLivenessOf(entry.consumerActivity?.[c.service]) === 'unobserved')
+        .map((c) => c.service);
+      const unobservedProducers = (entry.producers ?? [])
+        .filter((p) => edgeLivenessOf(entry.providerActivity?.[p.service]) === 'unobserved')
+        .map((p) => p.service);
+      if (unobservedConsumers.length > 0) {
+        evidence.push(`declared but never observed consuming: ${unobservedConsumers.join(', ')}`);
+      }
+      if (unobservedProducers.length > 0) {
+        evidence.push(`declared but never observed producing: ${unobservedProducers.join(', ')}`);
       }
 
       byTier[tier].push({ entry, usageTotal, evidence });

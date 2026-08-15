@@ -32,6 +32,14 @@ export interface Edge {
   errorRate: number | null;
   /** null on a structural edge — declared by contract, never observed by a trace source. */
   requestsPerMinute: number | null;
+  /**
+   * mesh.md §4.2's liveness signal, distinct from `requestsPerMinute`: whether *this* declared edge
+   * has ever been traced, independent of whether a rate/latency source is wired at all.
+   * `undefined` — the aggregator hasn't projected the signal; render exactly as before.
+   * `null` — declared, but never traced: a decommission candidate.
+   * a string — declared and traced; the last-observed timestamp.
+   */
+  lastObservedAt?: string | null;
 }
 
 export interface Layout {
@@ -108,6 +116,7 @@ export function layoutTopology(edges: TopologyEdgesItem[]): Layout {
       to: e.server,
       errorRate: e.errorRate ?? null,
       requestsPerMinute: e.requestsPerMinute ?? null,
+      lastObservedAt: e.lastObservedAt,
     })),
     width: x - COL_GAP + PAD,
     height: PAD * 2 + maxRows * (NODE_H + ROW_GAP) - ROW_GAP,

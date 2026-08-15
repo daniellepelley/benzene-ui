@@ -1,0 +1,70 @@
+{
+  "generatedAtUtc": "2026-08-15T09:00:00Z",
+  "topics": [
+    {
+      "topic": "payment:capture",
+      "version": "v1",
+      "reserved": false,
+      "consumers": [
+        {
+          "service": "orders-api",
+          "httpMappings": []
+        }
+      ],
+      "producers": [
+        {
+          "service": "payments-api"
+        }
+      ],
+      "status": null,
+      "requestSchema": null,
+      "responseSchema": null,
+      "messageSchema": null,
+      "schemaMismatch": false,
+      "consumerActivity": {
+        "orders-api": {
+          "lastObservedAt": "2026-08-14T22:10:00Z"
+        }
+      },
+      "providerActivity": {
+        "payments-api": {}
+      }
+    },
+    {
+      "topic": "shipping:book",
+      "version": "",
+      "reserved": false,
+      "consumers": [
+        {
+          "service": "shipping-api",
+          "httpMappings": []
+        }
+      ],
+      "producers": [
+        {
+          "service": "orders-api"
+        },
+        {
+          "service": "legacy-fulfilment"
+        }
+      ],
+      "status": null,
+      "requestSchema": null,
+      "responseSchema": null,
+      "messageSchema": null,
+      "schemaMismatch": false,
+      "consumerActivity": {
+        "shipping-api": {
+          "lastObservedAt": "2026-08-15T08:55:00Z"
+        }
+      },
+      "providerActivity": {
+        "orders-api": {
+          "lastObservedAt": "2026-08-15T08:50:00Z"
+        },
+        "legacy-fulfilment": {}
+      }
+    }
+  ],
+  "removedTopics": []
+}

@@ -25,7 +25,7 @@ actions and assert on output, never simulate clicks to drive state.
 `dist/index.html` inlines all JS and CSS and makes **zero external requests**. `Benzene.Mesh.Ui`
 embeds it and serves it from inside a running service — no CDN, no static hosting. CI asserts this.
 Consequences: no code splitting, no dynamic import, no runtime CDN anything, and bundle size is a
-budget (currently 277 KB for the mesh UI, up from 250 KB with the Test Console's addition, and
+budget (currently 279 KB for the mesh UI, up from 250 KB with the Test Console's addition, and
 218 KB for the spec viewer, against the 274 KB and 955-line hand-written pages they replace).
 
 ## The collector is a Benzene service, not a REST API
@@ -52,6 +52,13 @@ the generated file is silently reverted by the next run.
 Inference gives structure, not meaning: it produces `status: string`, never the union. Vocabularies
 are spec decisions and live in `src/contracts/mesh.ts`, pinned to the generated shapes by
 `contracts.test.ts`.
+
+**A sample may be forward-looking**, when the spec normatively defines a field no port's aggregator
+projects yet: `topics.liveness.json`/`topology.liveness.json` (mesh.md §4.2's declared-vs-observed
+liveness signal) are the precedent — the field stays optional (so every selector/component degrades
+to today's rendering when it's absent, never fabricating a value), and the "as of `SPEC_VERSION`,
+no aggregator emits this yet" fact is stated where the field is interpreted (`src/contracts/mesh.ts`),
+not left implicit.
 
 ## Two pages, one library
 

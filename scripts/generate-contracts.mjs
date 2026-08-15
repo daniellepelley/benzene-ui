@@ -93,6 +93,11 @@ const OPAQUE = new Map([
   // Free-form deployment placement (region, environment, cluster, …). The collector passes through
   // whatever the binding supplied; enumerating one sample's keys would claim a shape it does not have.
   ['placement', 'Record<string, string>'],
+  // mesh.md §4.2: keyed by every declared provider/consumer service name for the topic, never a
+  // fixed set. Inferring it from a sample would mint one interface field per service name the
+  // sample happened to declare, which churns with the fleet instead of describing the contract.
+  ['providerActivity', 'Record<string, EdgeActivity>'],
+  ['consumerActivity', 'Record<string, EdgeActivity>'],
 ]);
 
 function render(node, name, out, indent = '  ') {
@@ -195,6 +200,15 @@ export interface JsonSchema {
   maxLength?: number;
   pattern?: string;
   [keyword: string]: unknown;
+}
+
+/**
+ * mesh.md §4.2: per declared provider/consumer, whether — and when — a trace has actually
+ * exercised the edge. Absent \`lastObservedAt\` (an empty object) is the honest "never observed"
+ * case, a decommission *candidate*, not a fact; it is never collapsed to a boolean.
+ */
+export interface EdgeActivity {
+  lastObservedAt?: string;
 }
 `;
 

@@ -4,7 +4,12 @@ import orders from '../../contracts/artifacts/services/orders-api.json';
 import shipping from '../../contracts/artifacts/services/shipping-api.json';
 import fleet from '../../contracts/artifacts/fleet.json';
 import fleetMinimal from '../../contracts/artifacts/fleet.minimal.json';
-import { isServiceStatus, SERVICE_STATUSES, type FleetView, type IssueClassification, type Manifest, type ServiceSnapshot } from './mesh';
+import topicsLiveness from '../../contracts/artifacts/topics.liveness.json';
+import topologyLiveness from '../../contracts/artifacts/topology.liveness.json';
+import {
+  isServiceStatus, SERVICE_STATUSES, edgeLivenessOf, edgeLivenessFromField,
+  type FleetView, type IssueClassification, type Manifest, type ServiceSnapshot, type Topics, type Topology,
+} from './mesh';
 
 const CLASSIFICATIONS: IssueClassification[] = [
   'exception', 'validation', 'config-wiring', 'dependency', 'contract-drift', 'unclassified',
@@ -80,5 +85,35 @@ describe('artifact contracts', () => {
   it('the status vocabulary has no duplicates and covers the RAG mapping', () => {
     expect(new Set(SERVICE_STATUSES).size).toBe(SERVICE_STATUSES.length);
     expect(SERVICE_STATUSES).toHaveLength(4);
+  });
+
+  /**
+   * mesh.md §4.2 — declared vs. observed. As of `contracts/SPEC_VERSION`, no port's aggregator
+   * projects this signal yet (see the note in `./mesh.ts`), so these are the only two samples that
+   * carry it. They exist to pin the shape `edgeLivenessOf`/`edgeLivenessFromField` interpret, so a
+   * future re-vendor that changes it fails here rather than in a component.
+   */
+  it('interprets consumerActivity/providerActivity per mesh.md §4.2', () => {
+    const topics = topicsLiveness as unknown as Topics;
+    const shippingBook = topics.topics.find((t) => t.topic === 'shipping:book')!;
+
+    expect(edgeLivenessOf(shippingBook.consumerActivity?.['shipping-api'])).toBe('observed');
+    expect(edgeLivenessOf(shippingBook.providerActivity?.['orders-api'])).toBe('observed');
+    // Declared (it is in `producers`) but the collector has never traced it — a decommission
+    // candidate, not a fact, and NOT the same as an absent activity map.
+    expect(edgeLivenessOf(shippingBook.providerActivity?.['legacy-fulfilment'])).toBe('unobserved');
+    // No activity data at all for this service on this topic — 'unknown', never coerced to either.
+    expect(edgeLivenessOf(shippingBook.consumerActivity?.['nobody-declared-this'])).toBe('unknown');
+  });
+
+  it('interprets a topology edge\'s lastObservedAt per mesh.md §4.2', () => {
+    const edges = (topologyLiveness as unknown as Topology).edges;
+    const confirmed = edges.find((e) => e.server === 'payments-api')!;
+    const candidate = edges.find((e) => e.server === 'legacy-fulfilment')!;
+
+    expect(edgeLivenessFromField(confirmed.lastObservedAt)).toBe('observed');
+    expect(edgeLivenessFromField(candidate.lastObservedAt)).toBe('unobserved');
+    // The field is entirely absent on every pre-existing sample — 'unknown', not 'unobserved'.
+    expect(edgeLivenessFromField(undefined)).toBe('unknown');
   });
 });

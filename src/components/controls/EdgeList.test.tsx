@@ -50,3 +50,32 @@ describe('EdgeList — structural vs measured edges', () => {
     expect(screen.getByText('errors unknown')).toBeInTheDocument();
   });
 });
+
+/**
+ * mesh.md §4.2: distinct from measured vs. structural above. `lastObservedAt` answers a narrower
+ * question — has *this* declared edge ever been traced — independent of whether a rate/latency
+ * source is wired at all. Absent (`undefined`) must render exactly like today's structural edge.
+ */
+describe('EdgeList — declared vs. observed (mesh.md §4.2)', () => {
+  it('renders today\'s structural message when the aggregator has not wired liveness at all', () => {
+    render(<EdgeList edges={[edge({})]} show="server" emptyMessage="none" />);
+    expect(screen.getByText('structural — no traffic observed')).toBeInTheDocument();
+  });
+
+  it('flags a declared edge no trace has ever exercised as a decommission candidate', () => {
+    render(<EdgeList edges={[edge({ lastObservedAt: null })]} show="server" emptyMessage="none" />);
+    expect(screen.getByText('declared — never observed')).toBeInTheDocument();
+    expect(screen.queryByText('structural — no traffic observed')).not.toBeInTheDocument();
+  });
+
+  it('shows when a declared, unmetered edge was last traced', () => {
+    render(
+      <EdgeList
+        edges={[edge({ lastObservedAt: '2026-08-15T08:50:00Z' })]}
+        show="server"
+        emptyMessage="none"
+      />,
+    );
+    expect(screen.getByText('declared — last observed 2026-08-15T08:50:00Z')).toBeInTheDocument();
+  });
+});

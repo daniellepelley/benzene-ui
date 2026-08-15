@@ -100,11 +100,13 @@ export function ServicePage({ service }: ServicePageProps) {
       </section>
 
       <section>
+        {/* mesh.md §4: the edge list is the declared graph (`consumes`/`topics`), not trace-derived —
+            an empty list means no service has registered the other end, never "nothing observed". */}
         <h3>Calls</h3>
         <h4>Outbound</h4>
-        <EdgeList edges={edges.outbound} show="server" emptyMessage="Calls nothing observed." onOpen={open} />
+        <EdgeList edges={edges.outbound} show="server" emptyMessage="Declares no outbound calls." onOpen={open} />
         <h4>Inbound</h4>
-        <EdgeList edges={edges.inbound} show="client" emptyMessage="Nothing observed calling this." onOpen={open} />
+        <EdgeList edges={edges.inbound} show="client" emptyMessage="No service declares a call to this one." onOpen={open} />
       </section>
 
       {live && (

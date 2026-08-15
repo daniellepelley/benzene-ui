@@ -16,3 +16,24 @@ export const ErrorRateNotReported: Story = {
   args: { edges: [e({ errorRate: null })] },
   parameters: { docs: { description: { story: 'A null error rate is "not reported", not zero — drawn as unknown rather than healthy.' } } },
 };
+
+const structural = (over: Partial<TopologyEdgesItem>): TopologyEdgesItem =>
+  ({ client: 'orders-api', server: 'legacy-fulfilment', source: 'structural', ...over }) as TopologyEdgesItem;
+
+/** No metrics source at all — today's baseline, unchanged when the aggregator hasn't wired mesh.md §4.2. */
+export const Structural: Story = {
+  args: { edges: [structural({})] },
+  parameters: { docs: { description: { story: 'Declared by the services’ contracts; no trace source is wired at all.' } } },
+};
+
+/** mesh.md §4.2's "declared, unobserved" state — a decommission candidate, never a fact. */
+export const DeclaredNeverObserved: Story = {
+  args: { edges: [structural({ lastObservedAt: null })] },
+  parameters: { docs: { description: { story: 'A declared edge no trace has ever exercised — mesh.md §4.2’s liveness signal, distinct from "no metrics source wired".' } } },
+};
+
+/** Declared and traced, but no rate/latency source computed metrics for it. */
+export const DeclaredLastObserved: Story = {
+  args: { edges: [structural({ lastObservedAt: '2026-08-15T08:50:00Z' })] },
+  parameters: { docs: { description: { story: 'Declared and traced at least once, even though no metrics source is wired for this edge.' } } },
+};

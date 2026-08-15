@@ -1,0 +1,17 @@
+{
+  "generatedAtUtc": "2026-08-15T09:00:00Z",
+  "edges": [
+    {
+      "client": "orders-api",
+      "server": "payments-api",
+      "source": "structural",
+      "lastObservedAt": "2026-08-15T08:50:00Z"
+    },
+    {
+      "client": "orders-api",
+      "server": "legacy-fulfilment",
+      "source": "structural",
+      "lastObservedAt": null
+    }
+  ]
+}

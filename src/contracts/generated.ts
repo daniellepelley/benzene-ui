@@ -2,7 +2,7 @@
  * GENERATED FILE — do not edit by hand. Run `npm run generate:contracts`.
  *
  * Inferred from the sample artifacts in `contracts/artifacts/`, vendored from the specification
- * repo at commit 7d5106c33edf356af0c3942ede7933c107898985.
+ * repo at commit d7aed44057302707fb0a56158af5fed259c9908b.
  *
  * These types are a FLOOR, not a ceiling. The spec's conformance fixtures are test cases rather than
  * JSON Schema, so a field no sample exercises cannot be inferred, and a field that is null in every
@@ -36,6 +36,15 @@ export interface JsonSchema {
   [keyword: string]: unknown;
 }
 
+/**
+ * mesh.md §4.2: per declared provider/consumer, whether — and when — a trace has actually
+ * exercised the edge. Absent `lastObservedAt` (an empty object) is the honest "never observed"
+ * case, a decommission *candidate*, not a fact; it is never collapsed to a boolean.
+ */
+export interface EdgeActivity {
+  lastObservedAt?: string;
+}
+
 export interface Manifest {
   generatedAtUtc: string;
   services: ManifestServicesItem[];
@@ -64,6 +73,7 @@ export interface TopologyEdgesItem {
   p50LatencyMs?: number;
   p95LatencyMs?: number;
   p99LatencyMs?: number;
+  lastObservedAt?: string | null;
 }
 
 export interface Usage {
@@ -103,6 +113,8 @@ export interface TopicsTopicsItem {
   messageSchema: JsonSchema | null;
   schemaMismatch: boolean;
   changes?: TopicsTopicsItemChangesItem[];
+  consumerActivity?: Record<string, EdgeActivity>;
+  providerActivity?: Record<string, EdgeActivity>;
 }
 
 export interface TopicsTopicsItemConsumersItem {

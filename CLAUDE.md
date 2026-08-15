@@ -53,6 +53,13 @@ Inference gives structure, not meaning: it produces `status: string`, never the 
 are spec decisions and live in `src/contracts/mesh.ts`, pinned to the generated shapes by
 `contracts.test.ts`.
 
+**A sample may be forward-looking**, when the spec normatively defines a field no port's aggregator
+projects yet: `topics.liveness.json`/`topology.liveness.json` (mesh.md §4.2's declared-vs-observed
+liveness signal) are the precedent — the field stays optional (so every selector/component degrades
+to today's rendering when it's absent, never fabricating a value), and the "as of `SPEC_VERSION`,
+no aggregator emits this yet" fact is stated where the field is interpreted (`src/contracts/mesh.ts`),
+not left implicit.
+
 ## Two pages, one library
 
 `npm run build` produces **two** self-contained files, from two entries:

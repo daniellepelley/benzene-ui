@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { act } from 'react';
 import { createStore } from '../../store/store';
@@ -12,6 +12,7 @@ import { ValuePage } from './ValuePage';
 import { ServicePage } from './ServicePage';
 import { TopicPage } from './TopicPage';
 import versioned from '../../../contracts/artifacts/topics.versioned.json';
+import liveness from '../../../contracts/artifacts/topics.liveness.json';
 import type { Topics } from '../../contracts';
 import type { ReactElement } from 'react';
 
@@ -94,6 +95,40 @@ describe('TopicPage version compatibility', () => {
     const store = await loaded({ getTopics: async () => versioned as Topics });
     show(store, <TopicPage topic="payment:capture" />);
     expect(screen.getByText('POST /payments/capture')).toBeInTheDocument();
+  });
+});
+
+describe('declared vs. observed (mesh.md §4.2)', () => {
+  it("extends a topic's retirement evidence with a declared producer nothing has ever traced", async () => {
+    // legacy-fulfilment declares shipping:book but the collector has never observed it doing so —
+    // RetirementRow's existing evidence list is exactly the vehicle mesh.md §4.2's "decommission
+    // candidate" language already describes, reused here rather than inventing a parallel surface.
+    const store = await loaded({ getTopics: async () => liveness as unknown as Topics });
+    show(store, <ValuePage />);
+    expect(screen.getByText(/declared but never observed producing: legacy-fulfilment/)).toBeInTheDocument();
+  });
+
+  it('leaves an observed producer out of that evidence entirely', async () => {
+    const store = await loaded({ getTopics: async () => liveness as unknown as Topics });
+    show(store, <ValuePage />);
+    expect(screen.queryByText(/never observed producing: orders-api/)).not.toBeInTheDocument();
+  });
+
+  it('flags an unobserved declared producer beside its name on the topic page', async () => {
+    const store = await loaded({ getTopics: async () => liveness as unknown as Topics });
+    show(store, <TopicPage topic="shipping:book" />);
+
+    const producers = screen.getByText('Producers').closest('.bz-value') as HTMLElement;
+    expect(within(producers).getByText('legacy-fulfilment')).toBeInTheDocument();
+    expect(within(producers).getByText('unobserved')).toBeInTheDocument();
+    // orders-api has a lastObservedAt on this same topic — a confirmed edge draws with no chip.
+    expect(within(producers).getAllByText('unobserved')).toHaveLength(1);
+  });
+
+  it('renders today\'s plain peer list when the aggregator has not wired liveness at all', async () => {
+    const store = await loaded(); // the default topics.json sample carries no consumerActivity/providerActivity
+    show(store, <TopicPage topic="payment:capture" />);
+    expect(screen.queryByText('unobserved')).not.toBeInTheDocument();
   });
 });
 

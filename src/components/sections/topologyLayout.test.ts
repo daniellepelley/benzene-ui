@@ -77,6 +77,24 @@ describe('layoutTopology', () => {
     expect(edges[0]?.errorRate).toBeNull();
   });
 
+  // mesh.md §4.2: `lastObservedAt` is a tri-state (absent / null / a timestamp), unlike errorRate
+  // and requestsPerMinute above which collapse "not reported" to null. The layout must preserve all
+  // three rather than flattening "the aggregator hasn't wired this" into "declared, never observed".
+  it('carries lastObservedAt through undefined when the aggregator has not wired liveness', () => {
+    const { edges } = layoutTopology([edge('a', 'b')]);
+    expect(edges[0]?.lastObservedAt).toBeUndefined();
+  });
+
+  it('carries lastObservedAt through null for a declared edge nothing has ever traced', () => {
+    const { edges } = layoutTopology([edge('a', 'b', { lastObservedAt: null })]);
+    expect(edges[0]?.lastObservedAt).toBeNull();
+  });
+
+  it('carries lastObservedAt through as a timestamp for a traced edge', () => {
+    const { edges } = layoutTopology([edge('a', 'b', { lastObservedAt: '2026-08-15T08:50:00Z' })]);
+    expect(edges[0]?.lastObservedAt).toBe('2026-08-15T08:50:00Z');
+  });
+
   it('sizes the canvas to fit every node', () => {
     const layout = layoutTopology([edge('a', 'b'), edge('a', 'c')]);
     for (const n of layout.nodes) {

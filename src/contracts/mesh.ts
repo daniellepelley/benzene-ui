@@ -15,6 +15,7 @@ import type {
   ServiceSnapshot as GeneratedServiceSnapshot,
   FleetView as GeneratedFleetView,
   FleetViewIssuesItem,
+  EdgeActivity,
 } from './generated';
 
 export type * from './generated';
@@ -75,3 +76,44 @@ export const SERVICE_STATUSES: readonly ServiceStatus[] = [
 
 export const isServiceStatus = (value: string): value is ServiceStatus =>
   (SERVICE_STATUSES as readonly string[]).includes(value);
+
+// ── Declared vs. observed (mesh.md §4.2) ────────────────────────────────────────────────────────
+//
+// The producer/consumer graph (mesh.md §4) is built from each service's registered
+// `ServiceDescriptor.consumes`/`topics` alone — never from trace parentage. Traces still matter,
+// but only as two additive, observed-only signals layered on top of that declared graph:
+//
+//   - "Unobserved" (liveness) — a declared edge with no matching trace in the retention window is
+//     a decommission *candidate*, never a fact (trace export is lossy by design). Represented as
+//     `TopicsTopicsItem.consumerActivity`/`.providerActivity` (keyed by service, mesh.md's
+//     `query:topic` shape) and, on the topology graph, `TopologyEdgesItem.lastObservedAt`.
+//   - "Undeclared" (drift) — a traced call nobody's registered descriptor declares is filed as an
+//     ordinary `contract-drift` issue (already part of `IssueClassification` above), never rendered
+//     as a graph edge — mesh.md §4.2 is explicit that neither signal is itself a topology edge.
+//
+// FORWARD-LOOKING: as of `contracts/SPEC_VERSION`, no port's aggregator projects
+// `consumerActivity`/`providerActivity`/`lastObservedAt` into its published artifacts yet (the
+// collector may compute the data — see benzene-python's `MeshCollector.query_topic` — without the
+// aggregator forwarding it into `topics.json`/`topology.json`). The fields are optional for exactly
+// this reason: `contracts/artifacts/topics.liveness.json` and `topology.liveness.json` are the only
+// samples that carry them, so every selector and component below MUST degrade to today's
+// confirmed-only rendering when they are absent, never fabricate a value.
+
+/** mesh.md §4.2's tri-state for one declared edge, never collapsed to a boolean. */
+export type EdgeLiveness = 'unknown' | 'unobserved' | 'observed';
+
+/**
+ * `unknown` — no aggregator has wired this signal (the field itself is absent): render exactly as
+ * before, a confirmed-only graph. `unobserved` — declared, but the collector has never traced it: a
+ * decommission candidate. `observed` — declared and traced; `activity.lastObservedAt` says when.
+ */
+export function edgeLivenessOf(activity: EdgeActivity | undefined): EdgeLiveness {
+  if (activity === undefined) return 'unknown';
+  return activity.lastObservedAt ? 'observed' : 'unobserved';
+}
+
+/** Same tri-state, for `TopologyEdgesItem.lastObservedAt`'s flatter `string | null` shape. */
+export function edgeLivenessFromField(lastObservedAt: string | null | undefined): EdgeLiveness {
+  if (lastObservedAt === undefined) return 'unknown';
+  return lastObservedAt === null ? 'unobserved' : 'observed';
+}

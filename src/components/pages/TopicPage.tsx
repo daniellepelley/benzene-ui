@@ -4,6 +4,7 @@ import {
   selectVersionCompatibility, selectHttpMappingsForTopic, selectLiveForTopic, versionLabel,
   selectFlowsForTopic, selectFailingFlowsOnly,
 } from '../../store/selectors';
+import { EdgeLivenessChip } from '../controls/EdgeLivenessChip';
 import { navigated, failingFlowsToggled, pivotedToFailingFlows } from '../../store/slices/viewSlice';
 import { draftChanged, draftAuthorChanged, postAnnotation } from '../../store/slices/annotationsSlice';
 import { SchemaTree } from '../sections/SchemaTree';
@@ -72,18 +73,24 @@ export function TopicPage({ topic }: TopicPageProps) {
           {entry.consumers.length === 0
             ? 'none'
             : entry.consumers.map((c) => (
-                <button key={c.service} type="button" onClick={() => openService(c.service)}>
-                  {c.service}
-                </button>
+                <span key={c.service} className="bz-vr-peer">
+                  <button type="button" onClick={() => openService(c.service)}>
+                    {c.service}
+                  </button>
+                  <EdgeLivenessChip activity={entry.consumerActivity?.[c.service]} />
+                </span>
               ))}
         </ValueRow>
         <ValueRow label="Producers">
           {entry.producers.length === 0
             ? 'none'
             : entry.producers.map((p) => (
-                <button key={p.service} type="button" onClick={() => openService(p.service)}>
-                  {p.service}
-                </button>
+                <span key={p.service} className="bz-vr-peer">
+                  <button type="button" onClick={() => openService(p.service)}>
+                    {p.service}
+                  </button>
+                  <EdgeLivenessChip activity={entry.providerActivity?.[p.service]} />
+                </span>
               ))}
         </ValueRow>
         {/* The wire binding — the only place a reader can see how to actually reach this topic. */}

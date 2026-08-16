@@ -1,0 +1,12 @@
+import { chromium } from 'playwright';
+const browser = await chromium.launch();
+const page = await browser.newPage();
+const urls = [];
+page.on('request', r => urls.push(r.method()+' '+r.url()));
+await page.goto('http://localhost:8912/#fleet', { waitUntil: 'networkidle' });
+await page.waitForTimeout(5000);
+console.log([...new Set(urls)].filter(u=>!/\.(mjs|css|svg|woff2?|png|ico)($|\?)/.test(u)).join('\n'));
+console.log('--- counts ---');
+const m = {}; for (const u of urls) m[u]=(m[u]||0)+1;
+console.log(JSON.stringify(m,null,1));
+await browser.close();

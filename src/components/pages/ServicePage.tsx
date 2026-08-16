@@ -5,7 +5,8 @@ import {
   selectServiceAbout, selectUsageForService, selectShowUtility, selectFeedHealth,
   selectFlowsForService, selectFailingFlowsOnly, selectServiceChangeSummary,
 } from '../../store/selectors';
-import { navigated, utilityToggled, failingFlowsToggled } from '../../store/slices/viewSlice';
+import { navigated, utilityToggled, failingFlowsToggled, changeServiceFiltered,
+} from '../../store/slices/viewSlice';
 import { draftChanged, draftAuthorChanged, postAnnotation } from '../../store/slices/annotationsSlice';
 import { TopicList } from '../controls/TopicList';
 import { EdgeList } from '../controls/EdgeList';
@@ -51,7 +52,12 @@ export function ServicePage({ service }: ServicePageProps) {
   const flows = useAppSelector((s: RootState) => selectFlowsForService(s, service));
   const failingOnly = useAppSelector(selectFailingFlowsOnly);
   const contractChanges = useAppSelector((s: RootState) => selectServiceChangeSummary(s, service));
-  const viewChanges = () => dispatch(navigated({ page: 'changes' }));
+  // Filtered to this service. The card says "2 changes across 2 topics"; handing the reader all 10
+  // and making them reconstruct their own subset is the cross-referencing the ledger existed to end.
+  const viewChanges = () => {
+    dispatch(navigated({ page: 'changes' }));
+    dispatch(changeServiceFiltered(service));
+  };
 
   if (!entry) {
     return <EmptyState message={`${service} is not in the estate manifest.`} />;

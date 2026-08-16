@@ -91,8 +91,13 @@ describe('hash routing', () => {
     expect(parseHash('#test/orders-api/')).toEqual(route({ page: 'test', selectedService: 'orders-api' }));
   });
 
-  it('falls back to the fleet when the console has no service to address', () => {
-    expect(toHash('test', 'order:created', null)).toBe('#fleet');
+  it('keeps the console addressable even with nothing chosen yet', () => {
+    // The Test page rendered at '#fleet', so a reload or a shared link went somewhere else — on the
+    // one page whose own copy promises the URL carries its state.
+    expect(toHash('test', null, null)).toBe('#test');
+    expect(parseHash('#test')).toEqual(route({ page: 'test' }));
+    // A topic with no service still has nothing to address: the console is service-first.
+    expect(toHash('test', 'order:created', null)).toBe('#test');
     expect(parseHash('#test/')).toEqual(route());
   });
 });

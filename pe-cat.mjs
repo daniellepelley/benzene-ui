@@ -1,0 +1,12 @@
+import { chromium } from 'playwright';
+const base='http://localhost:8912';
+const usage = await (await fetch(base+'/usage.json')).json();
+usage.entries = usage.entries.map(e => e.topic==='payment:capture' ? {...e, version:'v1'} : e);
+const browser = await chromium.launch();
+const page = await browser.newPage({viewport:{width:1440,height:1600}});
+await page.route('**/usage.json', r=>r.fulfill({contentType:'application/json',body:JSON.stringify(usage)}));
+await page.goto(base+'/#fleet',{waitUntil:'networkidle'});
+await page.waitForTimeout(2000);
+const rows = await page.locator('.bz-catalog tbody tr, table tr').allInnerTexts();
+console.log(rows.join('\n'));
+await browser.close();

@@ -242,20 +242,48 @@ export interface TopicTraffic {
   total: number;
   /** null when no usage source is wired — distinct from zero traffic, which is a real finding. */
   observed: boolean;
+  /**
+   * True when this figure covers EVERY version of the topic because the usage feed does not carry a
+   * version, and the reader is looking at one version.
+   *
+   * This exists because the alternative is a lie. `usage.json` rows carry `version: null`, so joining
+   * on topic name alone and printing the result under a `v2` heading tells a reader that v2 is
+   * carrying traffic it may not be carrying at all — on a page that, two panels up, may be saying
+   * nothing consumes v2. A number attributed to a version the feed cannot see is worse than a blank,
+   * because a blank makes a reader go and look.
+   */
+  versionAttributed: boolean;
 }
 
-/** Traffic for one topic, summed across services, transports and statuses. */
+/**
+ * Traffic for one topic, summed across services, transports and statuses.
+ *
+ * Attributes by version ONLY where the feed carries one. Where it does not, the total is still shown
+ * — it is a real fact about the topic — but flagged so the surface can say which question it answers.
+ */
 export const selectTrafficForTopic = createSelector(
-  [selectUsageRaw, (_: RootState, topic: string) => topic],
-  (entries, topic): TopicTraffic => {
-    const rows = (entries as UsageEntriesItem[]).filter((e) => e.topic === topic);
+  [selectUsageRaw, (_: RootState, topic: string) => topic, (s: RootState) => s.view.selectedVersion],
+  (entries, topic, version): TopicTraffic => {
+    const all = (entries as UsageEntriesItem[]).filter((e) => e.topic === topic);
+    // A feed that versions its rows can be trusted to attribute; one that does not, cannot.
+    const feedHasVersions = all.some((e) => e.version != null && e.version !== '');
+    const rows = feedHasVersions && version != null
+      ? all.filter((e) => e.version === version)
+      : all;
+
     let success = 0;
     let failure = 0;
     for (const row of rows) {
       if (isSuccessStatus(row.status)) success += row.count;
       else failure += row.count;
     }
-    return { success, failure, total: success + failure, observed: rows.length > 0 };
+    return {
+      success,
+      failure,
+      total: success + failure,
+      observed: all.length > 0,
+      versionAttributed: feedHasVersions,
+    };
   },
 );
 
@@ -346,12 +374,23 @@ export const selectVersionSwitcher = createSelector(
 /** The HTTP routes a topic's consumers expose it on — the only place the wire binding is visible. */
 export const selectHttpMappingsForTopic = createSelector(
   [selectTopicEntries],
-  (entries) =>
-    entries.flatMap((t) =>
+  (entries) => {
+    // Deduped. A topic bound to one path at both v1 and v2 rendered the same route twice, which
+    // reads as two distinct endpoints. Kept across versions rather than scoped to the one on screen:
+    // the binding is how you reach the topic at all, and hiding it on a version whose consumer list
+    // happens to be empty answers a question nobody asked.
+    const seen = new Set<string>();
+    return entries.flatMap((t) =>
       (t.consumers ?? []).flatMap((c) =>
-        (c.httpMappings ?? []).map((m) => ({ service: c.service, method: m.method, path: m.path })),
-      ),
-    ),
+        (c.httpMappings ?? [])
+          .map((m) => ({ service: c.service, method: m.method, path: m.path }))
+          .filter((m) => {
+            const key = `${m.service} ${m.method} ${m.path}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          })));
+  },
 );
 
 // ── Version compatibility ───────────────────────────────────────────────────────────────────────
@@ -405,6 +444,15 @@ export interface LedgerChange extends TopicsTopicsItemCompatibilityChangesItem {
   baselineVersion: string | null;
   /** True when this change sits at or beneath a path where a type change stopped the walk. */
   truncated: boolean;
+  /**
+   * The services on each end of this topic.
+   *
+   * Attribution is by PARTICIPATION, not authorship: the catalogue records who is on each end of a
+   * topic, not whose declaration moved. So this answers "who does this reach?" and NOT "who did
+   * this?" — a distinction the copy that renders it has to keep, because a service credited with a
+   * break it could not have caused is how the wrong team gets called.
+   */
+  services: string[];
 }
 
 /**
@@ -418,6 +466,10 @@ export const selectAllChanges = createSelector([selectTopics], (topics): LedgerC
   for (const entry of topics) {
     const compatibility = entry.compatibility;
     if (entry.reserved || !compatibility) continue;
+    const services = [...new Set([
+      ...(entry.producers ?? []).map((p) => p.service),
+      ...(entry.consumers ?? []).map((c) => c.service),
+    ])].sort();
     for (const change of compatibility.changes) {
       rows.push({
         ...change,
@@ -425,6 +477,7 @@ export const selectAllChanges = createSelector([selectTopics], (topics): LedgerC
         version: entry.version,
         baselineVersion: compatibility.baselineVersion,
         truncated: compatibility.truncatedPaths.includes(change.path),
+        services,
       });
     }
   }
@@ -457,7 +510,16 @@ export const selectChangeSummary = createSelector(
       published,
       counts,
       unclassified: unclassified.length,
-      /** Topic versions carrying at least one classified change — what the estate tile counts. */
+      /**
+       * Field-level changes — deliberately the SAME unit the ledger's own header counts.
+       *
+       * The tile used to count changed topic-versions while the page one click away counted
+       * individual changes, so a reader saw "6 contract changes" and then "10 changes" under one
+       * label. The first question anyone asks a governance number is "6 of what?", and two answers a
+       * click apart cost more credibility than the number was worth.
+       */
+      total: changes.length,
+      /** Topic versions carrying at least one classified change — used where topics are the unit. */
       changedVersions: topics.filter((t) => !t.reserved && (t.compatibility?.changes.length ?? 0) > 0).length,
       notCompared: topics.filter((t) => !t.reserved && t.compatibility?.overall === 'notCompared').length,
     };
@@ -1400,6 +1462,10 @@ export interface CatalogRow {
   schemaMismatch: boolean;
   /** Observed messages, or null when nothing is measuring — never conflated with zero. */
   traffic: number | null;
+  /** False when `traffic` covers every version of the topic rather than this row's version. */
+  trafficVersionAttributed: boolean;
+  /** `breaking` / `warning` / `compatible`, or null when this row carries no classified change. */
+  verdict: string | null;
 }
 
 /**
@@ -1443,6 +1509,18 @@ export const selectCatalogRows = createSelector(
         traffic: feedWired
           ? entries.filter((e) => e.topic === t.topic).reduce((sum, e) => sum + e.count, 0)
           : null,
+        /**
+         * False when the figure above is the whole topic's traffic repeated on each of its version
+         * rows, because the usage feed carries no version.
+         *
+         * Without this the table silently double-counts: a topic at two versions printed its total
+         * twice, so the column summed to roughly twice the estate's real traffic and a reader
+         * comparing v1 against v2 saw two identical numbers and concluded the cutover was done.
+         */
+        trafficVersionAttributed:
+          entries.some((e) => e.topic === t.topic && e.version != null && e.version !== ''),
+        /** The cross-version verdict, so the STATUS column stops reading `ok` over a breaking change. */
+        verdict: t.compatibility && t.compatibility.changes.length > 0 ? t.compatibility.overall : null,
       }));
   },
 );

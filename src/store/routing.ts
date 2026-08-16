@@ -26,6 +26,7 @@ const STANDALONE: Record<string, Page> = {
   '#fleet': 'fleet',
   '#value': 'value',
   '#changes': 'changes',
+  '#test': 'test',
 };
 
 /** The `test` page's prefix, kept out of `PREFIX` because its entity is a pair, not a single string. */
@@ -105,7 +106,10 @@ export function toHash(
     if (selected && selectedService) {
       return `${TEST_PREFIX}${encodeURIComponent(selectedService)}/${encodeURIComponent(selected)}`;
     }
-    return selectedService ? `${TEST_PREFIX}${encodeURIComponent(selectedService)}` : '#fleet';
+    // '#test' with no service is still the Test page. Returning '#fleet' put the console on screen
+    // with an address bar that disagreed, so a reload or a shared link went somewhere else — on the
+    // one page whose own copy promises the URL carries its state.
+    return selectedService ? `${TEST_PREFIX}${encodeURIComponent(selectedService)}` : '#test';
   }
   if (page === 'fleet' || !selected) return '#fleet';
   const suffix = page === 'topic' && selectedVersion ? `@${selectedVersion}` : '';
@@ -126,6 +130,9 @@ export function connectRouting(store: AppStore, window: Window): () => void {
   applyHash();
   window.addEventListener('hashchange', applyHash);
 
+  // The first write only normalises the address bar (an empty hash becoming '#fleet'), which is not
+  // a navigation anyone performed — pushing it meant the first Back press appeared to do nothing.
+  let normalised = window.location.hash !== '';
   const unsubscribe = store.subscribe(() => {
     const { page, selected, selectedService, selectedVersion } = store.getState().view;
     const next = toHash(page, selected, selectedService, selectedVersion);
@@ -134,7 +141,9 @@ export function connectRouting(store: AppStore, window: Window): () => void {
       // pushState, not replaceState: replacing left the browser with no in-app history, so Back from
       // a topic page left the product entirely instead of returning to the estate. Navigation the
       // reader performed is history; the guard above is what keeps store churn out of it.
-      window.history.pushState(null, '', next);
+      if (normalised) window.history.pushState(null, '', next);
+      else window.history.replaceState(null, '', next);
+      normalised = true;
     }
   });
 

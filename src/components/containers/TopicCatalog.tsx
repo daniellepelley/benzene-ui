@@ -7,6 +7,7 @@ import { navigated, topicFilterChanged, topicSorted, utilityToggled } from '../.
 import { DataTable, type DataColumn } from '../primitives/DataTable';
 import { EmptyState } from '../primitives/EmptyState';
 import { Badge } from '../primitives/Badge';
+import { VerdictBadge } from '../sections/ContractChanges';
 import { Chip } from '../primitives/Chip';
 
 /**
@@ -28,7 +29,11 @@ export function TopicCatalog() {
   const sort = useAppSelector(selectTopicSort);
   const showUtility = useAppSelector(selectShowUtility);
 
-  const openTopic = (topic: string) => dispatch(navigated({ page: 'topic', selected: topic }));
+  // The table renders one row per topic VERSION and shows the version in its own column, so a row
+  // that opens a different version is the reader asking for one contract and silently getting
+  // another — the exact defect selectTopic's own comment warns about, one layer up.
+  const openTopic = (topic: string, version: string | null) =>
+    dispatch(navigated({ page: 'topic', selected: topic, selectedVersion: version }));
   const openService = (service: string) => dispatch(navigated({ page: 'service', selected: service }));
 
   const services = (names: string[]) =>
@@ -49,7 +54,7 @@ export function TopicCatalog() {
       sortValue: (r) => r.topic,
       render: (r) => (
         <span className="bz-cat-topic-cell">
-          <button type="button" className="bz-topic-name" onClick={() => openTopic(r.topic)}>
+          <button type="button" className="bz-topic-name" onClick={() => openTopic(r.topic, r.version)}>
             {r.topic}
           </button>
           {r.reserved && <Chip title="A topic Benzene itself owns">reserved</Chip>}
@@ -97,7 +102,13 @@ export function TopicCatalog() {
             <Badge rag={r.status === 'gap' ? 'amber' : 'red'}>{r.status.replace(/-/g, ' ')}</Badge>
           )}
           {r.schemaMismatch && <Badge rag="red">schema mismatch</Badge>}
-          {!r.status && !r.schemaMismatch && <span className="bz-cat-none">ok</span>}
+          {/* A breaking contract change belongs in the column a reader scans for "is this row a
+              problem". Without it this cell read `ok` on the row that deletes a live address field —
+              a lifecycle word doing duty as a health word, in a table of health columns. */}
+          {r.verdict && r.verdict !== 'compatible' && (
+            <VerdictBadge verdict={r.verdict} attribute={false} />
+          )}
+          {!r.status && !r.schemaMismatch && !r.verdict && <span className="bz-cat-none">ok</span>}
         </>
       ),
     },
@@ -113,7 +124,16 @@ export function TopicCatalog() {
             —
           </span>
         ) : (
-          formatCount(r.traffic)
+          <span
+            title={r.version && !r.trafficVersionAttributed
+              ? `The whole topic's traffic. The usage feed does not break it down by version, so none of it is attributed to ${r.version}.`
+              : undefined}
+          >
+            {formatCount(r.traffic)}
+            {/* The dagger marks a figure that is NOT this row's version. Without it the column reads
+                as per-version and sums to roughly double the estate's real traffic. */}
+            {r.version && !r.trafficVersionAttributed && <span className="bz-cat-none">†</span>}
+          </span>
         ),
     },
   ];

@@ -71,7 +71,7 @@ export function FleetPage() {
     changeSummary.published
       ? {
         key: 'changes',
-        value: changeSummary.changedVersions,
+        value: changeSummary.total,
         label: 'Contract changes',
         rag: ((changeSummary.counts.breaking ?? 0) > 0 ? 'red' : 'amber') as Rag,
         onClick: () => dispatch(navigated({ page: 'changes' })),
@@ -95,8 +95,35 @@ export function FleetPage() {
         </p>
       )}
 
-      {/* Between "needs attention" and the service list: a change that breaks a consumer is closer
-          in kind to an open issue than to an inventory row. */}
+      {liveAvailable && inbox.length > 0 && (
+        <section>
+          <div className="bz-section-head">
+            <h2>Needs attention</h2>
+            {/* The window is stated because it is deliberately NOT the one the picker controls: an
+                overnight failure has to greet the morning check. */}
+            <span className="bz-page-note">last 24 hours</span>
+            <button
+              type="button"
+              className="bz-section-more"
+              onClick={() => dispatch(navigated({ page: 'issue', selected: 'all' }))}
+            >
+              see all {issueSummary.distinct} →
+            </button>
+          </div>
+          {inbox.slice(0, INBOX_PREVIEW).map((issue) => (
+            <IssueRow
+              key={issue.fingerprint}
+              issue={issue}
+              onOpen={(fingerprint) => dispatch(navigated({ page: 'issue', selected: fingerprint }))}
+            />
+          ))}
+        </section>
+      )}
+
+      {/* BELOW "needs attention", deliberately. A change ledger is a change-review surface, and putting
+          it above the alert inbox put it in the position a reader's eye reserves for "why was I
+          paged" — at 3am that costs seconds that matter. It sits above the service list because it
+          is closer in kind to an open issue than to an inventory row. */}
       {changeSummary.published && topChanges.length > 0 && (
         <section>
           <div className="bz-section-head">
@@ -136,31 +163,6 @@ export function FleetPage() {
               </li>
             ))}
           </ul>
-        </section>
-      )}
-
-      {liveAvailable && inbox.length > 0 && (
-        <section>
-          <div className="bz-section-head">
-            <h2>Needs attention</h2>
-            {/* The window is stated because it is deliberately NOT the one the picker controls: an
-                overnight failure has to greet the morning check. */}
-            <span className="bz-page-note">last 24 hours</span>
-            <button
-              type="button"
-              className="bz-section-more"
-              onClick={() => dispatch(navigated({ page: 'issue', selected: 'all' }))}
-            >
-              see all {issueSummary.distinct} →
-            </button>
-          </div>
-          {inbox.slice(0, INBOX_PREVIEW).map((issue) => (
-            <IssueRow
-              key={issue.fingerprint}
-              issue={issue}
-              onOpen={(fingerprint) => dispatch(navigated({ page: 'issue', selected: fingerprint }))}
-            />
-          ))}
         </section>
       )}
 

@@ -48,8 +48,23 @@ export function TopicPage({ topic }: TopicPageProps) {
   const versions = useAppSelector((s: RootState) => selectVersionSwitcher(s, topic));
   const comparisonsPublished = useAppSelector(selectComparisonsPublished);
   const allEntries = useAppSelector((s: RootState) => selectTopicEntries(s, topic));
+  const selectedVersion = useAppSelector((s: RootState) => s.view.selectedVersion);
 
-  if (!entry) return <EmptyState message={`${topic} is not in the published catalog.`} />;
+  if (!entry) {
+    // Two different failures, two different actions. "The topic isn't published" and "that version
+    // was retired" send a reader to opposite places, and version-addressable URLs make the second
+    // one routine — every stale bookmark and every link to a retired version lands here.
+    if (allEntries.length > 0) {
+      return (
+        <EmptyState
+          message={`${topic} has no version ${selectedVersion}. Published versions: ${
+            allEntries.map((e) => e.version || 'unversioned').join(', ')}.`}
+          action={{ label: `Open the newest version`, onClick: () => dispatch(topicVersionSelected(null)) }}
+        />
+      );
+    }
+    return <EmptyState message={`${topic} is not in the published catalog.`} />;
+  }
 
   // The version this one was compared against, so REMOVED fields can still be drawn on the contract.
   // Without it the most consequential class of change would be the one class invisible on the tree.
@@ -153,7 +168,7 @@ export function TopicPage({ topic }: TopicPageProps) {
           traffic={traffic}
           onShowFailingFlows={() => dispatch(pivotedToFailingFlows(topic))}
         />
-        <UsagePanel traffic={traffic} windowLabel="over the usage feed's own window" />
+        <UsagePanel traffic={traffic} windowLabel="over the usage feed's own window" version={entry.version} />
       </section>
 
       {flows.available && (

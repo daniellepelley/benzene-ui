@@ -5,7 +5,7 @@ import type { ReactElement } from 'react';
 import { createStore } from '../../store/store';
 import { loadManifest } from '../../store/slices/estateSlice';
 import { loadCatalog } from '../../store/slices/catalogSlice';
-import { topicFilterChanged } from '../../store/slices/viewSlice';
+import { changeFilterChanged } from '../../store/slices/viewSlice';
 import { fakeMeshApi } from '../../test/fakeMeshApi';
 import { ChangesPage } from './ChangesPage';
 import { FleetPage } from './FleetPage';
@@ -60,10 +60,10 @@ describe('the changes ledger', () => {
 
   it('distinguishes "your filter matched nothing" from "nothing changed"', async () => {
     const store = await loaded();
-    store.dispatch(topicFilterChanged('zzz-no-such-topic'));
+    store.dispatch(changeFilterChanged('zzz-no-such-topic'));
     show(store, <ChangesPage />);
 
-    expect(screen.getByText(/No change matches/)).toBeInTheDocument();
+    expect(screen.getByText(/No change matches the current filter/)).toBeInTheDocument();
     expect(screen.queryByText(/No field-level change was detected/)).not.toBeInTheDocument();
   });
 

@@ -27,9 +27,17 @@ export function ComposePage({ topic, service }: ComposePageProps) {
   const transports = useAppSelector((s: RootState) => selectTransportsForTopic(s, topic));
   const producers = useAppSelector((s: RootState) => selectProducerServicesForTopic(s, topic));
   const compose = useAppSelector((s: RootState) => s.compose);
-  const exampleBody = useAppSelector((s: RootState) => selectExampleBody(s, topic, compose.versionIndex));
   const validity = useAppSelector(selectComposeValidity);
+  // Bound to the store so the seeding effect can build a skeleton for any version, not just the one
+  // currently selected.
+  const bodyForIndex = useAppSelector(
+    (s: RootState) => (index: number) => selectExampleBody(s, topic, index),
+  );
   const canSendMessages = useAppSelector(selectCanInvoke);
+  // Which version the reader was looking at when they pressed compose. Without this the console
+  // seeded the OLDEST version's skeleton — arriving from a v2 page produced a v1 body, fields the
+  // new version had deleted included.
+  const arrivedAtVersion = useAppSelector((s: RootState) => s.view.selectedVersion);
 
   // A topic can have more than one producer (or, for a purely-consumed event with no declared
   // producer, none at all) — dispatch needs exactly one, so an unambiguous topic resolves itself and
@@ -40,10 +48,17 @@ export function ComposePage({ topic, service }: ComposePageProps) {
   // overwriting a dirty draft, so re-entering the page never discards what someone typed.
   useEffect(() => {
     if (resolvedService) {
-      dispatch(composeOpened({ service: resolvedService, topic, exampleBody, transports }));
+      // The skeleton has to be built for the version we are about to select, not for whatever index
+      // the store happens to hold — seeding index N with version 0's body is how a console shows a
+      // v2 label above a v1 payload.
+      const at = versions.findIndex((v) => v.version === arrivedAtVersion);
+      const index = at >= 0 ? at : versions.length - 1;
+      dispatch(composeOpened({
+        service: resolvedService, topic, exampleBody: bodyForIndex(index), transports, versionIndex: index,
+      }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, resolvedService, topic]);
+  }, [dispatch, resolvedService, topic, arrivedAtVersion]);
 
   if (versions.length === 0) {
     return <EmptyState message={`${topic} has no composable version — it may be reserved, or not in the catalog.`} />;

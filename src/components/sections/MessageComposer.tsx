@@ -1,5 +1,6 @@
 import type { ComposeResult, SendState } from '../../store/slices/composeSlice';
 import type { TopicsTopicsItem } from '../../contracts';
+import { versionLabel } from '../../store/selectors';
 import { EmptyState } from '../primitives/EmptyState';
 import { Badge } from '../primitives/Badge';
 
@@ -50,7 +51,10 @@ export function MessageComposer({
           <select value={versionIndex} onChange={(e) => onVersion(Number(e.target.value))}>
             {versions.map((v, i) => (
               <option key={v.version || 'default'} value={i}>
-                {v.version ? `v${v.version}` : 'default'}
+                {/* versionLabel, not `v${...}` — the catalogue's versions are already "v1"/"v2", so
+                    prefixing produced "vv1" on the one control whose job is to say which contract
+                    you are about to send. */}
+                {versionLabel(v.version) || 'default'}
                 {/* Saying "no schema" is why the empty skeleton below is empty. */}
                 {v.messageSchema || v.requestSchema ? '' : ' (no schema)'}
               </option>
@@ -90,6 +94,16 @@ export function MessageComposer({
           <button type="button" disabled={!canSend} onClick={onSend}>
             {send === 'sending' ? 'Sending…' : 'Send'}
           </button>
+          {/* Send is disabled for two completely different reasons and only one of them said so.
+              Editing the body deliberately clears the confirmation — the reader is confirming a
+              specific payload, not confirming in general — but doing it silently taught people that
+              a greyed-out Send means bad JSON, then greyed it out when the JSON was fine. */}
+          {!canSend && bodyValid && headersValid && !confirmed && send !== 'sending' && (
+            <span className="bz-compose-invalid">
+              Tick the box above to send. Editing the message clears it, because the confirmation is
+              for the payload you are about to send.
+            </span>
+          )}
         </div>
       ) : (
         <p className="bz-composer-readonly">

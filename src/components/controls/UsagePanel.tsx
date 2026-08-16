@@ -4,6 +4,11 @@ import { EmptyState } from '../primitives/EmptyState';
 export interface UsagePanelProps {
   traffic: TopicTraffic;
   windowLabel?: string;
+  /**
+   * The version the surrounding page is showing, when there is one. Used only to state honestly that
+   * the figure is NOT scoped to it when the feed cannot attribute by version.
+   */
+  version?: string | null;
 }
 
 /**
@@ -13,7 +18,7 @@ export interface UsagePanelProps {
  * that IS being measured is a real finding — a deprecation candidate. Zero because nothing is
  * measuring is not a finding at all, and showing them identically is how a dashboard invents work.
  */
-export function UsagePanel({ traffic, windowLabel }: UsagePanelProps) {
+export function UsagePanel({ traffic, windowLabel, version = null }: UsagePanelProps) {
   if (!traffic.observed) {
     return <EmptyState message="No usage source is wired, so traffic for this topic is unknown." tone="unknown" />;
   }
@@ -31,6 +36,15 @@ export function UsagePanel({ traffic, windowLabel }: UsagePanelProps) {
         <strong>{traffic.total.toLocaleString()}</strong> calls{windowLabel ? ` ${windowLabel}` : ''} ·{' '}
         {traffic.failure.toLocaleString()} failed ({(failureRate * 100).toFixed(1)}%)
       </p>
+      {/* The feed carries no version on its rows, so this total covers the whole topic. Printing it
+          unqualified under a version heading tells a reader that version is carrying traffic it may
+          not be carrying at all — and on a page that can simultaneously say nothing consumes it. */}
+      {!traffic.versionAttributed && version && (
+        <p className="bz-usage-note">
+          This is the whole topic&rsquo;s traffic. The usage feed does not break it down by version,
+          so none of it is attributed to {version}.
+        </p>
+      )}
       {traffic.total === 0 && (
         <p className="bz-usage-note">
           Measured, but no traffic in this window — a deprecation candidate rather than a gap in the feed.

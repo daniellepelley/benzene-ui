@@ -96,13 +96,23 @@ const composeSlice = createSlice({
      */
     composeOpened(
       state,
-      action: PayloadAction<{ service: string | null; topic: string; exampleBody: string; transports: string[] }>,
+      action: PayloadAction<{
+        service: string | null; topic: string; exampleBody: string; transports: string[];
+        /**
+         * Which version the reader arrived from, as an index into `versions`.
+         *
+         * Defaulting to 0 sent them to the OLDEST version's skeleton: arriving from a v2 topic page
+         * and pressing compose produced a v1 body, including fields v2 had deleted. The one screen
+         * that exists to send a correctly-shaped message was seeding the wrong shape, silently.
+         */
+        versionIndex?: number;
+      }>,
     ) {
       const changingTarget = state.topic !== action.payload.topic || state.service !== action.payload.service;
       state.service = action.payload.service;
       state.topic = action.payload.topic;
       if (changingTarget || !state.dirty) {
-        state.versionIndex = 0;
+        state.versionIndex = action.payload.versionIndex ?? 0;
         state.bodyJson = action.payload.exampleBody;
         state.headersJson = '{}';
         state.dirty = false;

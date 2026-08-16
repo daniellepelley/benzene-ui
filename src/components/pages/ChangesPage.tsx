@@ -3,7 +3,9 @@ import {
   selectAllChanges, selectUnclassifiedChanges, selectChangeSummary, selectComparisonsPublished,
   VERDICT_ORDER, type LedgerChange,
 } from '../../store/selectors';
-import { navigated, topicFilterChanged } from '../../store/slices/viewSlice';
+import {
+  navigated, changeFilterChanged, changeServiceFiltered, changeVerdictFiltered,
+} from '../../store/slices/viewSlice';
 import { PageHead } from '../controls/PageHead';
 import { EmptyState } from '../primitives/EmptyState';
 import { VerdictBadge, shortPath } from '../sections/ContractChanges';
@@ -32,13 +34,22 @@ export function ChangesPage() {
   const summary = useAppSelector(selectChangeSummary);
   const published = useAppSelector(selectComparisonsPublished);
   const generatedAt = useAppSelector((s: RootState) => s.catalog.topics?.generatedAtUtc ?? null);
-  const filter = useAppSelector((s: RootState) => s.view.topicFilter);
+  const filter = useAppSelector((s: RootState) => s.view.changeFilter);
+  const service = useAppSelector((s: RootState) => s.view.changeService);
+  const verdict = useAppSelector((s: RootState) => s.view.changeVerdict);
 
+  const services = [...new Set(changes.flatMap((c) => c.services))].sort();
   const needle = filter.trim().toLowerCase();
-  const matching = needle
-    ? changes.filter((c) =>
-      c.topic.toLowerCase().includes(needle) || c.path.toLowerCase().includes(needle))
-    : changes;
+  const matching = changes.filter((c) =>
+    (!service || c.services.includes(service))
+    && (!verdict || c.compatibility === verdict)
+    // Matching the SERVICE name here too, because a reader who types "payments-api" into a box on a
+    // page listing changes means "changes involving payments-api" — and being told "0 changes, 10
+    // hidden" for a service that plainly has changes teaches them the filter is broken.
+    && (!needle
+      || c.topic.toLowerCase().includes(needle)
+      || c.path.toLowerCase().includes(needle)
+      || c.services.some((name) => name.toLowerCase().includes(needle))));
 
   const openTopic = (topic: string, version: string) =>
     dispatch(navigated({ page: 'topic', selected: topic, selectedVersion: version }));
@@ -71,31 +82,67 @@ export function ChangesPage() {
               ) : null,
             )}
             {summary.notCompared > 0 && (
-              <span className="bz-changes-count">
-                {summary.notCompared} not compared
+              // Spelled out, because "not compared" also appears on a topic page meaning "a type
+              // changed so fields beneath it were not walked". Same phrase, different subject — the
+              // unit has to be on the chip or the two readings collide.
+              <span className="bz-changes-count" title="Topics with a single published version, so there is no pair to compare">
+                {summary.notCompared} topic{summary.notCompared === 1 ? '' : 's'} not compared
               </span>
             )}
           </p>
 
           <div className="bz-section-head">
             <h2>{matching.length} change{matching.length === 1 ? '' : 's'}</h2>
+            <select
+              className="bz-catalog-filter"
+              aria-label="Filter changes by service"
+              value={service ?? ''}
+              onChange={(e) => dispatch(changeServiceFiltered(e.target.value || null))}
+            >
+              <option value="">All services</option>
+              {services.map((name) => <option key={name} value={name}>{name}</option>)}
+            </select>
+            <select
+              className="bz-catalog-filter"
+              aria-label="Filter changes by verdict"
+              value={verdict ?? ''}
+              onChange={(e) => dispatch(changeVerdictFiltered(e.target.value || null))}
+            >
+              <option value="">All verdicts</option>
+              {['breaking', 'warning', 'compatible'].map((v) => (
+                <option key={v} value={v}>{VERDICT_LABEL[v]}</option>
+              ))}
+            </select>
             <input
               className="bz-catalog-filter"
-              aria-label="Filter changes by topic or field"
-              placeholder="Filter by topic or field…"
+              aria-label="Filter changes by topic, field or service"
+              placeholder="Filter by topic, field or service…"
               value={filter}
-              onChange={(e) => dispatch(topicFilterChanged(e.target.value))}
+              onChange={(e) => dispatch(changeFilterChanged(e.target.value))}
             />
           </div>
+
+          {service && (
+            <p className="bz-page-note">
+              Showing changes on topics <strong>{service}</strong> produces or consumes. Attribution is
+              by participation, not authorship — this is what reaches {service}, not what {service}{' '}
+              changed.
+            </p>
+          )}
 
           {changes.length === 0 ? (
             <EmptyState message="No field-level change was detected between any topic version and the one before it." />
           ) : matching.length === 0 ? (
-            <EmptyState message={`No change matches “${filter}”. ${changes.length} are hidden by the filter.`} />
+            <EmptyState message={`No change matches the current filter. ${changes.length} are hidden.`} />
           ) : (
             <ul className="bz-ledger">
               {matching.map((change) => (
-                <LedgerRow key={rowKey(change)} change={change} onOpen={openTopic} />
+                <LedgerRow
+                  key={rowKey(change)}
+                  change={change}
+                  onOpen={openTopic}
+                  onOpenService={(name) => dispatch(navigated({ page: 'service', selected: name }))}
+                />
               ))}
             </ul>
           )}
@@ -140,10 +187,11 @@ const rowKey = (change: LedgerChange) =>
   `${change.topic}@${change.version}:${change.path}:${change.kind}`;
 
 function LedgerRow({
-  change, onOpen,
+  change, onOpen, onOpenService,
 }: {
   change: LedgerChange;
   onOpen: (topic: string, version: string) => void;
+  onOpenService: (service: string) => void;
 }) {
   return (
     <li className="bz-change bz-ledger-row" data-verdict={change.compatibility}>
@@ -159,6 +207,15 @@ function LedgerRow({
       <span className="bz-change-desc">
         {change.description}
         {change.truncated && ' — fields beneath were not compared'}
+      </span>
+      {/* Which services this reaches. "Is it us or them" is the first question a support engineer
+          asks, and the ledger had no column for it. */}
+      <span className="bz-change-services">
+        {change.services.map((name) => (
+          <button key={name} type="button" className="bz-cat-svc" onClick={() => onOpenService(name)}>
+            {name}
+          </button>
+        ))}
       </span>
     </li>
   );

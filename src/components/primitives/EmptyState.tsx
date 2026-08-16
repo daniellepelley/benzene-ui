@@ -19,14 +19,27 @@ export type EmptyTone =
 export interface EmptyStateProps {
   message: string;
   tone?: EmptyTone;
+  /**
+   * A way out, for the empty states a reader can actually act on.
+   *
+   * A dead end that explains itself is still a dead end: the version-not-found case knows exactly
+   * which versions do exist, so leaving the reader to edit the URL by hand would be withholding an
+   * answer the page already has.
+   */
+  action?: { label: string; onClick: () => void };
 }
 
 /** Says why there is nothing, rather than showing a blank area. */
-export function EmptyState({ message, tone = 'quiet' }: EmptyStateProps) {
+export function EmptyState({ message, tone = 'quiet', action }: EmptyStateProps) {
   return (
     <p className="bz-empty" data-tone={tone}>
       {tone === 'clear' && <StatusGlyph rag="green" label="all clear" />}
       {message}
+      {action && (
+        <button type="button" className="bz-link" onClick={action.onClick}>
+          {action.label}
+        </button>
+      )}
     </p>
   );
 }

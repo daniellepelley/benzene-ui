@@ -51,6 +51,17 @@ export interface ViewState {
   failingFlowsOnly: boolean;
   /** The catalog's own filter, separate from the service filter — two lists, two questions. */
   topicFilter: string;
+  /**
+   * The change ledger's filters. Separate from `topicFilter` so navigating between the catalogue and
+   * the ledger does not silently carry one screen's filter onto the other.
+   *
+   * `changeService` is what makes "view changes" from a service page mean *this service's* changes.
+   * Without it the link handed a reader the whole estate and made them reconstruct their own subset,
+   * which is the cross-referencing the ledger existed to remove.
+   */
+  changeFilter: string;
+  changeService: string | null;
+  changeVerdict: string | null;
   /** Which column the catalog is sorted by. State, so it survives navigating away and back. */
   topicSort: { key: string; direction: 'asc' | 'desc' };
   /** Sections a reader has put away. The header stays visible; only the body is hidden. */
@@ -78,6 +89,9 @@ const initialState: ViewState = {
   showUtility: false,
   failingFlowsOnly: false,
   topicFilter: '',
+  changeFilter: '',
+  changeService: null,
+  changeVerdict: null,
   topicSort: { key: 'traffic', direction: 'desc' },
   collapsedSections: [],
   theme: 'system',
@@ -97,6 +111,13 @@ const viewSlice = createSlice({
       state.selected = action.payload.selected ?? null;
       state.selectedService = action.payload.selectedService ?? null;
       state.selectedVersion = action.payload.selectedVersion ?? null;
+      // Leaving the ledger drops its filters, so a reader never returns to a pre-filtered list they
+      // did not set and cannot see the cause of.
+      if (action.payload.page !== 'changes') {
+        state.changeService = null;
+        state.changeVerdict = null;
+        state.changeFilter = '';
+      }
     },
     /** A reader switching version on the topic page they are already on. */
     topicVersionSelected(state, action: PayloadAction<string | null>) {
@@ -125,6 +146,16 @@ const viewSlice = createSlice({
     },
     topicFilterChanged(state, action: PayloadAction<string>) {
       state.topicFilter = action.payload;
+    },
+    changeFilterChanged(state, action: PayloadAction<string>) {
+      state.changeFilter = action.payload;
+    },
+    /** Null clears the filter — "all services", not "a service called null". */
+    changeServiceFiltered(state, action: PayloadAction<string | null>) {
+      state.changeService = action.payload;
+    },
+    changeVerdictFiltered(state, action: PayloadAction<string | null>) {
+      state.changeVerdict = action.payload;
     },
     /** Clicking the active column flips it; clicking another switches to it, descending. */
     topicSorted(state, action: PayloadAction<string>) {
@@ -161,5 +192,6 @@ export const {
   navigated, filterChanged, serviceToggled, allCollapsed, rangeChanged, utilityToggled,
   failingFlowsToggled, pivotedToFailingFlows, topicFilterChanged, topicSorted, sectionToggled,
   themeCycled, themeRestored, topicVersionSelected,
+  changeFilterChanged, changeServiceFiltered, changeVerdictFiltered,
 } = viewSlice.actions;
 export default viewSlice.reducer;

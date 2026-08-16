@@ -839,3 +839,34 @@ button.bz-stat:focus-visible { outline: 2px solid var(--bz-accent); outline-offs
 .bz-vc-constraint { font-size: 0.88rem; }
 .bz-vc-disjoint { margin-top: -0.35rem; }
 .bz-vc-caveat { margin: 0.6rem 0 0; font-size: 11.5px; }
+
+/* ── Rollouts ─────────────────────────────────────────────────────────────────────────────────────
+   A rollout row is a small block, not a table row: its substance is a sentence, and a sentence
+   crammed into a grid cell gets skimmed past. The left border carries the state so a column of them
+   is still scannable — and only an OUTSTANDING state is coloured, because colouring a covered pair
+   is the cry-wolf this whole surface exists to remove. */
+.bz-mode-switch { display: inline-flex; gap: 0; margin: 0 0 0.75rem; }
+.bz-mode-switch button { border-radius: 0; border-color: var(--bz-border); }
+.bz-mode-switch button:first-child { border-radius: var(--bz-radius) 0 0 var(--bz-radius); }
+.bz-mode-switch button:last-child { border-radius: 0 var(--bz-radius) var(--bz-radius) 0; margin-left: -1px; }
+.bz-mode-switch button[data-active='true'] {
+  background: var(--bz-accent-tint); color: var(--bz-accent); border-color: var(--bz-accent); z-index: 1;
+}
+
+.bz-rollouts { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.bz-rollout {
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--bz-border);
+  border-left: 3px solid var(--bz-border);
+  border-radius: var(--bz-radius);
+  background: var(--bz-surface);
+}
+.bz-rollout[data-state='awaitingAdapter'] { border-left-color: var(--bz-rag-red); }
+.bz-rollout[data-state='awaitingOwner'] { border-left-color: var(--bz-rag-amber); }
+.bz-rollout-head { display: flex; gap: 0.5rem; align-items: baseline; flex-wrap: wrap; }
+.bz-rollout-constraint { margin: 0.35rem 0 0; font-size: 0.88rem; }
+.bz-rollout-disjoint { color: var(--bz-rag-red); }
+/* The one place the product says something positive about a breaking change: the team that ran an
+   overlap window did the hard thing correctly and should see the product say so. */
+.bz-rollout-managed { color: var(--bz-rag-green); }
+.bz-rollout-parties { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.4rem; }

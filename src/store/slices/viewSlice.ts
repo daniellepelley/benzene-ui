@@ -62,6 +62,17 @@ export interface ViewState {
   changeFilter: string;
   changeService: string | null;
   changeVerdict: string | null;
+  /**
+   * Which grain the changes screen is showing.
+   *
+   * A change is a FIELD and a rollout is a TOPIC — genuinely different objects over the same
+   * evidence. Two routes would split the evidence; one route with two modes keeps them together and
+   * keeps the reader's filters. `rollouts` is the default because "who owes a deploy" is the
+   * question a reader arrives with, and the field-level diff is what they open next.
+   */
+  changeMode: 'rollouts' | 'changes';
+  /** The rollouts mode's own state filter. Separate from `changeVerdict`: state is not severity. */
+  changeState: string | null;
   /** Which column the catalog is sorted by. State, so it survives navigating away and back. */
   topicSort: { key: string; direction: 'asc' | 'desc' };
   /** Sections a reader has put away. The header stays visible; only the body is hidden. */
@@ -92,6 +103,8 @@ const initialState: ViewState = {
   changeFilter: '',
   changeService: null,
   changeVerdict: null,
+  changeMode: 'rollouts',
+  changeState: null,
   topicSort: { key: 'traffic', direction: 'desc' },
   collapsedSections: [],
   theme: 'system',
@@ -117,6 +130,7 @@ const viewSlice = createSlice({
         state.changeService = null;
         state.changeVerdict = null;
         state.changeFilter = '';
+        state.changeState = null;
       }
     },
     /** A reader switching version on the topic page they are already on. */
@@ -157,6 +171,13 @@ const viewSlice = createSlice({
     changeVerdictFiltered(state, action: PayloadAction<string | null>) {
       state.changeVerdict = action.payload;
     },
+    changeStateFiltered(state, action: PayloadAction<string | null>) {
+      state.changeState = action.payload;
+    },
+    /** Switching grain keeps the service and text filters — they mean the same thing in both. */
+    changeModeSelected(state, action: PayloadAction<'rollouts' | 'changes'>) {
+      state.changeMode = action.payload;
+    },
     /** Clicking the active column flips it; clicking another switches to it, descending. */
     topicSorted(state, action: PayloadAction<string>) {
       const key = action.payload;
@@ -192,6 +213,7 @@ export const {
   navigated, filterChanged, serviceToggled, allCollapsed, rangeChanged, utilityToggled,
   failingFlowsToggled, pivotedToFailingFlows, topicFilterChanged, topicSorted, sectionToggled,
   themeCycled, themeRestored, topicVersionSelected,
-  changeFilterChanged, changeServiceFiltered, changeVerdictFiltered,
+  changeFilterChanged, changeServiceFiltered, changeVerdictFiltered, changeStateFiltered,
+  changeModeSelected,
 } = viewSlice.actions;
 export default viewSlice.reducer;

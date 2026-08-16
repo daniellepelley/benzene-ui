@@ -1,16 +1,19 @@
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   selectAllChanges, selectUnclassifiedChanges, selectChangeSummary, selectComparisonsPublished,
-  VERDICT_ORDER, type LedgerChange,
+  selectRollouts, VERDICT_ORDER, type LedgerChange,
 } from '../../store/selectors';
 import {
-  navigated, changeFilterChanged, changeServiceFiltered, changeVerdictFiltered,
+  navigated, changeFilterChanged, changeServiceFiltered, changeVerdictFiltered, changeStateFiltered,
+  changeModeSelected,
 } from '../../store/slices/viewSlice';
 import { PageHead } from '../controls/PageHead';
 import { EmptyState } from '../primitives/EmptyState';
 import { VerdictBadge, shortPath } from '../sections/ContractChanges';
+import { RolloutList } from '../sections/RolloutList';
 import {
-  NOT_PUBLISHED_COPY, SCOPE_CAVEAT, UNCLASSIFIED_GROUP_COPY, VERDICT_LABEL,
+  NOT_PUBLISHED_COPY, POLLED_INSTANCE_CAVEAT, ROLLOUT_SCOPE_CAVEAT, ROLLOUT_STATE_LABEL,
+  SCOPE_CAVEAT, UNCLASSIFIED_GROUP_COPY, VERDICT_LABEL,
 } from '../sections/compatibilityCopy';
 import type { RootState } from '../../store/store';
 
@@ -37,6 +40,9 @@ export function ChangesPage() {
   const filter = useAppSelector((s: RootState) => s.view.changeFilter);
   const service = useAppSelector((s: RootState) => s.view.changeService);
   const verdict = useAppSelector((s: RootState) => s.view.changeVerdict);
+  const mode = useAppSelector((s: RootState) => s.view.changeMode);
+  const state = useAppSelector((s: RootState) => s.view.changeState);
+  const rollouts = useAppSelector(selectRollouts);
 
   // The union of both sides, not just whoever is on the changed entry. Built from `services` alone,
   // this list silently omitted exactly the population a release review is trying to enumerate — the
@@ -54,16 +60,50 @@ export function ChangesPage() {
       || c.path.toLowerCase().includes(needle)
       || [...c.services, ...c.outstanding].some((name) => name.toLowerCase().includes(needle))));
 
+  // The rollouts grain uses the SAME service and text filters — they mean the same thing at both
+  // grains, and dropping them on a mode switch would make the switch feel like a navigation.
+  const matchingRollouts = rollouts.filter((r) =>
+    (!service || r.moved.includes(service) || r.outstanding.includes(service))
+    && (!state || r.state === state)
+    && (!needle
+      || r.topic.toLowerCase().includes(needle)
+      || [...r.moved, ...r.outstanding].some((name) => name.toLowerCase().includes(needle))));
+
+  // Not "how many topics changed" — how many topics still need somebody to do something. A breaking
+  // change that has been versioned out contributes nothing to this number, which is the whole point.
+  const outstandingCount = rollouts.filter((r) => r.outstanding.length > 0).length;
+
   const openTopic = (topic: string, version: string) =>
     dispatch(navigated({ page: 'topic', selected: topic, selectedVersion: version }));
+  const openService = (name: string) => dispatch(navigated({ page: 'service', selected: name }));
 
   return (
     <div className="bz-page">
       <PageHead
         breadcrumb={[{ label: 'Estate', onClick: () => dispatch(navigated({ page: 'fleet' })) }]}
         title="Contract changes"
-        lede="What changed in the estate’s payload contracts, and whether it breaks a consumer."
+        lede={mode === 'rollouts'
+          ? 'Which topic versions are covered on both sides, and who still owes a move.'
+          : 'What changed in the estate’s payload contracts, and whether it breaks a consumer.'}
       />
+
+      {/* One route, two grains. A change is a FIELD and a rollout is a TOPIC — different objects
+          over the same evidence, so splitting them across two hashes would split the evidence and
+          the filters with it. Rollouts leads because "who owes a deploy" is the question a reader
+          arrives with; the field-level diff is what they open next. */}
+      <div className="bz-mode-switch" role="group" aria-label="Change view">
+        {(['rollouts', 'changes'] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            aria-pressed={mode === m}
+            data-active={mode === m ? 'true' : undefined}
+            onClick={() => dispatch(changeModeSelected(m))}
+          >
+            {m === 'rollouts' ? 'Rollouts' : 'Field changes'}
+          </button>
+        ))}
+      </div>
 
       {/* Provenance, always. A reader has to know what was compared against what before a count means
           anything — and this is the sentence that stops the ledger being read as "since yesterday". */}
@@ -77,14 +117,21 @@ export function ChangesPage() {
       ) : (
         <>
           <p className="bz-changes-summary">
-            {VERDICT_ORDER.filter((v) => v !== 'notCompared').map((verdict) =>
+            {mode === 'rollouts' && (
+              // Not "how many changed" — how many still need somebody to do something. A breaking
+              // change that has been versioned out contributes nothing here, which is the point.
+              <span className="bz-changes-count" data-verdict={outstandingCount > 0 ? 'breaking' : undefined}>
+                {outstandingCount} of {rollouts.length} awaiting a move
+              </span>
+            )}
+            {mode === 'changes' && VERDICT_ORDER.filter((v) => v !== 'notCompared').map((verdict) =>
               summary.counts[verdict] ? (
                 <span key={verdict} className="bz-changes-count" data-verdict={verdict}>
                   <VerdictBadge verdict={verdict} attribute={false} /> {summary.counts[verdict]}
                 </span>
               ) : null,
             )}
-            {summary.notCompared > 0 && (
+            {mode === 'changes' && summary.notCompared > 0 && (
               // Spelled out, because "not compared" also appears on a topic page meaning "a type
               // changed so fields beneath it were not walked". Same phrase, different subject — the
               // unit has to be on the chip or the two readings collide.
@@ -95,7 +142,11 @@ export function ChangesPage() {
           </p>
 
           <div className="bz-section-head">
-            <h2>{matching.length} change{matching.length === 1 ? '' : 's'}</h2>
+            <h2>
+              {mode === 'rollouts'
+                ? `${matchingRollouts.length} rollout${matchingRollouts.length === 1 ? '' : 's'}`
+                : `${matching.length} change${matching.length === 1 ? '' : 's'}`}
+            </h2>
             <select
               className="bz-catalog-filter"
               aria-label="Filter changes by service"
@@ -105,17 +156,31 @@ export function ChangesPage() {
               <option value="">All services</option>
               {services.map((name) => <option key={name} value={name}>{name}</option>)}
             </select>
-            <select
-              className="bz-catalog-filter"
-              aria-label="Filter changes by verdict"
-              value={verdict ?? ''}
-              onChange={(e) => dispatch(changeVerdictFiltered(e.target.value || null))}
-            >
-              <option value="">All verdicts</option>
-              {['breaking', 'warning', 'compatible'].map((v) => (
-                <option key={v} value={v}>{VERDICT_LABEL[v]}</option>
-              ))}
-            </select>
+            {mode === 'rollouts' ? (
+              <select
+                className="bz-catalog-filter"
+                aria-label="Filter rollouts by state"
+                value={state ?? ''}
+                onChange={(e) => dispatch(changeStateFiltered(e.target.value || null))}
+              >
+                <option value="">All states</option>
+                {Object.entries(ROLLOUT_STATE_LABEL).map(([key, label]) => (
+                  <option key={key} value={key}>{label}</option>
+                ))}
+              </select>
+            ) : (
+              <select
+                className="bz-catalog-filter"
+                aria-label="Filter changes by verdict"
+                value={verdict ?? ''}
+                onChange={(e) => dispatch(changeVerdictFiltered(e.target.value || null))}
+              >
+                <option value="">All verdicts</option>
+                {['breaking', 'warning', 'compatible'].map((v) => (
+                  <option key={v} value={v}>{VERDICT_LABEL[v]}</option>
+                ))}
+              </select>
+            )}
             <input
               className="bz-catalog-filter"
               aria-label="Filter changes by topic, field or service"
@@ -135,7 +200,21 @@ export function ChangesPage() {
             </p>
           )}
 
-          {changes.length === 0 ? (
+          {mode === 'rollouts' ? (
+            /* Four empty states, because they lead to four different actions and only one of them
+               means the estate is quiet. */
+            rollouts.length === 0 ? (
+              <EmptyState message="Every topic in this estate publishes one version, so there is nothing to roll out." />
+            ) : matchingRollouts.length === 0 ? (
+              <EmptyState message={`No rollout matches the current filter. ${rollouts.length} are hidden.`} />
+            ) : (
+              <RolloutList
+                rollouts={matchingRollouts}
+                onOpenTopic={openTopic}
+                onOpenService={openService}
+              />
+            )
+          ) : changes.length === 0 ? (
             <EmptyState message="No field-level change was detected between any topic version and the one before it." />
           ) : matching.length === 0 ? (
             <EmptyState message={`No change matches the current filter. ${changes.length} are hidden.`} />
@@ -146,7 +225,7 @@ export function ChangesPage() {
                   key={rowKey(change)}
                   change={change}
                   onOpen={openTopic}
-                  onOpenService={(name) => dispatch(navigated({ page: 'service', selected: name }))}
+                  onOpenService={openService}
                 />
               ))}
             </ul>
@@ -183,7 +262,10 @@ export function ChangesPage() {
         </section>
       )}
 
-      <p className="bz-muted bz-changes-caveat">{SCOPE_CAVEAT}</p>
+      <p className="bz-muted bz-changes-caveat">
+        {mode === 'rollouts' ? ROLLOUT_SCOPE_CAVEAT : SCOPE_CAVEAT}
+      </p>
+      {mode === 'rollouts' && <p className="bz-muted bz-changes-caveat">{POLLED_INSTANCE_CAVEAT}</p>}
     </div>
   );
 }

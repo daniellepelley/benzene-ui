@@ -5,7 +5,9 @@ import type { ReactElement } from 'react';
 import { createStore } from '../../store/store';
 import { loadManifest } from '../../store/slices/estateSlice';
 import { loadCatalog } from '../../store/slices/catalogSlice';
-import { changeFilterChanged } from '../../store/slices/viewSlice';
+import {
+  changeFilterChanged, changeModeSelected, changeServiceFiltered, changeStateFiltered,
+} from '../../store/slices/viewSlice';
 import { fakeMeshApi } from '../../test/fakeMeshApi';
 import { ChangesPage } from './ChangesPage';
 import { FleetPage } from './FleetPage';
@@ -32,10 +34,20 @@ const withoutComparisons = (): Topics => ({
   }),
 });
 
+/**
+ * The field-level ledger is no longer the default grain — Rollouts is — so these select it
+ * explicitly. Before this they passed by coincidence, because a rollout row is also a `listitem`
+ * carrying a `data-verdict`, which is exactly the sort of accident an explicit mode switch removes.
+ */
+const showLedger = (store: Awaited<ReturnType<typeof loaded>>) => {
+  store.dispatch(changeModeSelected('changes'));
+  return show(store, <ChangesPage />);
+};
+
 describe('the changes ledger', () => {
   it('ranks breaking changes above warnings and compatible ones', async () => {
     const store = await loaded();
-    show(store, <ChangesPage />);
+    showLedger(store);
 
     const rows = screen.getAllByRole('listitem').filter((li) => li.dataset.verdict);
     const verdicts = rows.map((li) => li.dataset.verdict);
@@ -45,7 +57,7 @@ describe('the changes ledger', () => {
 
   it('names the version pair, so a reader knows what was compared against what', async () => {
     const store = await loaded();
-    show(store, <ChangesPage />);
+    showLedger(store);
     expect(screen.getAllByText('v1 → v2').length).toBeGreaterThan(0);
   });
 
@@ -53,7 +65,7 @@ describe('the changes ledger', () => {
     // Run-over-run drift and cross-version compatibility lead to opposite actions, and the product
     // shows both. The heading alone does not distinguish them; this sentence does.
     const store = await loaded();
-    show(store, <ChangesPage />);
+    showLedger(store);
     expect(
       screen.getByText(/Comparing each topic version against the version published before it/),
     ).toBeInTheDocument();
@@ -62,7 +74,7 @@ describe('the changes ledger', () => {
   it('distinguishes "your filter matched nothing" from "nothing changed"', async () => {
     const store = await loaded();
     store.dispatch(changeFilterChanged('zzz-no-such-topic'));
-    show(store, <ChangesPage />);
+    showLedger(store);
 
     expect(screen.getByText(/No change matches the current filter/)).toBeInTheDocument();
     expect(screen.queryByText(/No field-level change was detected/)).not.toBeInTheDocument();
@@ -73,7 +85,7 @@ describe('the changes ledger', () => {
     // the three ports that build a catalogue publish no comparisons, and an estate served by one of
     // them may still be running four versions of everything.
     const store = await loaded({ getTopics: async () => withoutComparisons() });
-    show(store, <ChangesPage />);
+    showLedger(store);
 
     expect(screen.getByText(/did not publish contract comparisons/)).toBeInTheDocument();
     expect(screen.queryByText(/No field-level change was detected/)).not.toBeInTheDocument();
@@ -81,7 +93,7 @@ describe('the changes ledger', () => {
 
   it('carries the scope caveat, so no verdict is read as a safety claim', async () => {
     const store = await loaded();
-    show(store, <ChangesPage />);
+    showLedger(store);
     expect(screen.getByText(/It cannot see upcasters/)).toBeInTheDocument();
   });
 });
@@ -134,7 +146,7 @@ describe('the ledger names the party that is late, not the party that finished',
 
   it('splits the services into who owes the move and who has already made it', async () => {
     const store = await rolloutEstate();
-    show(store, <ChangesPage />);
+    showLedger(store);
 
     const row = screen.getAllByRole('listitem')
       .find((li) => li.textContent?.includes('order:placed'))!;
@@ -147,7 +159,7 @@ describe('the ledger names the party that is late, not the party that finished',
 
   it('offers the late service in the filter, which is the population a release review enumerates', async () => {
     const store = await rolloutEstate();
-    show(store, <ChangesPage />);
+    showLedger(store);
 
     const options = within(screen.getByLabelText('Filter changes by service'))
       .getAllByRole('option').map((o) => o.textContent);
@@ -157,7 +169,7 @@ describe('the ledger names the party that is late, not the party that finished',
   it('finds the late service by free text, rather than answering that it has nothing to do', async () => {
     const store = await rolloutEstate();
     store.dispatch(changeFilterChanged('billing-api'));
-    show(store, <ChangesPage />);
+    showLedger(store);
 
     const rows = screen.getAllByRole('listitem').filter((li) => li.dataset.verdict);
     expect(rows.length).toBeGreaterThan(0);
@@ -166,11 +178,89 @@ describe('the ledger names the party that is late, not the party that finished',
 
   it('never badges a service for having moved to the current version', async () => {
     const store = await rolloutEstate();
-    show(store, <ChangesPage />);
+    showLedger(store);
 
     // shipping:book is breaking and fully versioned out, so nobody owes anything on it.
     const row = screen.getAllByRole('listitem')
       .find((li) => li.textContent?.includes('shipping:book'))!;
     expect(within(row).queryByText('owes')).toBeNull();
+  });
+});
+
+/**
+ * The grain that answers the question a reader arrives with. A change is a field and a rollout is a
+ * topic: `shipping:book` is one deploy decision and three field changes, and counting it three times
+ * is how the estate's best-engineered topic became the reddest thing on screen.
+ */
+describe('the rollouts grain', () => {
+  const rolloutEstate = async () => {
+    const store = createStore(fakeMeshApi({ getTopics: async () => rollout as unknown as Topics }));
+    await store.dispatch(loadManifest());
+    await store.dispatch(loadCatalog());
+    return store;
+  };
+
+  it('leads, because "who owes a deploy" is what a reader came for', async () => {
+    const store = await rolloutEstate();
+    show(store, <ChangesPage />);
+    expect(screen.getByRole('button', { name: 'Rollouts' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('counts topics awaiting a move, not topics that changed', async () => {
+    const store = await rolloutEstate();
+    show(store, <ChangesPage />);
+    // Six version pairs; four carry a breaking verdict; three still need somebody to do something.
+    expect(screen.getByText(/of 6 awaiting a move/).textContent).toContain('4 of 6');
+  });
+
+  it('ranks the proven outage above the breaking changes that are merely uncovered', async () => {
+    const store = await rolloutEstate();
+    show(store, <ChangesPage />);
+
+    const topics = screen.getAllByRole('listitem').map((li) => li.textContent ?? '');
+    expect(topics[0]).toContain('inventory:reserve');
+    // …and the versioned-out breaking change is last, not first.
+    expect(topics[topics.length - 1]).toContain('shipping:book');
+  });
+
+  it('says something positive about a breaking change that was versioned out', async () => {
+    const store = await rolloutEstate();
+    show(store, <ChangesPage />);
+    expect(screen.getByText(/has been versioned out/)).toBeInTheDocument();
+  });
+
+  it('states the ordering constraint between the two ends and never a sequence', async () => {
+    const store = await rolloutEstate();
+    show(store, <ChangesPage />);
+
+    expect(screen.getByText(/must send inventory:reserve v2 before/)).toBeInTheDocument();
+    expect(screen.queryByText(/must ship together/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/deploy first/i)).not.toBeInTheDocument();
+  });
+
+  it('keeps the service filter working across the grain switch', async () => {
+    const store = await rolloutEstate();
+    store.dispatch(changeServiceFiltered('billing-api'));
+    show(store, <ChangesPage />);
+
+    const topics = screen.getAllByRole('listitem').map((li) => li.textContent ?? '');
+    expect(topics.some((t) => t.includes('order:placed'))).toBe(true);
+    expect(topics.some((t) => t.includes('invoice:raise'))).toBe(true);
+    expect(topics.some((t) => t.includes('notification:send'))).toBe(false);
+  });
+
+  it('distinguishes a filter that matched nothing from an estate with nothing to roll out', async () => {
+    const store = await rolloutEstate();
+    store.dispatch(changeStateFiltered('notCompared'));
+    show(store, <ChangesPage />);
+
+    expect(screen.getByText(/No rollout matches the current filter/)).toBeInTheDocument();
+    expect(screen.queryByText(/nothing to roll out/)).not.toBeInTheDocument();
+  });
+
+  it('carries the dual-publish blind spot, which the schema caveat does not mention', async () => {
+    const store = await rolloutEstate();
+    show(store, <ChangesPage />);
+    expect(screen.getByText(/whether a producer emits both versions of every message/)).toBeInTheDocument();
   });
 });

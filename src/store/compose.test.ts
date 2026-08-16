@@ -171,4 +171,74 @@ describe('compose', () => {
       expect(selectTopicVersions(store.getState(), reserved.topic)).toHaveLength(0);
     }
   });
+
+  /**
+   * The version picker used to change nothing but the body skeleton. A tester could select v2, send,
+   * get a green result, and record "v2 verified" having exercised the target's default version.
+   */
+  describe('the selected version actually travels with the message', () => {
+    const open = (store: ReturnType<typeof createStore>, version: string | null) =>
+      store.dispatch(composeOpened({
+        service: 'orders-api', topic: 'orders:create', exampleBody: '{}',
+        transports: [RAW_TRANSPORT], version,
+      }));
+
+    it('seeds benzene-version into the visible headers', async () => {
+      const store = await ready();
+      open(store, 'v2');
+      expect(JSON.parse(store.getState().compose.headersJson)).toEqual({ 'benzene-version': 'v2' });
+    });
+
+    it('seeds nothing for a versionless topic, because absent means the default version', async () => {
+      const store = await ready();
+      open(store, null);
+      expect(JSON.parse(store.getState().compose.headersJson)).toEqual({});
+    });
+
+    it('retargets the header when the picker moves, keeping other headers', async () => {
+      const store = await ready();
+      open(store, 'v1');
+      store.dispatch(headersEdited('{"benzene-version":"v1","x-correlation-id":"abc"}'));
+
+      store.dispatch(versionSelected({ index: 1, exampleBody: '{}', version: 'v2' }));
+
+      expect(JSON.parse(store.getState().compose.headersJson))
+        .toEqual({ 'benzene-version': 'v2', 'x-correlation-id': 'abc' });
+    });
+
+    it('updates a differently-cased header in place rather than sending two of them', async () => {
+      const store = await ready();
+      open(store, 'v1');
+      store.dispatch(headersEdited('{"Benzene-Version":"v1"}'));
+
+      store.dispatch(versionSelected({ index: 1, exampleBody: '{}', version: 'v2' }));
+
+      expect(JSON.parse(store.getState().compose.headersJson)).toEqual({ 'Benzene-Version': 'v2' });
+    });
+
+    it('leaves half-typed header JSON exactly as typed', async () => {
+      const store = await ready();
+      open(store, 'v1');
+      store.dispatch(headersEdited('{"benzene-version": '));
+
+      store.dispatch(versionSelected({ index: 1, exampleBody: '{}', version: 'v2' }));
+
+      expect(store.getState().compose.headersJson).toBe('{"benzene-version": ');
+    });
+
+    it('sends the header it showed', async () => {
+      const sent: unknown[] = [];
+      const store = await ready({ sendMessage: async (m: unknown) => { sent.push(m); return { statusCode: 'ok' }; } });
+      open(store, 'v2');
+      await store.dispatch(sendComposed({
+        service: 'orders-api', topic: 'orders:create',
+        headers: JSON.parse(store.getState().compose.headersJson) as Record<string, string>,
+        body: '{}',
+      }));
+
+      expect(sent).toHaveLength(1);
+      expect((sent[0] as { headers: Record<string, string> }).headers)
+        .toEqual({ 'benzene-version': 'v2' });
+    });
+  });
 });

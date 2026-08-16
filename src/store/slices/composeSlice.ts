@@ -86,6 +86,71 @@ export const sendComposed = createAsyncThunk<
   return extra.sendMessage(message);
 });
 
+/**
+ * The header a Benzene service reads a payload version off.
+ *
+ * `benzene-version` is the canonical name in the specification's ordered fallback list
+ * (`benzene-version` → `version` → `x-version`); it is the one implementations WRITE, so it is the
+ * one to write here. See `docs/specification/versioning.md` §2.
+ */
+const VERSION_HEADER = 'benzene-version';
+
+/**
+ * Seeds the headers a version selection implies, VISIBLY, in the editable headers box.
+ *
+ * The version picker used to change nothing but the body skeleton: the dispatch carried
+ * `{service, topic, headers, body}` and no version at all, so the message was routed to whatever the
+ * target treats as its default. A tester could select v2, send, get a green result, and record "v2
+ * verified" — having exercised v1. That is not a missing feature, it is a green light for something
+ * that never happened, which is the one class of defect a sign-off surface cannot have.
+ *
+ * Seeded into the visible textarea rather than injected at send time on purpose. Everything else on
+ * this screen shows the reader exactly what will be sent; a header that appears only in flight would
+ * be the one thing on the page they cannot check, on the one screen whose entire job is producing
+ * evidence. It also stays editable, which matters because a service may be configured to read a
+ * different header name (the fallback list is configurable per §2.1) and the tester needs to be able
+ * to say so.
+ *
+ * A versionless topic seeds nothing: per §2.2 an absent version header means "the topic's default
+ * version", which is exactly right, and writing `benzene-version: null` would be worse than silence.
+ */
+function seedHeaders(version: string | null): string {
+  return version ? `${JSON.stringify({ [VERSION_HEADER]: version }, null, 2)}` : '{}';
+}
+
+/**
+ * Retargets the version header when the picker moves, preserving whatever else the tester has typed.
+ *
+ * Matches case-insensitively and writes back to the key that is already there, because a tester who
+ * typed `Benzene-Version` must not end up sending two version headers that disagree. Where no
+ * version header is present at all it adds the canonical one — the picker is labelled "version", so
+ * moving it has to actually change the version, or it is decorative again.
+ *
+ * Unparseable JSON is left exactly as typed. The composer already refuses to send it, and rewriting
+ * a half-finished edit under the cursor is its own kind of hostile.
+ */
+function retargetVersionHeader(headersJson: string, version: string | null): string {
+  let parsed: Record<string, unknown>;
+  try {
+    const candidate: unknown = JSON.parse(headersJson);
+    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return headersJson;
+    parsed = candidate as Record<string, unknown>;
+  } catch {
+    return headersJson;
+  }
+
+  const existing = Object.keys(parsed).find((k) => k.toLowerCase() === VERSION_HEADER);
+  if (!version) {
+    if (!existing) return headersJson;
+    delete parsed[existing];
+    return JSON.stringify(parsed, null, 2);
+  }
+  // Only seed a NEW header into a headers block the tester has not versioned themselves; if they
+  // already carry one under any casing, update that key in place rather than adding a second.
+  parsed[existing ?? VERSION_HEADER] = version;
+  return JSON.stringify(parsed, null, 2);
+}
+
 const composeSlice = createSlice({
   name: 'compose',
   initialState,
@@ -106,6 +171,8 @@ const composeSlice = createSlice({
          * that exists to send a correctly-shaped message was seeding the wrong shape, silently.
          */
         versionIndex?: number;
+        /** The label of that version, so the dispatch can actually ask for it. See `seedHeaders`. */
+        version?: string | null;
       }>,
     ) {
       const changingTarget = state.topic !== action.payload.topic || state.service !== action.payload.service;
@@ -114,7 +181,7 @@ const composeSlice = createSlice({
       if (changingTarget || !state.dirty) {
         state.versionIndex = action.payload.versionIndex ?? 0;
         state.bodyJson = action.payload.exampleBody;
-        state.headersJson = '{}';
+        state.headersJson = seedHeaders(action.payload.version ?? null);
         state.dirty = false;
         state.confirmed = false;
         state.send = 'idle';
@@ -125,11 +192,15 @@ const composeSlice = createSlice({
         state.transport = RAW_TRANSPORT;
       }
     },
-    versionSelected(state, action: PayloadAction<{ index: number; exampleBody: string }>) {
+    versionSelected(
+      state,
+      action: PayloadAction<{ index: number; exampleBody: string; version?: string | null }>,
+    ) {
       state.versionIndex = action.payload.index;
       // Changing the payload version IS a request for a different skeleton, so this reseeds even
       // when dirty — the previous body was written against a different schema.
       state.bodyJson = action.payload.exampleBody;
+      state.headersJson = retargetVersionHeader(state.headersJson, action.payload.version ?? null);
       state.dirty = false;
       state.confirmed = false;
     },

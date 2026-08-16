@@ -55,6 +55,8 @@ export function ComposePage({ topic, service }: ComposePageProps) {
       const index = at >= 0 ? at : versions.length - 1;
       dispatch(composeOpened({
         service: resolvedService, topic, exampleBody: bodyForIndex(index), transports, versionIndex: index,
+        // The version has to travel with the message, not just seed its skeleton — see `seedHeaders`.
+        version: versions[index]?.version ?? null,
       }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -112,7 +114,11 @@ export function ComposePage({ topic, service }: ComposePageProps) {
           result={compose.result}
           confirmed={compose.confirmed}
           onVersion={(index) =>
-            dispatch(versionSelected({ index, exampleBody: exampleBodyFor(versions, index) }))
+            dispatch(versionSelected({
+              index,
+              exampleBody: exampleBodyFor(versions, index),
+              version: versions[index]?.version ?? null,
+            }))
           }
           onTransport={(t) => dispatch(transportSelected(t))}
           onBody={(b) => dispatch(bodyEdited(b))}

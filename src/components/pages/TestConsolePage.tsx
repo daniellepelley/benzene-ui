@@ -54,7 +54,10 @@ export function TestConsolePage({ service, topic }: TestConsolePageProps) {
   // overwriting a dirty draft, so re-entering the page never discards what someone typed.
   useEffect(() => {
     if (service && topic) {
-      dispatch(composeOpened({ service, topic, exampleBody, transports }));
+      // `composeOpened` resets the picker to index 0, so index 0's version is the one being seeded.
+      dispatch(composeOpened({
+        service, topic, exampleBody, transports, version: versions[0]?.version ?? null,
+      }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch, service, topic]);
@@ -128,7 +131,11 @@ export function TestConsolePage({ service, topic }: TestConsolePageProps) {
           result={compose.result}
           confirmed={compose.confirmed}
           onVersion={(index) =>
-            dispatch(versionSelected({ index, exampleBody: exampleBodyFor(versions, index) }))
+            dispatch(versionSelected({
+              index,
+              exampleBody: exampleBodyFor(versions, index),
+              version: versions[index]?.version ?? null,
+            }))
           }
           onTransport={(t) => dispatch(transportSelected(t))}
           onBody={(b) => dispatch(bodyEdited(b))}

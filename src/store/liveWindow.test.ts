@@ -3,7 +3,8 @@ import { createStore } from './store';
 import { loadCatalog } from './slices/catalogSlice';
 import { probeFleet, fleetObserved, relativeFrom } from './slices/fleetSlice';
 import { fleetView, fleetTopic } from '../test/fleetView';
-import type { FleetView } from '../contracts';
+import type { FleetView, Topics } from '../contracts';
+import liveness from '../../contracts/artifacts/topics.liveness.json';
 import { rangeChanged } from './slices/viewSlice';
 import { selectLiveForTopic, selectRangeMs, rangeLabel, RANGE_OPTIONS } from './selectors';
 import { fakeMeshApi } from '../test/fakeMeshApi';
@@ -167,5 +168,54 @@ describe('the live plane for one topic', () => {
     store.dispatch(fleetObserved(snapshot({ topics: [fleetTopic({ topic: 'orders:create', invocations: 3 })] })));
 
     expect(selectLiveForTopic(store.getState(), 'orders:create').rangeLabel).toBe('1 hour');
+  });
+});
+
+/**
+ * Three facts, three feeds, and the entire question "has the right thing been deployed?" lives in
+ * the gaps between them. `declared` is what a service's spec endpoint said when it was polled;
+ * `registered` is what a running instance told the collector; `observed` is traffic that crossed
+ * the edge. The strip printed the second under the word "observed" — with a tooltip insisting it
+ * was not a declaration — directly beneath `observed 0`.
+ */
+describe('declared, registered and observed are three different statements', () => {
+  // The liveness catalogue is the one that carries the per-edge activity signal at all.
+  const ready = async () => {
+    const store = createStore(fakeMeshApi({
+      getFleet: async () => snapshot(),
+      getTopics: async () => liveness as unknown as Topics,
+    }));
+    await store.dispatch(loadCatalog());
+    return store;
+  };
+
+  it('reads the observed set from the per-edge activity, not from the registration list', async () => {
+    const store = await ready();
+    store.dispatch(fleetObserved(snapshot({
+      // The plane says two services are REGISTERED. The catalogue has traced only one of them.
+      topics: [fleetTopic({
+        topic: 'shipping:book', invocations: 10, consumers: ['shipping-api', 'archive-api'],
+      })],
+    })));
+
+    const live = selectLiveForTopic(store.getState(), 'shipping:book');
+    expect(live.registeredHandlers).toEqual(['archive-api', 'shipping-api']);
+    expect(live.activityWired).toBe(true);
+    expect(live.observedHandlers).toEqual(['shipping-api']);
+    // Which is the whole point: a registration that has never carried traffic is exactly the signal
+    // a mid-deployment estate turns on, and it used to be printed as an observation.
+    expect(live.observedHandlers).not.toContain('archive-api');
+  });
+
+  it('separates "no traffic traced" from "this aggregator does not publish traffic"', async () => {
+    const store = await ready();
+    store.dispatch(fleetObserved(snapshot({
+      topics: [fleetTopic({ topic: 'no:such-topic', consumers: ['ghost-api'] })],
+    })));
+
+    // A topic the catalogue does not carry has no activity signal at all — unknown, not idle.
+    const live = selectLiveForTopic(store.getState(), 'no:such-topic');
+    expect(live.activityWired).toBe(false);
+    expect(live.observedHandlers).toEqual([]);
   });
 });

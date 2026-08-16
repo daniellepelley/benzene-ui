@@ -73,12 +73,29 @@ export function TopicLiveStrip({ live, traffic, onShowFailingFlows }: TopicLiveS
               {live.avgDurationMs == null ? '—' : live.avgDurationMs.toFixed(1)}
             </span>
           </span>
+          {/* THREE FACTS, THREE FEEDS, THREE LABELS — and never one printed under another's heading.
+              `registered` is what a running instance told the collector; `observed` is traffic that
+              actually crossed the edge, which the aggregator projects separately and which nothing
+              in the product used to read. The strip printed the first under the word "observed",
+              with a tooltip insisting it was not a declaration, directly beneath `observed 0`. A
+              reader following that concludes the handler is alive and the counter is broken, when
+              the truth is the reverse — and on a mid-deployment estate the reverse is the signal
+              that matters. */}
           {live.registeredHandlers.length > 0 && (
             <span className="bz-live-item">
               <span className="bz-live-k">registered handlers</span>
               {live.registeredHandlers.map((s) => (
-                <Chip key={s} title="Registered to handle this topic. Registration is not traffic — see the count beside it.">
+                <Chip
+                  key={s}
+                  tone={live.activityWired && !live.observedHandlers.includes(s) ? 'warn' : undefined}
+                  title={live.activityWired
+                    ? (live.observedHandlers.includes(s)
+                      ? 'Registered to handle this topic, and traffic has been traced to it.'
+                      : 'Registered to handle this topic. No traffic has been traced to it.')
+                    : 'Registered to handle this topic. This aggregator does not publish per-handler traffic, so whether it has handled anything is unknown.'}
+                >
                   {s}
+                  {live.activityWired && !live.observedHandlers.includes(s) && ' · idle'}
                 </Chip>
               ))}
             </span>

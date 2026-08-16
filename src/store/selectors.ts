@@ -1239,6 +1239,21 @@ export interface TopicLive {
    * nothing was observed handling it.
    */
   registeredHandlers: string[];
+  /**
+   * Services the collector has actually TRACED handling this topic — the genuine observation.
+   *
+   * Three facts, three feeds, and the product must never print one under another's label. `declared`
+   * is what a service's spec endpoint said when it was polled; `registered` is what a running
+   * instance told the collector; `observed` is traffic that crossed the edge. The whole question
+   * "has the right thing been deployed?" lives in the gaps between them, so a surface that blurs
+   * them is worse than one that omits them.
+   *
+   * Empty when no aggregator wired the signal at all, which is why `activityWired` exists beside it:
+   * an unwired feed and a genuinely idle handler must not render the same.
+   */
+  observedHandlers: string[];
+  /** Whether any aggregator published the per-edge activity signal for this topic. */
+  activityWired: boolean;
   /** Dimensions the plane declares genuinely absent. Reduced is visible, never mistaken for empty. */
   missingFeeds: string[];
   rangeLabel: string;
@@ -1264,8 +1279,8 @@ export interface TopicLive {
  */
 export const selectLiveForTopic = createSelector(
   [selectFleetTopics, selectFleetAvailable, selectRangeMs, (s: RootState) => s.fleet.window,
-    (_: RootState, topic: string) => topic, (s: RootState) => s.view.selectedVersion],
-  (topics, available, ms, window, topic, version): TopicLive => {
+    (_: RootState, topic: string) => topic, (s: RootState) => s.view.selectedVersion, selectTopics],
+  (topics, available, ms, window, topic, version, catalogue): TopicLive => {
     // Scoped to the version on screen when the plane carries one. The collector DOES report per
     // version; merging the rows put the previous version's traffic under the new version's heading —
     // and named an observed handler on a version the same page had just said nobody consumes. That
@@ -1300,12 +1315,37 @@ export const selectLiveForTopic = createSelector(
       // no observation here to report. Naming it `services` and labelling it "observed handlers" put
       // a registration under a heading that claimed measurement, directly beneath `observed 0`.
       registeredHandlers: [...new Set(rows.flatMap((r) => r.consumers))].sort(),
+      ...observedHandlersFor(catalogue, topic, version),
       missingFeeds,
       rangeLabel: rangeLabel(ms),
       countsSince: window && !window.countsWindowed ? (window.countsSince ?? null) : null,
     };
   },
 );
+
+/**
+ * The genuinely observed half, read off the catalogue's per-edge activity rather than the live
+ * plane's registration list.
+ *
+ * `consumerActivity` is keyed by service and carries `lastObservedAt`; absent field means no
+ * aggregator wired the signal, `lastObservedAt: null` means declared and never traced. Those are
+ * different facts and collapsing them is the same defect one level down.
+ */
+function observedHandlersFor(
+  catalogue: TopicsTopicsItem[], topic: string, version: string | null,
+): { observedHandlers: string[]; activityWired: boolean } {
+  const entries = catalogue.filter((t) =>
+    t.topic === topic && (version == null || t.version === version));
+  const wired = entries.some((t) => t.consumerActivity !== undefined);
+  if (!wired) return { observedHandlers: [], activityWired: false };
+  const observed = new Set<string>();
+  for (const entry of entries) {
+    for (const [service, activity] of Object.entries(entry.consumerActivity ?? {})) {
+      if (edgeLivenessOf(activity) === 'observed') observed.add(service);
+    }
+  }
+  return { observedHandlers: [...observed].sort(), activityWired: true };
+}
 
 // ── Untrusted URLs ──────────────────────────────────────────────────────────────────────────────
 

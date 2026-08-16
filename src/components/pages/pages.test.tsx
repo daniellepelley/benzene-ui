@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { act } from 'react';
 import { createStore } from '../../store/store';
@@ -309,5 +309,43 @@ describe('TestConsolePage', () => {
 
     expect(screen.getByLabelText(/Body/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Send' })).toBeInTheDocument();
+  });
+});
+
+/**
+ * Three defects a QA engineer found by treating the Test Console as the runbook step its own header
+ * says it is. All three produce evidence that looks true and is not.
+ */
+describe('the Test Console as a runbook step', () => {
+  it('seeds the version and the payload on a deep link, not just when clicked into', async () => {
+    // The effect used to run once against a catalogue that had not arrived, and never again — the
+    // service and topic in the URL never change. The console sat with `{}` for a body and no version
+    // header, and would send it.
+    const store = createStore(fakeMeshApi());
+    await store.dispatch(loadManifest());
+    show(store, <TestConsolePage service="orders-api" topic="payment:capture" />);
+    await store.dispatch(loadCatalog());
+
+    await waitFor(() => {
+      expect(JSON.parse(store.getState().compose.headersJson)).toHaveProperty('benzene-version');
+    });
+    expect(store.getState().compose.bodyJson).not.toBe('{}');
+  });
+
+  it('refuses a service that is not in the estate rather than offering to send to it', async () => {
+    const store = await loaded();
+    show(store, <TestConsolePage service="does-not-exist" topic="payment:capture" />);
+
+    expect(screen.getByText(/does-not-exist is not in the estate manifest/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send' })).toBeNull();
+  });
+
+  it('does not claim a service is absent before the manifest has loaded', async () => {
+    // An empty list means the estate has not loaded, not that the service does not exist.
+    const store = createStore(fakeMeshApi());
+    await store.dispatch(loadCatalog());
+    show(store, <TestConsolePage service="orders-api" topic="payment:capture" />);
+
+    expect(screen.queryByText(/not in the estate manifest/)).toBeNull();
   });
 });

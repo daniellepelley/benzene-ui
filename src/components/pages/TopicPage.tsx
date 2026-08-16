@@ -105,7 +105,17 @@ export function TopicPage({ topic }: TopicPageProps) {
         }
         actions={
           !entry.reserved ? (
-            <button type="button" onClick={() => dispatch(navigated({ page: 'compose', selected: topic }))}>
+            <button
+              type="button"
+              // The version the reader is LOOKING at, carried through. `navigated` clears
+              // `selectedVersion` unless it is passed, so composing from a v1 page landed on the
+              // newest version's skeleton — a reader on v1 pressed compose and got a v2 request.
+              // That is round 5's version trap relocated: the page they came from said one thing and
+              // the message they were about to send said another.
+              onClick={() => dispatch(navigated({
+                page: 'compose', selected: topic, selectedVersion: entry.version,
+              }))}
+            >
               compose a message
             </button>
           ) : undefined

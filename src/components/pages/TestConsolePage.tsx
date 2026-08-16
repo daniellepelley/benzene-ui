@@ -49,9 +49,21 @@ export function TestConsolePage({ service, topic }: TestConsolePageProps) {
     topic ? selectExampleBody(s, topic, compose.versionIndex) : '{}');
   const validity = useAppSelector(selectComposeValidity);
   const canSendMessages = useAppSelector(selectCanInvoke);
+  // Only assert that a service is absent once there is a manifest to assert it against. An empty
+  // list means the estate has not loaded, not that the service does not exist — the same third-state
+  // rule the rest of the product follows, applied to a route parameter.
+  const known = services.length === 0 || services.some((s) => s.name === service);
 
   // Seeding the draft from the schema is a lifecycle, not state — and composeOpened guards against
   // overwriting a dirty draft, so re-entering the page never discards what someone typed.
+  //
+  // `versions.length` IS a dependency, and leaving it out is what broke the one thing this page
+  // advertises. On a deep link the catalogue has not loaded when the effect first runs, so there is
+  // no schema to seed from and no version to send: the effect fired once against an empty catalogue
+  // and never again, because the service and topic in the URL never change. The console then sat
+  // there with `{}` for a body and no version header — and would happily send it. The page's own
+  // header invites a reader to bookmark this URL as a runbook step, so the surface that promises
+  // repeatability was the one that could not deliver it.
   useEffect(() => {
     if (service && topic) {
       // `composeOpened` resets the picker to index 0, so index 0's version is the one being seeded.
@@ -60,7 +72,7 @@ export function TestConsolePage({ service, topic }: TestConsolePageProps) {
       }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, service, topic]);
+  }, [dispatch, service, topic, versions.length]);
 
   const pickService = (name: string) =>
     dispatch(navigated({ page: 'test', selectedService: name || null, selected: null }));
@@ -107,15 +119,25 @@ export function TestConsolePage({ service, topic }: TestConsolePageProps) {
         <EmptyState message="No services are in the catalog yet." />
       )}
 
-      {service && topics.length === 0 && (
+      {/* An unknown service gets the same treatment as an unknown topic or an unknown route. It was
+          the one identifier in the product that went unvalidated, so `#test/does-not-exist/<topic>`
+          rendered a working, sendable console — the only place a bad URL produced fake evidence
+          instead of an honest empty state. The message it fell through to was also wrong: it said
+          the service carried only reserved traffic, which asserts something about a service that
+          does not exist. */}
+      {service && !known && (
+        <EmptyState message={`${service} is not in the estate manifest, so there is nothing to send it.`} />
+      )}
+
+      {service && known && topics.length === 0 && (
         <EmptyState message={`${service} has no composable topic — it may only carry reserved traffic.`} />
       )}
 
-      {service && topic && versions.length === 0 && (
+      {service && known && topic && versions.length === 0 && (
         <EmptyState message={`${topic} has no composable version — it may be reserved, or not in the catalog.`} />
       )}
 
-      {service && topic && versions.length > 0 && (
+      {service && known && topic && versions.length > 0 && (
         <MessageComposer
           versions={versions}
           versionIndex={compose.versionIndex}

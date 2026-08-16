@@ -151,6 +151,13 @@ function retargetVersionHeader(headersJson: string, version: string | null): str
   return JSON.stringify(parsed, null, 2);
 }
 
+/** Drops a response that no longer describes what is on screen. See `bodyEdited`. */
+function discardResult(state: ComposeState): void {
+  state.result = null;
+  state.error = null;
+  state.send = 'idle';
+}
+
 const composeSlice = createSlice({
   name: 'compose',
   initialState,
@@ -197,6 +204,7 @@ const composeSlice = createSlice({
       action: PayloadAction<{ index: number; exampleBody: string; version?: string | null }>,
     ) {
       state.versionIndex = action.payload.index;
+      discardResult(state);
       // Changing the payload version IS a request for a different skeleton, so this reseeds even
       // when dirty — the previous body was written against a different schema.
       state.bodyJson = action.payload.exampleBody;
@@ -206,16 +214,28 @@ const composeSlice = createSlice({
     },
     transportSelected(state, action: PayloadAction<string>) {
       state.transport = action.payload;
+      discardResult(state);
     },
+    /*
+     * Editing the request DISCARDS the previous response, on every path.
+     *
+     * A result that outlives the request it describes is not stale UI, it is a falsified evidence
+     * artifact: a tester sent v2, got a green result, edited the body and switched to v1, and the
+     * screen still showed the green result beside the v1 request. A screenshot at that moment is
+     * indistinguishable from a passing v1 test, and the whole point of this surface is producing
+     * evidence somebody else will trust.
+     */
     bodyEdited(state, action: PayloadAction<string>) {
       state.bodyJson = action.payload;
       state.dirty = true;
       state.confirmed = false;
+      discardResult(state);
     },
     headersEdited(state, action: PayloadAction<string>) {
       state.headersJson = action.payload;
       state.dirty = true;
       state.confirmed = false;
+      discardResult(state);
     },
     sendConfirmationToggled(state) {
       state.confirmed = !state.confirmed;

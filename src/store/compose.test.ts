@@ -242,3 +242,49 @@ describe('compose', () => {
     });
   });
 });
+
+/**
+ * A result that outlives the request it describes is not stale UI, it is a falsified evidence
+ * artifact. A tester sent v2, got a green result, edited the body and switched the picker to v1, and
+ * the screen still showed the green result beside the v1 request — a screenshot indistinguishable
+ * from a passing v1 test, on the one surface whose whole job is producing evidence somebody else
+ * will trust.
+ */
+describe('a response never outlives the request it describes', () => {
+  const sent = async () => {
+    const store = await ready({ sendMessage: async () => ({ statusCode: 'ok', body: '{}', headers: {} }) });
+    store.dispatch(composeOpened({
+      service: 'orders-api', topic: 'orders:create', exampleBody: '{}',
+      transports: [RAW_TRANSPORT], version: 'v1',
+    }));
+    await store.dispatch(sendComposed({
+      service: 'orders-api', topic: 'orders:create', headers: {}, body: '{}',
+    }));
+    expect(store.getState().compose.result).not.toBeNull();
+    return store;
+  };
+
+  it('discards it when the body changes', async () => {
+    const store = await sent();
+    store.dispatch(bodyEdited('{"different":true}'));
+    expect(store.getState().compose.result).toBeNull();
+  });
+
+  it('discards it when the headers change', async () => {
+    const store = await sent();
+    store.dispatch(headersEdited('{"x":"y"}'));
+    expect(store.getState().compose.result).toBeNull();
+  });
+
+  it('discards it when the version changes', async () => {
+    const store = await sent();
+    store.dispatch(versionSelected({ index: 1, exampleBody: '{}', version: 'v2' }));
+    expect(store.getState().compose.result).toBeNull();
+  });
+
+  it('discards it when the transport changes', async () => {
+    const store = await sent();
+    store.dispatch(transportSelected('http'));
+    expect(store.getState().compose.result).toBeNull();
+  });
+});

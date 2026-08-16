@@ -59,8 +59,10 @@ export function ComposePage({ topic, service }: ComposePageProps) {
         version: versions[index]?.version ?? null,
       }));
     }
+    // `versions.length` for the same reason as the Test Console: on a deep link the catalogue has
+    // not arrived when this first runs, and without it the effect never re-fires.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, resolvedService, topic, arrivedAtVersion]);
+  }, [dispatch, resolvedService, topic, arrivedAtVersion, versions.length]);
 
   if (versions.length === 0) {
     return <EmptyState message={`${topic} has no composable version — it may be reserved, or not in the catalog.`} />;

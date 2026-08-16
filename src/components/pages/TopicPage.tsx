@@ -187,6 +187,17 @@ export function TopicPage({ topic }: TopicPageProps) {
       {flows.available && (
         <section>
           <h3>Flows</h3>
+          {/* The trace summaries carry a topic and no version, so these flows are the WHOLE topic's
+              — which on a version-scoped page put a red "1 failing of 1" on the version that is
+              clean, sourced from the failure on the version that is not. The panel cannot be
+              filtered because the data to filter on does not exist; saying so is the honest option,
+              and it is the same admission the traffic panel already makes one section up. */}
+          {versionLabel(entry.version) && (
+            <p className="bz-page-note">
+              These are flows for the whole of {topic}. The trace feed does not record a payload
+              version, so none of them is attributed to {versionLabel(entry.version)}.
+            </p>
+          )}
           <FlowList
             view={flows}
             failingOnly={failingOnly}

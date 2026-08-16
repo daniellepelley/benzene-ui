@@ -18,6 +18,20 @@ export interface CatalogState {
   topics: Topics | null;
   topology: Topology | null;
   usage: Usage | null;
+  /**
+   * Which artifacts could not be READ, and why — as distinct from artifacts that were read and were
+   * empty.
+   *
+   * Those are different facts and the product used to throw the distinction away in a
+   * `.catch(() => null)`. A 404 on `topics.json` then rendered as *"No topics are published. The
+   * aggregator has run but no service declared one."* — a failed fetch presented as an assertion
+   * about the reader's estate, on the one screen that estate is judged from. A platform engineer had
+   * to read source to find out their feed was 404ing, because nothing in the chrome named it.
+   *
+   * The live plane already gets this right ("live plane unreachable — no successful poll yet;
+   * retrying"). This is the static half held to the same standard.
+   */
+  feedErrors: Record<string, string>;
 }
 
 const initialState: CatalogState = {
@@ -26,21 +40,39 @@ const initialState: CatalogState = {
   topics: null,
   topology: null,
   usage: null,
+  feedErrors: {},
 };
 
+/** Reads one artifact, keeping the REASON a read failed rather than collapsing it to absence. */
+async function read<T>(
+  name: string, fetchIt: () => Promise<T>, errors: Record<string, string>,
+): Promise<T | null> {
+  try {
+    return await fetchIt();
+  } catch (e) {
+    errors[name] = e instanceof Error ? e.message : String(e);
+    return null;
+  }
+}
+
 export const loadCatalog = createAsyncThunk<
-  { topics: Topics | null; topology: Topology | null; usage: Usage | null },
+  {
+    topics: Topics | null; topology: Topology | null; usage: Usage | null;
+    feedErrors: Record<string, string>;
+  },
   void,
   { extra: MeshApi }
 >('catalog/load', async (_, { extra }) => {
   // Settled, not all: an aggregator may publish topics without usage if no usage source is wired.
-  // One missing artifact must not blank the other two.
+  // One missing artifact must not blank the other two — but "missing" and "unreadable" are recorded
+  // separately, because only one of them is a statement about the estate.
+  const feedErrors: Record<string, string> = {};
   const [topics, topology, usage] = await Promise.all([
-    extra.getTopics().catch(() => null),
-    extra.getTopology().catch(() => null),
-    extra.getUsage().catch(() => null),
+    read('topics', () => extra.getTopics(), feedErrors),
+    read('topology', () => extra.getTopology(), feedErrors),
+    read('usage', () => extra.getUsage(), feedErrors),
   ]);
-  return { topics, topology, usage };
+  return { topics, topology, usage, feedErrors };
 });
 
 const catalogSlice = createSlice({
@@ -58,6 +90,7 @@ const catalogSlice = createSlice({
         state.topics = action.payload.topics;
         state.topology = action.payload.topology;
         state.usage = action.payload.usage;
+        state.feedErrors = action.payload.feedErrors;
       })
       .addCase(loadCatalog.rejected, (state, action) => {
         state.load = 'failed';

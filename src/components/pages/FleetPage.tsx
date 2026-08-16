@@ -3,7 +3,7 @@ import {
   selectEstateSummary, selectDivergences, selectIssueSummary, selectFleetAvailable,
   selectFlaggedTopics, selectEdges, selectFlows, selectFailingFlowsOnly, selectInboxIssues,
   selectServiceRags, selectCollapsedSections, selectFilter, selectVisibleServices,
-  selectChangeSummary, selectRollouts,
+  selectChangeSummary, selectRollouts, selectFeedErrors,
 } from '../../store/selectors';
 import { navigated, failingFlowsToggled, sectionToggled, filterChanged } from '../../store/slices/viewSlice';
 import { ServiceList } from '../containers/ServiceList';
@@ -15,6 +15,7 @@ import { EstateStats } from '../controls/EstateStats';
 import { IssueRow } from '../controls/IssueRow';
 import { StatusGlyph } from '../primitives/StatusGlyph';
 import { RolloutList } from '../sections/RolloutList';
+import { POLLED_INSTANCE_CAVEAT } from '../sections/compatibilityCopy';
 import { Chip } from '../primitives/Chip';
 import type { Rag } from '../../contracts';
 
@@ -52,6 +53,7 @@ export function FleetPage() {
   // mid-migration with a named blocker is. Ranked by the same rule as the Rollouts screen, so the
   // five here are the same five at the top there.
   const rollouts = useAppSelector(selectRollouts);
+  const feedErrors = useAppSelector(selectFeedErrors);
   const topRollouts = rollouts.slice(0, CHANGES_PREVIEW);
   const outstandingRollouts = rollouts.filter((r) => r.outstanding.length > 0);
 
@@ -100,6 +102,22 @@ export function FleetPage() {
 
   return (
     <div className="bz-page">
+      {/* NAMED, and in the chrome. An artifact the UI could not read is a fact about the plumbing,
+          not about the estate, and until this line existed the only way to discover a 404 on
+          topics.json was to open the browser console — the page itself said no service had declared
+          a topic. The live plane has said "unreachable — retrying" since round 2; this is the static
+          half held to the same standard. */}
+      {feedErrors.length > 0 && (
+        <p className="bz-feed-health" data-kind="degraded">
+          {feedErrors.map((e) => (
+            <span key={e.feed}>
+              <strong>{e.feed}</strong> could not be read ({e.message}) — anything derived from it is
+              unknown, not empty.
+            </span>
+          ))}
+        </p>
+      )}
+
       <EstateStats stats={stats} />
 
       {/* Only meaningful with a collector — without one, every service is "never observed", and
@@ -159,6 +177,7 @@ export function FleetPage() {
               fed by the issue feed, and a contract obligation is derivable with ZERO telemetry.
               Filing it there would make this wave's headline vanish on every estate without a
               collector, and would quietly turn a review surface into an incident one. */}
+          <p className="bz-muted bz-changes-caveat">{POLLED_INSTANCE_CAVEAT}</p>
           <RolloutList
             rollouts={topRollouts}
             onOpenTopic={(topic, version) => dispatch(navigated({

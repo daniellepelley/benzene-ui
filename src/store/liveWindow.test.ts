@@ -5,7 +5,7 @@ import { probeFleet, fleetObserved, relativeFrom } from './slices/fleetSlice';
 import { fleetView, fleetTopic } from '../test/fleetView';
 import type { FleetView, Topics } from '../contracts';
 import liveness from '../../contracts/artifacts/topics.liveness.json';
-import { rangeChanged } from './slices/viewSlice';
+import { rangeChanged, topicVersionSelected } from './slices/viewSlice';
 import { selectLiveForTopic, selectRangeMs, rangeLabel, RANGE_OPTIONS } from './selectors';
 import { fakeMeshApi } from '../test/fakeMeshApi';
 
@@ -74,14 +74,18 @@ describe('the live plane for one topic', () => {
     expect(selectLiveForTopic(store.getState(), 'orders:create').observed).toBeNull();
   });
 
-  it('sums success and failure across every service handling the topic', async () => {
+  it('sums across every service handling the topic AT THE VERSION ON SCREEN', async () => {
+    // Summing across services is right; summing across versions is not. The page defaults to the
+    // newest version when none is pinned, so an unpinned arrival must report the newest version's
+    // numbers — not the whole topic's under the newest version's heading.
     const store = await ready();
     store.dispatch(
       fleetObserved(
         snapshot({
           topics: [
-            fleetTopic({ topic: 'orders:create', version: 'v1', invocations: 100, errors: 4, consumers: ['orders-api'] }),
-            fleetTopic({ topic: 'orders:create', version: 'v2', invocations: 55, errors: 1, consumers: ['orders-worker'] }),
+            fleetTopic({ topic: 'orders:create', version: 'v2', invocations: 30, errors: 1, consumers: ['orders-api'] }),
+            fleetTopic({ topic: 'orders:create', version: 'v2', invocations: 25, errors: 0, consumers: ['orders-worker'] }),
+            fleetTopic({ topic: 'orders:create', version: 'v1', invocations: 100, errors: 4, consumers: ['legacy-api'] }),
             fleetTopic({ topic: 'payment:capture', invocations: 9, consumers: ['payments-api'] }),
           ],
         }),
@@ -89,9 +93,37 @@ describe('the live plane for one topic', () => {
     );
 
     const live = selectLiveForTopic(store.getState(), 'orders:create');
-    expect(live.observed).toBe(155);
-    expect(live.errors).toBe(5);
+    expect(live.observed).toBe(55);
+    expect(live.errors).toBe(1);
     expect(live.registeredHandlers).toEqual(['orders-api', 'orders-worker']);
+  });
+
+  /**
+   * The defect this replaced an assertion for. `selectTopic` defaults to the newest entry when no
+   * version is pinned; the traffic selectors keyed off the URL's version, which on that same arrival
+   * is null, so they merged every version under the newest one's heading. On a mid-deployment estate
+   * that reported a version which had carried nothing as flowing cleanly — a rollout that had not
+   * started, rendered as deployed. Reachable by bookmark, typed URL or runbook step, which is how an
+   * operator arrives on a release morning.
+   */
+  it('never reports an older version’s traffic under the newest version’s heading', async () => {
+    const store = await ready();
+    store.dispatch(
+      fleetObserved(
+        snapshot({
+          topics: [
+            fleetTopic({ topic: 'orders:create', version: 'v1', invocations: 9840, errors: 0 }),
+            fleetTopic({ topic: 'orders:create', version: 'v2', invocations: 0, errors: 0 }),
+          ],
+        }),
+      ),
+    );
+
+    // No version pinned: the page shows v2, so the strip must show v2's zero.
+    expect(selectLiveForTopic(store.getState(), 'orders:create').observed).toBe(0);
+
+    store.dispatch(topicVersionSelected('v1'));
+    expect(selectLiveForTopic(store.getState(), 'orders:create').observed).toBe(9840);
   });
 
   it('renders a dimension the plane cannot supply as unknown, never as zero', async () => {
@@ -116,14 +148,15 @@ describe('the live plane for one topic', () => {
       fleetObserved(
         snapshot({
           topics: [
-            fleetTopic({ topic: 'orders:create', version: 'v1', invocations: 999, avgDurationMs: 10 }),
+            fleetTopic({ topic: 'orders:create', version: 'v2', invocations: 999, avgDurationMs: 10 }),
             fleetTopic({ topic: 'orders:create', version: 'v2', invocations: 1, avgDurationMs: 1000 }),
           ],
         }),
       ),
     );
 
-    // An unweighted mean would report 505ms for a topic that is almost entirely 10ms.
+    // Two services on the SAME version. An unweighted mean would report 505ms for a version that is
+    // almost entirely 10ms.
     expect(selectLiveForTopic(store.getState(), 'orders:create').avgDurationMs).toBeCloseTo(10.99, 1);
   });
 

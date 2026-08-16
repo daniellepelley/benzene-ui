@@ -253,3 +253,39 @@ describe('rollouts — what it refuses to say', () => {
     expect(buildRollouts([reserved as TopicsTopicsItem], [])).toEqual([]);
   });
 });
+
+/**
+ * The breach check originally ran on the catch-up arm only, so the mirror image kept the calmest
+ * label in the vocabulary: a card headed "completion outstanding — X can move whenever it is ready"
+ * directly above a line saying nothing in the estate handles anything being sent. Two sentences on
+ * one card, from independent paths, with the severe one in supporting type.
+ */
+describe('a breach is a breach whichever side left the baseline', () => {
+  it('marks the mirror-image outage as live, not as a completion at leisure', () => {
+    // The adapter has moved to v2 and dropped v1; the owner is still on v1 only. Disjoint both ways.
+    const topics = [
+      baseline('notification:send', [], ['payments-api']),
+      pair('notification:send', 'v2', 'request', 'compatible', ['orders-api'], []),
+    ];
+    const r = buildRollouts(topics, [skew('notification:send', ['v2'], ['v1'])])[0]!;
+
+    expect(r.state).toBe('awaitingOwner');
+    expect(r.breached).toBe(true);
+    expect(r.constraint).toContain('no longer');
+    expect(r.constraint).not.toContain('whenever it is ready');
+  });
+
+  it('leaves an ordinary completion in the future tense', () => {
+    const at = build();
+    const r = at('invoice:raise');
+    expect(r.state).toBe('awaitingOwner');
+    expect(r.breached).toBe(false);
+    expect(r.constraint).toContain('can move whenever it is ready');
+  });
+
+  it('treats disjointness as a breach on any arm', () => {
+    const at = build();
+    expect(at('inventory:reserve').disjoint).toBe(true);
+    expect(at('inventory:reserve').breached).toBe(true);
+  });
+});

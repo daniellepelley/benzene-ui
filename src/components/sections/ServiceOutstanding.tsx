@@ -1,6 +1,8 @@
 import type { Obligation, Rollout } from '../../store/rollouts';
 import { VerdictBadge } from './ContractChanges';
-import { OUTSTANDING_EMPTY, OUTSTANDING_NOT_PUBLISHED, OUTSTANDING_SINGLE_VERSION } from './compatibilityCopy';
+import {
+  OUTSTANDING_EMPTY, OUTSTANDING_NOT_PUBLISHED, OUTSTANDING_SINGLE_VERSION, POLLED_INSTANCE_CAVEAT,
+} from './compatibilityCopy';
 
 /** Oxford-free list join, matching the constraint sentences. */
 const list = (services: string[]): string =>
@@ -135,6 +137,10 @@ export function ServiceOutstanding({
           </li>
         ))}
       </ul>
+      {/* The most instance-sensitive assertion in the product — it names one service and one action
+          — and it was the surface without the caveat. It sat on the two screens a reader drills
+          into and was missing from the two they scan. */}
+      <p className="bz-muted bz-outstanding-caveat">{POLLED_INSTANCE_CAVEAT}</p>
       {waitingOn}
     </section>
   );

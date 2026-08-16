@@ -1,6 +1,7 @@
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   selectCatalogRows, selectCatalogTotal, selectTopicFilter, selectTopicSort, selectShowUtility,
+  selectFeedErrors,
   formatCount, versionLabel, type CatalogRow,
 } from '../../store/selectors';
 import { navigated, topicFilterChanged, topicSorted, utilityToggled } from '../../store/slices/viewSlice';
@@ -26,6 +27,7 @@ export function TopicCatalog() {
   const rows = useAppSelector(selectCatalogRows);
   const total = useAppSelector(selectCatalogTotal);
   const filter = useAppSelector(selectTopicFilter);
+  const topicsFeedError = useAppSelector(selectFeedErrors).find((e) => e.feed === 'topics')?.message;
   const sort = useAppSelector(selectTopicSort);
   const showUtility = useAppSelector(selectShowUtility);
 
@@ -180,10 +182,20 @@ export function TopicCatalog() {
           filter.trim() !== '' ? (
             <EmptyState message={`No topic or service matches “${filter}”.`} />
           ) : (
-            <EmptyState
-              message="No topics are published. The aggregator has run but no service declared one."
-              tone="unknown"
-            />
+            // "Could not read the feed" and "read it, it was empty" are different facts and only
+            // the second is about the estate. Collapsing them sent a reader hunting a registration
+            // problem across five services when the real answer was a 403 on one URL.
+            topicsFeedError ? (
+              <EmptyState
+                message={`The topic catalogue could not be read (${topicsFeedError}), so what this estate publishes is unknown.`}
+                tone="unknown"
+              />
+            ) : (
+              <EmptyState
+                message="No topics are published. The aggregator has run but no service declared one."
+                tone="unknown"
+              />
+            )
           )
         }
       />

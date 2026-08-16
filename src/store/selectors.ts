@@ -224,6 +224,21 @@ export const isKnownStatus = (status: string | null | undefined) =>
 export const selectCatalogLoad = (s: RootState) => s.catalog.load;
 
 /**
+ * Artifacts the UI could not READ, with the reason — never merged with artifacts that were read and
+ * were empty.
+ *
+ * The two look identical downstream once a failed fetch becomes `null`, and the product used to
+ * collapse them: a 404 on `topics.json` rendered as "the aggregator has run but no service declared
+ * one", which sends a reader to look for a registration problem across five services instead of a
+ * 403 on one URL. It is the same defect as "absence rendered as good news", pointed at the reader's
+ * own infrastructure.
+ */
+export const selectFeedErrors = createSelector(
+  [(s: RootState) => s.catalog.feedErrors],
+  (errors) => Object.entries(errors).map(([feed, message]) => ({ feed, message })),
+);
+
+/**
  * One shared empty array for every "absent artifact" fallback.
  *
  * `?? []` looks harmless and is not: it mints a new reference on every call, so any memoised selector
@@ -297,7 +312,8 @@ export interface TopicTraffic {
  * — it is a real fact about the topic — but flagged so the surface can say which question it answers.
  */
 export const selectTrafficForTopic = createSelector(
-  [selectUsageRaw, (_: RootState, topic: string) => topic, (s: RootState) => s.view.selectedVersion,
+  [selectUsageRaw, (_: RootState, topic: string) => topic,
+    (s: RootState, topic: string) => selectDisplayedVersion(s, topic),
     (s: RootState) => s.catalog.usage != null],
   (entries, topic, version, feedWired): TopicTraffic => {
     const all = (entries as UsageEntriesItem[]).filter((e) => e.topic === topic);
@@ -386,6 +402,25 @@ export const selectTopic = createSelector(
     if (version != null) return entries.find((t) => t.version === version) ?? null;
     return entries[entries.length - 1]!;
   },
+);
+
+/**
+ * The version the topic page is actually SHOWING — which is not the same as the version in the URL.
+ *
+ * `selectTopic` defaults to the newest entry when no version is pinned, so a bookmark or a typed URL
+ * renders a page headed v2. Every traffic selector, meanwhile, keyed off `view.selectedVersion`,
+ * which on that same arrival is null — so they merged every version and printed v1's numbers under
+ * the v2 heading. On the round-6 estate that meant `order:placed` v2, which has carried zero
+ * messages, rendered "observed 9.8k · errors 0" beneath its own v2 heading: a rollout that has not
+ * started, reported as deployed and flowing cleanly. Clicking the v2 chip changed the answer on the
+ * same page.
+ *
+ * Every in-product link pins the version, so the merge was only reachable by bookmark, typed URL,
+ * pasted link or runbook step — which is exactly how an operator arrives on a release morning.
+ */
+export const selectDisplayedVersion = createSelector(
+  [selectTopic],
+  (entry) => entry?.version ?? null,
 );
 
 /** Topics with a status the aggregator flagged — deprecation candidates and gaps. */
@@ -1333,7 +1368,8 @@ export interface TopicLive {
  */
 export const selectLiveForTopic = createSelector(
   [selectFleetTopics, selectFleetAvailable, selectRangeMs, (s: RootState) => s.fleet.window,
-    (_: RootState, topic: string) => topic, (s: RootState) => s.view.selectedVersion, selectTopics],
+    (_: RootState, topic: string) => topic,
+    (s: RootState, topic: string) => selectDisplayedVersion(s, topic), selectTopics],
   (topics, available, ms, window, topic, version, catalogue): TopicLive => {
     // Scoped to the version on screen when the plane carries one. The collector DOES report per
     // version; merging the rows put the previous version's traffic under the new version's heading —
@@ -1352,12 +1388,19 @@ export const selectLiveForTopic = createSelector(
     // Weighted, so a busy version is not averaged away by a quiet one.
     const weighted = rows.reduce((n, r) => n + r.avgDurationMs * Math.max(r.invocations, 1), 0);
     const weights = rows.reduce((n, r) => n + Math.max(r.invocations, 1), 0);
+    const observedTotal = rows.reduce((n, r) => n + r.invocations, 0);
 
     return {
       available,
       observed: rows.length === 0 || statsAbsent ? null : rows.reduce((n, r) => n + r.invocations, 0),
       errors: statsAbsent ? 0 : rows.reduce((n, r) => n + r.errors, 0),
-      avgDurationMs: rows.length === 0 || durationAbsent || weights === 0 ? null : weighted / weights,
+      // `weights` uses `Math.max(invocations, 1)`, so a row with zero invocations still weighs 1 and
+      // the guard never fired: a version that has carried nothing reported `avg ms 0.0`, which is a
+      // measurement of nothing presented as a measurement. An em-dash, never a zero — the rule the
+      // comment beside this already stated and the arithmetic quietly defeated.
+      avgDurationMs: rows.length === 0 || durationAbsent || weights === 0 || observedTotal === 0
+        ? null
+        : weighted / weights,
       statusCounts: rows.reduce<Record<string, number>>((acc, r) => {
         for (const [status, count] of Object.entries(r.statusCounts)) {
           acc[status] = (acc[status] ?? 0) + count;

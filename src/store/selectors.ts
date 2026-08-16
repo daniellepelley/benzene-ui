@@ -438,6 +438,7 @@ export const selectHttpMappingsForTopic = createSelector(
 // ── Version compatibility ───────────────────────────────────────────────────────────────────────
 
 import type { TopicsVersionCompatibilityItem } from '../contracts';
+import { buildRollouts } from './rollouts';
 
 /**
  * The aggregator's producer-vs-consumer version reconciliation for one topic, or null.
@@ -478,6 +479,33 @@ export const selectComparisonsPublished = createSelector([selectTopics], (topics
 export const selectTopicCompatibility = createSelector(
   [selectTopic],
   (entry): TopicsTopicsItemCompatibility | null => entry?.compatibility ?? null,
+);
+
+/**
+ * Every version pair in the estate as a rollout — who has moved, who owes a move, and what is
+ * locked to what. See `rollouts.ts` for the model and for what it deliberately refuses to compute.
+ */
+export const selectRollouts = createSelector(
+  [selectTopics, selectCompatibilityRaw],
+  (topics, versionCompatibility) =>
+    buildRollouts(topics, versionCompatibility as TopicsVersionCompatibilityItem[]),
+);
+
+/** Every outstanding obligation in the estate, flattened. */
+export const selectObligations = createSelector([selectRollouts], (rollouts) =>
+  rollouts.flatMap((r) => r.obligations));
+
+/**
+ * What this release requires of one service — the question a service owner's first click asks, and
+ * the one the service page has never answered.
+ *
+ * Per service AND per topic, never rolled into one count. A service with two obligations on two
+ * topics in two roles has two rows; collapsing them to "this service has work" is exactly how the
+ * second one gets missed on a service somebody has already ticked off.
+ */
+export const selectObligationsForService = createSelector(
+  [selectObligations, (_: RootState, service: string) => service],
+  (obligations, service) => obligations.filter((o) => o.service === service),
 );
 
 export interface LedgerChange extends TopicsTopicsItemCompatibilityChangesItem {

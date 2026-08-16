@@ -82,9 +82,14 @@ export function FleetPage() {
         // of work rendered as an emergency at the top of the first screen anybody opens. The tile's
         // VALUE is unchanged; only what makes it red is.
         rag: (outstandingRollouts.some((r) => r.verdict === 'breaking') ? 'red' : 'amber') as Rag,
+        // The note carries its OWN denominator, because it counts a different object from the value
+        // above it: the value is field changes, the note is topics. "4 awaiting a move" beneath a
+        // "9" reads as four of the nine, and clicking through lands on a page headed "6 rollouts" —
+        // the first number on the estate page failing to survive its own click. The tile's value is
+        // deliberately untouched; one definition and one number was bought at real cost.
         note: outstandingRollouts.length > 0
-          ? `${outstandingRollouts.length} awaiting a move`
-          : 'none awaiting a move',
+          ? `${outstandingRollouts.length} of ${rollouts.length} topics awaiting a move`
+          : `none of ${rollouts.length} topics awaiting a move`,
         onClick: () => dispatch(navigated({ page: 'changes' })),
       }
       : {

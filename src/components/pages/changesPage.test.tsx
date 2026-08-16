@@ -308,7 +308,7 @@ describe('the estate tile re-bases on the join', () => {
     const tile = screen.getAllByText('Contract changes')
       .map((el) => el.closest('.bz-stat')).find(Boolean) as HTMLElement;
     expect(tile.dataset.rag).not.toBe('red');
-    expect(within(tile).getByText('none awaiting a move')).toBeInTheDocument();
+    expect(within(tile).getByText(/none of 2 topics awaiting a move/)).toBeInTheDocument();
   });
 
   it('previews rollouts rather than field diffs, which are not estate-level objects', async () => {

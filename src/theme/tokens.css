@@ -880,3 +880,10 @@ button.bz-stat:focus-visible { outline: 2px solid var(--bz-accent); outline-offs
    overlap window did the hard thing correctly and should see the product say so. */
 .bz-rollout-managed { color: var(--bz-rag-green); }
 .bz-rollout-parties { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.4rem; }
+
+/* "Waiting on" sits under "Outstanding" and is deliberately quieter: it is not this team's work.
+   It exists because its absence let the page tell a service that moved first — and is the one on
+   fire — that everything it touches was covered on both sides. */
+.bz-waiting { margin-top: 0.75rem; }
+.bz-outstanding-row[data-kind='waiting'] { border-left-color: var(--bz-rag-gone); }
+.bz-outstanding-row[data-kind='waiting'][data-breached='true'] { border-left-color: var(--bz-rag-red); }

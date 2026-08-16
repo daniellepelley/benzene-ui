@@ -122,10 +122,19 @@ export const POLLED_INSTANCE_CAVEAT =
   'Each service’s versions are what the instance that answered the last poll declared. During a '
   + 'rollout, instances of the same service can legitimately disagree.';
 
-/** No obligation, and the tool did look. Names what was checked rather than drawing a tick. */
+/**
+ * No obligation, and the tool did look. Names WHAT WAS CHECKED, and nothing wider.
+ *
+ * The previous wording — "every version this service declares is covered on both sides of every
+ * topic it touches" — answered "does this service owe a move?" while sounding like "is this
+ * service's contract surface healthy?". Those are different questions, and on the estate's one
+ * unhealthy service they had opposite answers: it owes nothing precisely because it moved first,
+ * and it is the service on fire. A badge that over-claims is a hint; a sentence that over-claims is
+ * a claim, and it cost the whole page its credibility.
+ */
 export const OUTSTANDING_EMPTY = (service: string) =>
-  `Nothing outstanding — every version ${service} declares is covered on both sides of every topic `
-  + 'it touches.';
+  `No contract move is outstanding on ${service}. That is about what ${service} owes, not about `
+  + 'whether every topic it touches is healthy — anything it is waiting on appears below.';
 
 /** The capability arm: this aggregator publishes no comparisons, so nothing was checked at all. */
 export const OUTSTANDING_NOT_PUBLISHED =

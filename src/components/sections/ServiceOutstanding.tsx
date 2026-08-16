@@ -1,4 +1,4 @@
-import type { Obligation } from '../../store/rollouts';
+import type { Obligation, Rollout } from '../../store/rollouts';
 import { VerdictBadge } from './ContractChanges';
 import { OUTSTANDING_EMPTY, OUTSTANDING_NOT_PUBLISHED, OUTSTANDING_SINGLE_VERSION } from './compatibilityCopy';
 
@@ -11,6 +11,14 @@ const list = (services: string[]): string =>
 export interface ServiceOutstandingProps {
   service: string;
   obligations: Obligation[];
+  /**
+   * Rollouts where this service has already moved and somebody else has not.
+   *
+   * Without this the page could only say "nothing outstanding", which on a service that moved first
+   * and correctly reads as a clean bill of health — including when the version it moved TO is
+   * produced by nobody and its own issue card shows thousands of errors.
+   */
+  awaiting?: Rollout[];
   /** Whether this estate's aggregator publishes contract comparisons at all. */
   published: boolean;
   /** Whether any topic this service touches has more than one version. */
@@ -37,8 +45,35 @@ export interface ServiceOutstandingProps {
  * `rollouts.ts` and rendered here.
  */
 export function ServiceOutstanding({
-  service, obligations, published, hasVersionPairs, onOpenTopic,
+  service, obligations, awaiting = [], published, hasVersionPairs, onOpenTopic,
 }: ServiceOutstandingProps) {
+  const waitingOn = awaiting.length > 0 && (
+    <section className="bz-outstanding bz-waiting">
+      <h4>
+        Waiting on
+        <span className="bz-outstanding-count">
+          {awaiting.length} topic{awaiting.length === 1 ? '' : 's'} where {service} has moved and the
+          other side has not
+        </span>
+      </h4>
+      <ul className="bz-outstanding-list">
+        {awaiting.map((r) => (
+          <li key={`${r.topic}@${r.version}`} className="bz-outstanding-row" data-kind="waiting"
+            data-breached={r.breached ? 'true' : undefined}>
+            <button type="button" className="bz-topic-name" onClick={() => onOpenTopic(r.topic, r.version)}>
+              {r.topic}
+              <span className="bz-topic-version">{r.baselineVersion} → {r.version}</span>
+            </button>
+            <strong className="bz-outstanding-verb">{r.outstanding.join(', ')}</strong>
+            <span className="bz-outstanding-other">
+              {r.breached ? 'the gap is live now' : 'has not moved yet'}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+
   if (obligations.length === 0) {
     // Three different sentences, because they lead to three different actions. "Nothing outstanding",
     // "this tool never looked" and "there is nothing here to roll out" collapse into one blank line
@@ -46,7 +81,12 @@ export function ServiceOutstanding({
     const message = !published ? OUTSTANDING_NOT_PUBLISHED
       : !hasVersionPairs ? OUTSTANDING_SINGLE_VERSION
         : OUTSTANDING_EMPTY(service);
-    return <p className="bz-page-note bz-outstanding-empty">{message}</p>;
+    return (
+      <>
+        <p className="bz-page-note bz-outstanding-empty">{message}</p>
+        {waitingOn}
+      </>
+    );
   }
 
   return (
@@ -95,6 +135,7 @@ export function ServiceOutstanding({
           </li>
         ))}
       </ul>
+      {waitingOn}
     </section>
   );
 }

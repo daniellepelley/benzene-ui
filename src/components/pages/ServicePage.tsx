@@ -5,6 +5,7 @@ import {
   selectServiceAbout, selectUsageForService, selectShowUtility, selectFeedHealth,
   selectFlowsForService, selectFailingFlowsOnly, selectServiceChangeSummary,
   selectObligationsForService, selectComparisonsPublished, selectServiceHasVersionPairs,
+  selectRolloutsAwaitedByService,
 } from '../../store/selectors';
 import { navigated, utilityToggled, failingFlowsToggled, changeServiceFiltered,
 } from '../../store/slices/viewSlice';
@@ -59,6 +60,9 @@ export function ServicePage({ service }: ServicePageProps) {
   const obligations = useAppSelector((s: RootState) => selectObligationsForService(s, service));
   const comparisonsPublished = useAppSelector(selectComparisonsPublished);
   const hasVersionPairs = useAppSelector((s: RootState) => selectServiceHasVersionPairs(s, service));
+  // The other half: what is owed TO this service. Its absence is what let the page tell the estate's
+  // one unhealthy service that everything it touches was covered.
+  const awaiting = useAppSelector((s: RootState) => selectRolloutsAwaitedByService(s, service));
   // Filtered to this service. The card says "2 changes across 2 topics"; handing the reader all 10
   // and making them reconstruct their own subset is the cross-referencing the ledger existed to end.
   const viewChanges = () => {
@@ -104,6 +108,7 @@ export function ServicePage({ service }: ServicePageProps) {
         <ServiceOutstanding
           service={service}
           obligations={obligations}
+          awaiting={awaiting}
           published={comparisonsPublished}
           hasVersionPairs={hasVersionPairs}
           onOpenTopic={openTopic}

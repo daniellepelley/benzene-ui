@@ -509,6 +509,27 @@ export const selectObligationsForService = createSelector(
 );
 
 /**
+ * Rollouts where this service has done its part and somebody else has not.
+ *
+ * The other half of a service owner's question, and the half whose absence produced a false claim.
+ * A service with no obligations rendered "nothing outstanding — every version this service declares
+ * is covered on both sides", which answers "does this service owe a move?" while WORDED as "is this
+ * service's contract surface healthy?". On the estate's one unhealthy service — which owes nothing
+ * precisely because it moved first and moved correctly — that sentence sat above a version nothing
+ * in the estate produces and a live 2,205-error issue card. Every fact needed to falsify it was on
+ * the same screen.
+ *
+ * So the page states both sides: what this service owes, and what is owed to it.
+ */
+export const selectRolloutsAwaitedByService = createSelector(
+  [selectRollouts, (_: RootState, service: string) => service],
+  (rollouts, service) => rollouts.filter((r) =>
+    r.outstanding.length > 0
+    && !r.outstanding.includes(service)
+    && r.moved.includes(service)),
+);
+
+/**
  * Whether any topic this service touches has more than one version.
  *
  * Separates "nothing outstanding" from "there is nothing here that could be outstanding". Both

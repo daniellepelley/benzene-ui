@@ -91,9 +91,10 @@ describe('what this release requires of one service', () => {
 
 /** Three sentences, because they lead to three different actions. */
 describe('the empty states', () => {
-  it('names what was checked rather than drawing a tick', () => {
+  it('claims only what it checked, and not that the service is healthy', () => {
     show('ledger-api', { obligations: [] });
-    expect(screen.getByText(/Nothing outstanding/)).toBeTruthy();
+    expect(screen.getByText(/No contract move is outstanding on ledger-api/)).toBeTruthy();
+    expect(screen.getByText(/not about whether every topic it touches is healthy/)).toBeTruthy();
     expect(screen.queryByText('✓')).toBeNull();
   });
 
@@ -147,5 +148,39 @@ describe('the row answers "who is blocked on me" and "what do I keep alive"', ()
     // shipping-api dropped inventory:reserve v1 entirely; there is no live v1 path to protect.
     const orders = obligationsFor('orders-api');
     expect(orders[0]!.alongsideBaseline).toBe(false);
+  });
+});
+
+/**
+ * The empty state used to read "every version this service declares is covered on both sides of
+ * every topic it touches". On `shipping-api` — which owes nothing precisely because it moved first
+ * and moved correctly, and is the one UNHEALTHY service in the estate — that sentence sat above a
+ * version nothing in the estate produces and a live 2,205-error issue card. Every fact needed to
+ * falsify it was on the same screen. A badge that over-claims is a hint; a sentence that
+ * over-claims is a claim.
+ */
+describe('a service that owes nothing is not thereby declared healthy', () => {
+  const awaitingFor = (service: string) =>
+    buildRollouts(estate.topics, estate.versionCompatibility).filter((r) =>
+      r.outstanding.length > 0 && !r.outstanding.includes(service) && r.moved.includes(service));
+
+  it('says what is owed TO the service that has already moved', () => {
+    show('shipping-api', { obligations: [], awaiting: awaitingFor('shipping-api') });
+
+    expect(screen.getByText(/No contract move is outstanding on shipping-api/)).toBeTruthy();
+    const row = screen.getAllByRole('listitem').find((li) => li.textContent?.includes('inventory:reserve'))!;
+    expect(row.textContent).toContain('orders-api');
+    // And it is not merely pending — shipping-api dropped v1, so the calls are failing now.
+    expect(row.textContent).toContain('the gap is live now');
+  });
+
+  it('does not claim coverage the catalogue contradicts', () => {
+    show('shipping-api', { obligations: [], awaiting: awaitingFor('shipping-api') });
+    expect(screen.queryByText(/covered on both sides/)).toBeNull();
+  });
+
+  it('says nothing extra for a service that is genuinely waiting on nobody', () => {
+    show('ledger-api', { obligations: [], awaiting: [] });
+    expect(screen.queryByText(/Waiting on/)).toBeNull();
   });
 });

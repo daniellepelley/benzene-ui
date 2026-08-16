@@ -1,0 +1,758 @@
+{
+  "generatedAtUtc": "2026-08-16T11:20:00Z",
+  "topics": [
+    {
+      "topic": "payment:capture",
+      "version": "v1",
+      "reserved": false,
+      "producers": [
+        {
+          "service": "orders-api"
+        }
+      ],
+      "consumers": [
+        {
+          "service": "payments-api",
+          "httpMappings": [
+            {
+              "method": "POST",
+              "path": "/payments/capture"
+            }
+          ]
+        }
+      ],
+      "status": null,
+      "schemaMismatch": false,
+      "changes": [],
+      "messageSchema": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "amount": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "orderId"
+        ]
+      },
+      "compatibility": null
+    },
+    {
+      "topic": "payment:capture",
+      "version": "v2",
+      "reserved": false,
+      "producers": [
+        {
+          "service": "orders-api"
+        }
+      ],
+      "consumers": [],
+      "status": null,
+      "schemaMismatch": false,
+      "changes": [
+        {
+          "kind": "schema-changed",
+          "description": "Payload schema changed (message)"
+        }
+      ],
+      "messageSchema": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "GBP",
+              "EUR",
+              "USD"
+            ]
+          }
+        },
+        "required": [
+          "orderId",
+          "currency"
+        ]
+      },
+      "compatibility": {
+        "baselineVersion": "v1",
+        "overall": "breaking",
+        "changes": [
+          {
+            "kind": "requiredPropertyAdded",
+            "direction": "event",
+            "path": "payment:capture.message.currency",
+            "description": "Property 'currency' was added (required)",
+            "compatibility": "compatible"
+          },
+          {
+            "kind": "typeChanged",
+            "direction": "event",
+            "path": "payment:capture.message.amount",
+            "description": "Type changed from 'integer' to 'number'",
+            "compatibility": "breaking"
+          }
+        ],
+        "notComparedReason": null,
+        "truncatedPaths": [
+          "payment:capture.message.amount"
+        ],
+        "notComparedSides": []
+      }
+    },
+    {
+      "topic": "inventory:reserve",
+      "version": "v1",
+      "reserved": false,
+      "producers": [
+        {
+          "service": "orders-api"
+        }
+      ],
+      "consumers": [],
+      "status": null,
+      "schemaMismatch": false,
+      "changes": [],
+      "requestSchema": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sku",
+          "quantity"
+        ]
+      },
+      "compatibility": null
+    },
+    {
+      "topic": "inventory:reserve",
+      "version": "v2",
+      "reserved": false,
+      "producers": [],
+      "consumers": [
+        {
+          "service": "shipping-api",
+          "httpMappings": [
+            {
+              "method": "POST",
+              "path": "/inventory/reserve"
+            }
+          ]
+        }
+      ],
+      "status": null,
+      "schemaMismatch": false,
+      "changes": [
+        {
+          "kind": "schema-changed",
+          "description": "Payload schema changed (request)"
+        }
+      ],
+      "requestSchema": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "integer"
+          },
+          "reservationRef": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "sku",
+          "quantity",
+          "reservationRef"
+        ]
+      },
+      "compatibility": {
+        "baselineVersion": "v1",
+        "overall": "breaking",
+        "changes": [
+          {
+            "kind": "requiredPropertyAdded",
+            "direction": "request",
+            "path": "inventory:reserve.request.reservationRef",
+            "description": "Property 'reservationRef' was added (required)",
+            "compatibility": "breaking"
+          }
+        ],
+        "notComparedReason": null,
+        "truncatedPaths": [],
+        "notComparedSides": []
+      }
+    },
+    {
+      "topic": "order:placed",
+      "version": "v1",
+      "reserved": false,
+      "producers": [
+        {
+          "service": "orders-api"
+        }
+      ],
+      "consumers": [
+        {
+          "service": "billing-api"
+        }
+      ],
+      "status": null,
+      "schemaMismatch": false,
+      "changes": [],
+      "messageSchema": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "total": {
+            "type": "number"
+          },
+          "customerId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "orderId",
+          "total"
+        ]
+      },
+      "compatibility": null
+    },
+    {
+      "topic": "order:placed",
+      "version": "v2",
+      "reserved": false,
+      "producers": [
+        {
+          "service": "orders-api"
+        }
+      ],
+      "consumers": [],
+      "status": null,
+      "schemaMismatch": false,
+      "changes": [
+        {
+          "kind": "schema-changed",
+          "description": "Payload schema changed (message)"
+        }
+      ],
+      "messageSchema": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "total": {
+            "type": "number"
+          },
+          "customerRef": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "taxJurisdiction": {
+            "type": "string",
+            "enum": [
+              "UK",
+              "EU",
+              "US"
+            ]
+          }
+        },
+        "required": [
+          "orderId",
+          "total",
+          "taxJurisdiction"
+        ]
+      },
+      "compatibility": {
+        "baselineVersion": "v1",
+        "overall": "breaking",
+        "changes": [
+          {
+            "kind": "propertyRemoved",
+            "direction": "event",
+            "path": "order:placed.message.customerId",
+            "description": "Property 'customerId' was removed",
+            "compatibility": "breaking"
+          },
+          {
+            "kind": "propertyAdded",
+            "direction": "event",
+            "path": "order:placed.message.customerRef",
+            "description": "Property 'customerRef' was added",
+            "compatibility": "compatible"
+          },
+          {
+            "kind": "requiredPropertyAdded",
+            "direction": "event",
+            "path": "order:placed.message.taxJurisdiction",
+            "description": "Property 'taxJurisdiction' was added (required)",
+            "compatibility": "compatible"
+          }
+        ],
+        "notComparedReason": null,
+        "truncatedPaths": [],
+        "notComparedSides": []
+      }
+    },
+    {
+      "topic": "invoice:raise",
+      "version": "v1",
+      "reserved": false,
+      "producers": [
+        {
+          "service": "billing-api"
+        }
+      ],
+      "consumers": [
+        {
+          "service": "ledger-api"
+        }
+      ],
+      "status": null,
+      "schemaMismatch": false,
+      "changes": [],
+      "messageSchema": {
+        "type": "object",
+        "properties": {
+          "invoiceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "net": {
+            "type": "number"
+          },
+          "gross": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "invoiceId",
+          "net",
+          "gross"
+        ]
+      },
+      "compatibility": null
+    },
+    {
+      "topic": "invoice:raise",
+      "version": "v2",
+      "reserved": false,
+      "producers": [],
+      "consumers": [
+        {
+          "service": "ledger-api"
+        }
+      ],
+      "status": null,
+      "schemaMismatch": false,
+      "changes": [
+        {
+          "kind": "schema-changed",
+          "description": "Payload schema changed (message)"
+        }
+      ],
+      "messageSchema": {
+        "type": "object",
+        "properties": {
+          "invoiceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "net": {
+            "type": "number"
+          },
+          "gross": {
+            "type": "number"
+          },
+          "taxJurisdiction": {
+            "type": "string",
+            "enum": [
+              "UK",
+              "EU",
+              "US"
+            ]
+          }
+        },
+        "required": [
+          "invoiceId",
+          "net",
+          "gross",
+          "taxJurisdiction"
+        ]
+      },
+      "compatibility": {
+        "baselineVersion": "v1",
+        "overall": "compatible",
+        "changes": [
+          {
+            "kind": "requiredPropertyAdded",
+            "direction": "event",
+            "path": "invoice:raise.message.taxJurisdiction",
+            "description": "Property 'taxJurisdiction' was added (required)",
+            "compatibility": "compatible"
+          }
+        ],
+        "notComparedReason": null,
+        "truncatedPaths": [],
+        "notComparedSides": []
+      }
+    },
+    {
+      "topic": "notification:send",
+      "version": "v1",
+      "reserved": false,
+      "producers": [
+        {
+          "service": "orders-api"
+        }
+      ],
+      "consumers": [
+        {
+          "service": "payments-api"
+        }
+      ],
+      "status": null,
+      "schemaMismatch": false,
+      "changes": [],
+      "requestSchema": {
+        "type": "object",
+        "properties": {
+          "recipient": {
+            "type": "string",
+            "format": "email"
+          },
+          "template": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipient",
+          "template"
+        ]
+      },
+      "compatibility": null
+    },
+    {
+      "topic": "notification:send",
+      "version": "v2",
+      "reserved": false,
+      "producers": [
+        {
+          "service": "orders-api"
+        }
+      ],
+      "consumers": [
+        {
+          "service": "payments-api"
+        }
+      ],
+      "status": null,
+      "schemaMismatch": false,
+      "changes": [
+        {
+          "kind": "schema-changed",
+          "description": "Payload schema changed (request)"
+        }
+      ],
+      "requestSchema": {
+        "type": "object",
+        "properties": {
+          "recipient": {
+            "type": "string",
+            "format": "email"
+          },
+          "template": {
+            "type": "string"
+          },
+          "locale": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipient",
+          "template"
+        ]
+      },
+      "compatibility": {
+        "baselineVersion": "v1",
+        "overall": "compatible",
+        "changes": [
+          {
+            "kind": "propertyAdded",
+            "direction": "request",
+            "path": "notification:send.request.locale",
+            "description": "Property 'locale' was added",
+            "compatibility": "compatible"
+          }
+        ],
+        "notComparedReason": null,
+        "truncatedPaths": [],
+        "notComparedSides": []
+      }
+    },
+    {
+      "topic": "shipping:book",
+      "version": "v1",
+      "reserved": false,
+      "producers": [
+        {
+          "service": "orders-api"
+        },
+        {
+          "service": "payments-api"
+        }
+      ],
+      "consumers": [
+        {
+          "service": "shipping-api"
+        }
+      ],
+      "status": null,
+      "schemaMismatch": false,
+      "changes": [],
+      "messageSchema": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "address": {
+            "type": "object",
+            "properties": {
+              "line1": {
+                "type": "string"
+              },
+              "line2": {
+                "type": "string"
+              },
+              "postcode": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "line1",
+              "postcode"
+            ]
+          }
+        },
+        "required": [
+          "orderId",
+          "address"
+        ]
+      },
+      "compatibility": null
+    },
+    {
+      "topic": "shipping:book",
+      "version": "v2",
+      "reserved": false,
+      "producers": [
+        {
+          "service": "orders-api"
+        },
+        {
+          "service": "payments-api"
+        }
+      ],
+      "consumers": [
+        {
+          "service": "shipping-api"
+        }
+      ],
+      "status": null,
+      "schemaMismatch": false,
+      "changes": [
+        {
+          "kind": "schema-changed",
+          "description": "Payload schema changed (message)"
+        }
+      ],
+      "messageSchema": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "address": {
+            "type": "object",
+            "properties": {
+              "line1": {
+                "type": "string"
+              },
+              "postcode": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "line1",
+              "postcode"
+            ]
+          }
+        },
+        "required": [
+          "orderId",
+          "address"
+        ]
+      },
+      "compatibility": {
+        "baselineVersion": "v1",
+        "overall": "breaking",
+        "changes": [
+          {
+            "kind": "propertyRemoved",
+            "direction": "event",
+            "path": "shipping:book.message.address.line2",
+            "description": "Property 'line2' was removed",
+            "compatibility": "breaking"
+          }
+        ],
+        "notComparedReason": null,
+        "truncatedPaths": [],
+        "notComparedSides": []
+      }
+    },
+    {
+      "topic": "spec",
+      "version": "",
+      "reserved": true,
+      "producers": [],
+      "consumers": [
+        {
+          "service": "orders-api"
+        },
+        {
+          "service": "payments-api"
+        },
+        {
+          "service": "shipping-api"
+        },
+        {
+          "service": "billing-api"
+        },
+        {
+          "service": "ledger-api"
+        }
+      ],
+      "status": null,
+      "schemaMismatch": false,
+      "changes": []
+    }
+  ],
+  "removedTopics": [],
+  "versionCompatibility": [
+    {
+      "topic": "payment:capture",
+      "producedVersions": [
+        "v1",
+        "v2"
+      ],
+      "consumedVersions": [
+        "v1"
+      ],
+      "producedNotConsumed": [
+        "v2"
+      ],
+      "consumedNotProduced": [],
+      "isCompatible": false
+    },
+    {
+      "topic": "inventory:reserve",
+      "producedVersions": [
+        "v1"
+      ],
+      "consumedVersions": [
+        "v2"
+      ],
+      "producedNotConsumed": [
+        "v1"
+      ],
+      "consumedNotProduced": [
+        "v2"
+      ],
+      "isCompatible": false
+    },
+    {
+      "topic": "order:placed",
+      "producedVersions": [
+        "v1",
+        "v2"
+      ],
+      "consumedVersions": [
+        "v1"
+      ],
+      "producedNotConsumed": [
+        "v2"
+      ],
+      "consumedNotProduced": [],
+      "isCompatible": false
+    },
+    {
+      "topic": "invoice:raise",
+      "producedVersions": [
+        "v1"
+      ],
+      "consumedVersions": [
+        "v1",
+        "v2"
+      ],
+      "producedNotConsumed": [],
+      "consumedNotProduced": [
+        "v2"
+      ],
+      "isCompatible": true
+    },
+    {
+      "topic": "notification:send",
+      "producedVersions": [
+        "v1",
+        "v2"
+      ],
+      "consumedVersions": [
+        "v1",
+        "v2"
+      ],
+      "producedNotConsumed": [],
+      "consumedNotProduced": [],
+      "isCompatible": true
+    },
+    {
+      "topic": "shipping:book",
+      "producedVersions": [
+        "v1",
+        "v2"
+      ],
+      "consumedVersions": [
+        "v1",
+        "v2"
+      ],
+      "producedNotConsumed": [],
+      "consumedNotProduced": [],
+      "isCompatible": true
+    }
+  ]
+}

@@ -31,6 +31,7 @@
     "storybook": "storybook dev -p 6006",
     "build:storybook": "storybook build -o dist/storybook",
     "generate:contracts": "node scripts/generate-contracts.mjs",
+    "fixtures:rollout": "node scripts/compose-rollout-fixture.mjs",
     "test:package": "npm run build:lib && vitest run src/package.test.ts && node scripts/verify-package.mjs",
     "build:spec": "vite build --config vite.spec.config.ts",
     "shots": "node scripts/screenshots.mjs"

@@ -11,6 +11,7 @@ import { ChangesPage } from './ChangesPage';
 import { FleetPage } from './FleetPage';
 import type { Topics } from '../../contracts';
 import topics from '../../../contracts/artifacts/topics.json';
+import rollout from '../../../contracts/artifacts/topics.rollout.json';
 
 const loaded = async (over = {}) => {
   const store = createStore(fakeMeshApi(over));
@@ -114,5 +115,62 @@ describe('the estate tile for contract changes', () => {
 
     const section = screen.getByRole('heading', { name: 'Contract changes' }).closest('section')!;
     expect(within(section).getByRole('button', { name: /see all/ })).toBeInTheDocument();
+  });
+});
+
+/**
+ * The badge used to attach to whoever declared the NEW version — that is, whoever had already done
+ * the work — because `services` was built from the entry carrying the change. The service that owed
+ * the move rendered clean, and could not even be picked in the filter, because it appears on no
+ * changed entry. Four personas reached this independently from four different jobs.
+ */
+describe('the ledger names the party that is late, not the party that finished', () => {
+  const rolloutEstate = async () => {
+    const store = createStore(fakeMeshApi({ getTopics: async () => rollout as unknown as Topics }));
+    await store.dispatch(loadManifest());
+    await store.dispatch(loadCatalog());
+    return store;
+  };
+
+  it('splits the services into who owes the move and who has already made it', async () => {
+    const store = await rolloutEstate();
+    show(store, <ChangesPage />);
+
+    const row = screen.getAllByRole('listitem')
+      .find((li) => li.textContent?.includes('order:placed'))!;
+    const owes = within(row).getByText('owes').parentElement!;
+    const moved = within(row).getByText('moved').parentElement!;
+    // billing-api consumes v1 and has not declared v2. orders-api produces both.
+    expect(within(owes).getByRole('button', { name: 'billing-api' })).toBeTruthy();
+    expect(within(moved).getByRole('button', { name: 'orders-api' })).toBeTruthy();
+  });
+
+  it('offers the late service in the filter, which is the population a release review enumerates', async () => {
+    const store = await rolloutEstate();
+    show(store, <ChangesPage />);
+
+    const options = within(screen.getByLabelText('Filter changes by service'))
+      .getAllByRole('option').map((o) => o.textContent);
+    expect(options).toContain('billing-api');
+  });
+
+  it('finds the late service by free text, rather than answering that it has nothing to do', async () => {
+    const store = await rolloutEstate();
+    store.dispatch(changeFilterChanged('billing-api'));
+    show(store, <ChangesPage />);
+
+    const rows = screen.getAllByRole('listitem').filter((li) => li.dataset.verdict);
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.some((li) => li.textContent?.includes('order:placed'))).toBe(true);
+  });
+
+  it('never badges a service for having moved to the current version', async () => {
+    const store = await rolloutEstate();
+    show(store, <ChangesPage />);
+
+    // shipping:book is breaking and fully versioned out, so nobody owes anything on it.
+    const row = screen.getAllByRole('listitem')
+      .find((li) => li.textContent?.includes('shipping:book'))!;
+    expect(within(row).queryByText('owes')).toBeNull();
   });
 });

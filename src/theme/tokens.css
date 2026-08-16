@@ -733,6 +733,21 @@ input, select, textarea {
 /* The ledger reuses .bz-change and widens it by one column for the topic button. */
 .bz-ledger { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35rem; }
 .bz-ledger-row { grid-template-columns: auto minmax(10rem, auto) auto minmax(6rem, auto) 1fr; }
+
+/* Two labelled groups, not one list. The LABEL carries the meaning and the tint only reinforces it,
+   so the row still reads correctly in monochrome and to a reader who cannot separate the two hues.
+   `owes` is the emphasised half deliberately: it is the side with work to do, and the entire point
+   of the split is that the product used to emphasise the side that had already finished. */
+.bz-change-services { display: inline-flex; gap: 0.6rem; flex-wrap: wrap; align-items: baseline; }
+.bz-change-party { display: inline-flex; gap: 0.3rem; flex-wrap: wrap; align-items: baseline; }
+.bz-change-party-label {
+  font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--bz-muted);
+}
+.bz-change-party[data-party='outstanding'] .bz-change-party-label { color: var(--bz-rag-amber); }
+.bz-cat-svc[data-outstanding='true'] {
+  background: var(--bz-rag-amber-bg); color: var(--bz-rag-amber); font-weight: 600;
+}
+
 /* A stat tile only becomes a button when it has somewhere to go, so these styles are scoped to the
    element type rather than the class — an inert tile must gain no affordance at all. */
 button.bz-stat { cursor: pointer; text-align: left; font: inherit; border: 1px solid transparent; }

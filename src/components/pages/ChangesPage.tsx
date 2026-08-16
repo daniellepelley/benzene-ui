@@ -38,10 +38,13 @@ export function ChangesPage() {
   const service = useAppSelector((s: RootState) => s.view.changeService);
   const verdict = useAppSelector((s: RootState) => s.view.changeVerdict);
 
-  const services = [...new Set(changes.flatMap((c) => c.services))].sort();
+  // The union of both sides, not just whoever is on the changed entry. Built from `services` alone,
+  // this list silently omitted exactly the population a release review is trying to enumerate — the
+  // services that are LATE, which by definition appear on no changed entry.
+  const services = [...new Set(changes.flatMap((c) => [...c.services, ...c.outstanding]))].sort();
   const needle = filter.trim().toLowerCase();
   const matching = changes.filter((c) =>
-    (!service || c.services.includes(service))
+    (!service || c.services.includes(service) || c.outstanding.includes(service))
     && (!verdict || c.compatibility === verdict)
     // Matching the SERVICE name here too, because a reader who types "payments-api" into a box on a
     // page listing changes means "changes involving payments-api" — and being told "0 changes, 10
@@ -49,7 +52,7 @@ export function ChangesPage() {
     && (!needle
       || c.topic.toLowerCase().includes(needle)
       || c.path.toLowerCase().includes(needle)
-      || c.services.some((name) => name.toLowerCase().includes(needle))));
+      || [...c.services, ...c.outstanding].some((name) => name.toLowerCase().includes(needle))));
 
   const openTopic = (topic: string, version: string) =>
     dispatch(navigated({ page: 'topic', selected: topic, selectedVersion: version }));
@@ -124,9 +127,11 @@ export function ChangesPage() {
 
           {service && (
             <p className="bz-page-note">
-              Showing changes on topics <strong>{service}</strong> produces or consumes. Attribution is
-              by participation, not authorship — this is what reaches {service}, not what {service}{' '}
-              changed.
+              Showing changes that reach <strong>{service}</strong> or that it still owes a move on.
+              A service listed under <em>moved</em> declares the newer version already; one listed
+              under <em>owes</em> declares only the older one, in the role that has to change.
+              Neither names an author — the catalogue records who is on each end of a topic, not
+              whose declaration moved.
             </p>
           )}
 
@@ -208,14 +213,32 @@ function LedgerRow({
         {change.description}
         {change.truncated && ' — fields beneath were not compared'}
       </span>
-      {/* Which services this reaches. "Is it us or them" is the first question a support engineer
-          asks, and the ledger had no column for it. */}
+      {/* Which services this reaches, split by which side of it they are on. The single
+          undifferentiated list was built from the entry carrying the change — the version that
+          already exists — so it named whoever had FINISHED the work, while the service that owed it
+          rendered clean and could not even be selected in the filter above. */}
       <span className="bz-change-services">
-        {change.services.map((name) => (
-          <button key={name} type="button" className="bz-cat-svc" onClick={() => onOpenService(name)}>
-            {name}
-          </button>
-        ))}
+        {change.outstanding.length > 0 && (
+          <span className="bz-change-party" data-party="outstanding">
+            <span className="bz-change-party-label">owes</span>
+            {change.outstanding.map((name) => (
+              <button key={name} type="button" className="bz-cat-svc" data-outstanding="true"
+                onClick={() => onOpenService(name)}>
+                {name}
+              </button>
+            ))}
+          </span>
+        )}
+        {change.moved.length > 0 && (
+          <span className="bz-change-party" data-party="moved">
+            <span className="bz-change-party-label">moved</span>
+            {change.moved.map((name) => (
+              <button key={name} type="button" className="bz-cat-svc" onClick={() => onOpenService(name)}>
+                {name}
+              </button>
+            ))}
+          </span>
+        )}
       </span>
     </li>
   );

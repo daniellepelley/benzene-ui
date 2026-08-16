@@ -523,6 +523,25 @@ export interface LedgerChange extends TopicsTopicsItemCompatibilityChangesItem {
    * break it could not have caused is how the wrong team gets called.
    */
   services: string[];
+  /**
+   * Services declaring the CURRENT version — the ones that have already done the work.
+   *
+   * Rendered plainly and never with a severity badge. Doing the work is not a defect, and marking
+   * the mover is how `shipping-api` came to look guilty for being the only service in the estate
+   * that had already shipped.
+   */
+  moved: string[];
+  /**
+   * Services declaring the baseline and not the current version, in the role that has to move.
+   *
+   * This is the set the badge attaches to, the set the estate counts, and the set the ledger's
+   * service filter is built from. Previously all of those were built from `services` — which is
+   * drawn from the entry carrying the change, i.e. the version that already exists, i.e. whoever
+   * has finished. `billing-api`, blocking a three-service chain, appeared on no changed entry and
+   * was therefore absent from its own filter: asking the ledger about it returned the confident,
+   * wrong answer that it had nothing to do.
+   */
+  outstanding: string[];
 }
 
 /**
@@ -531,7 +550,11 @@ export interface LedgerChange extends TopicsTopicsItemCompatibilityChangesItem {
  * Reserved topics are excluded for the same reason the aggregator excludes them from the diff: every
  * service carries the same utility topics and their churn is noise.
  */
-export const selectAllChanges = createSelector([selectTopics], (topics): LedgerChange[] => {
+export const selectAllChanges = createSelector([selectRollouts, selectTopics], (rollouts, topics): LedgerChange[] => {
+  // Keyed on the pair, because who is outstanding is a property of BOTH entries — the current one
+  // says who moved, the baseline one says who is left behind — and the change only carries the
+  // current one.
+  const byPair = new Map(rollouts.map((r) => [`${r.topic}@${r.version}`, r]));
   const rows: LedgerChange[] = [];
   for (const entry of topics) {
     const compatibility = entry.compatibility;
@@ -540,6 +563,7 @@ export const selectAllChanges = createSelector([selectTopics], (topics): LedgerC
       ...(entry.producers ?? []).map((p) => p.service),
       ...(entry.consumers ?? []).map((c) => c.service),
     ])].sort();
+    const rollout = byPair.get(`${entry.topic}@${entry.version}`);
     for (const change of compatibility.changes) {
       rows.push({
         ...change,
@@ -548,6 +572,8 @@ export const selectAllChanges = createSelector([selectTopics], (topics): LedgerC
         baselineVersion: compatibility.baselineVersion,
         truncated: compatibility.truncatedPaths.includes(change.path),
         services,
+        moved: rollout?.moved ?? services,
+        outstanding: rollout?.outstanding ?? [],
       });
     }
   }
@@ -603,10 +629,16 @@ export const selectChangeSummary = createSelector(
  * topic, not whose declaration moved. A topic with two producers therefore attributes its change to
  * both. That is honest but coarse, and the alternative (per-provider attribution) needs a collector
  * change, so the copy that uses this must not imply it names a culprit.
+ *
+ * `outstanding` is the separate, sharper number: how many contract moves this service still owes.
+ * It is deliberately NOT derived from the change counts, because a service can owe a deploy on a
+ * `compatible` change and can owe nothing at all on a breaking one that has been versioned out.
+ * Counting participation would have said `billing-api` had nothing to do while it blocked a
+ * three-service chain.
  */
 export const selectServiceChangeSummary = createSelector(
-  [selectTopics, (_: RootState, service: string) => service],
-  (topics, service) => {
+  [selectTopics, selectObligations, (_: RootState, service: string) => service],
+  (topics, obligations, service) => {
     const mine = topics.filter((t) =>
       !t.reserved
       && (t.consumers?.some((c) => c.service === service) || t.producers?.some((p) => p.service === service))
@@ -618,6 +650,7 @@ export const selectServiceChangeSummary = createSelector(
       changes: all.length,
       breaking: all.filter((c) => c.compatibility === 'breaking').length,
       warning: all.filter((c) => c.compatibility === 'warning').length,
+      outstanding: obligations.filter((o) => o.service === service).length,
     };
   },
 );

@@ -508,6 +508,28 @@ export const selectObligationsForService = createSelector(
   (obligations, service) => obligations.filter((o) => o.service === service),
 );
 
+/**
+ * Whether any topic this service touches has more than one version.
+ *
+ * Separates "nothing outstanding" from "there is nothing here that could be outstanding". Both
+ * render as an empty Outstanding block, and they lead to completely different actions.
+ */
+export const selectServiceHasVersionPairs = createSelector(
+  [selectTopics, (_: RootState, service: string) => service],
+  (topics, service) => {
+    const mine = new Set(topics
+      .filter((t) => !t.reserved
+        && (t.producers?.some((p) => p.service === service) || t.consumers?.some((c) => c.service === service)))
+      .map((t) => t.topic));
+    const versions = new Map<string, number>();
+    for (const t of topics) {
+      if (t.reserved || !mine.has(t.topic)) continue;
+      versions.set(t.topic, (versions.get(t.topic) ?? 0) + 1);
+    }
+    return [...versions.values()].some((n) => n > 1);
+  },
+);
+
 export interface LedgerChange extends TopicsTopicsItemCompatibilityChangesItem {
   topic: string;
   version: string;

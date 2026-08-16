@@ -4,6 +4,7 @@ import {
   selectFleetAvailable, ragForStatus, selectThread, selectCanPost, selectCanAnnotate,
   selectServiceAbout, selectUsageForService, selectShowUtility, selectFeedHealth,
   selectFlowsForService, selectFailingFlowsOnly, selectServiceChangeSummary,
+  selectObligationsForService, selectComparisonsPublished, selectServiceHasVersionPairs,
 } from '../../store/selectors';
 import { navigated, utilityToggled, failingFlowsToggled, changeServiceFiltered,
 } from '../../store/slices/viewSlice';
@@ -16,6 +17,7 @@ import { FeedHealthLine } from '../controls/FeedHealthLine';
 import { FlowList } from '../controls/FlowList';
 import { ServiceAbout, ServiceLiveness } from '../sections/ServiceAbout';
 import { ServiceDrift } from '../sections/ServiceDrift';
+import { ServiceOutstanding } from '../sections/ServiceOutstanding';
 import { Card } from '../primitives/Card';
 import { ServiceUsage } from '../sections/ServiceUsage';
 import { HealthChecks } from '../sections/HealthChecks';
@@ -52,6 +54,11 @@ export function ServicePage({ service }: ServicePageProps) {
   const flows = useAppSelector((s: RootState) => selectFlowsForService(s, service));
   const failingOnly = useAppSelector(selectFailingFlowsOnly);
   const contractChanges = useAppSelector((s: RootState) => selectServiceChangeSummary(s, service));
+  // What this release requires of this service. The page answered "what do I declare?" and never
+  // "what do I owe?", so the owner of the estate's one blocking service was told it had nothing to do.
+  const obligations = useAppSelector((s: RootState) => selectObligationsForService(s, service));
+  const comparisonsPublished = useAppSelector(selectComparisonsPublished);
+  const hasVersionPairs = useAppSelector((s: RootState) => selectServiceHasVersionPairs(s, service));
   // Filtered to this service. The card says "2 changes across 2 topics"; handing the reader all 10
   // and making them reconstruct their own subset is the cross-referencing the ledger existed to end.
   const viewChanges = () => {
@@ -92,6 +99,15 @@ export function ServicePage({ service }: ServicePageProps) {
       <Card title="Contract">
         <ServiceAbout about={about} />
         <ServiceDrift drift={about?.drift ?? null} changes={contractChanges} onViewChanges={viewChanges} />
+        {/* Above Consumes/Produces deliberately: an owner's eye lands on the first card, and what
+            this release requires of them outranks what they currently declare. */}
+        <ServiceOutstanding
+          service={service}
+          obligations={obligations}
+          published={comparisonsPublished}
+          hasVersionPairs={hasVersionPairs}
+          onOpenTopic={openTopic}
+        />
         <div className="bz-svc-topics">
           <div>
             <h4>Consumes</h4>

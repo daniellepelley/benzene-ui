@@ -86,3 +86,66 @@ export const UNCLASSIFIED_GROUP_COPY =
 export const NO_PRODUCER_COPY =
   'No service in this estate declares producing this topic, so there is nothing to reconcile. '
   + 'Its producers may be outside the estate — a website, an app, or a partner.';
+
+// ── Rollouts: who owes a deploy ─────────────────────────────────────────────────────────────────
+
+/**
+ * The scope sentence for every rollout surface.
+ *
+ * It carries one blind spot the schema caveat above does not, and it is a NEW one: a service that
+ * declares two versions of a topic it produces may be publishing every message on both, or may be
+ * running a split fleet where the new-version messages go unread — and the catalogue cannot tell
+ * those apart. So the product states the constraint ("v2 is produced and nothing here handles it")
+ * and never the consequence ("messages are being lost"), except in the one case named by
+ * `DISJOINT_CLAIM` below.
+ */
+export const ROLLOUT_SCOPE_CAVEAT =
+  'This compares declared payload versions and schemas only. It cannot see upcasters, whether a '
+  + 'producer emits both versions of every message, or services outside this estate.';
+
+/**
+ * The one categorical claim available, earned only when the produced and consumed version sets are
+ * disjoint — no version anybody sends is handled by anybody, so no dual-publishing story rescues it.
+ */
+export const DISJOINT_CLAIM_NOTE =
+  'The versions being sent and the versions being handled do not overlap at all, so this is not a '
+  + 'case a producer publishing both versions could be covering.';
+
+/**
+ * What the catalogue actually answers for, stated wherever a rollout is.
+ *
+ * Registration is last-writer-wins and the aggregator's spec poll reaches whichever instance the
+ * load balancer chose, so during a rollout two consecutive runs can legitimately disagree. This is
+ * the sentence that stops "declared" being read as "deployed".
+ */
+export const POLLED_INSTANCE_CAVEAT =
+  'Each service’s versions are what the instance that answered the last poll declared. During a '
+  + 'rollout, instances of the same service can legitimately disagree.';
+
+/** No obligation, and the tool did look. Names what was checked rather than drawing a tick. */
+export const OUTSTANDING_EMPTY = (service: string) =>
+  `Nothing outstanding — every version ${service} declares is covered on both sides of every topic `
+  + 'it touches.';
+
+/** The capability arm: this aggregator publishes no comparisons, so nothing was checked at all. */
+export const OUTSTANDING_NOT_PUBLISHED =
+  'This estate’s aggregator does not publish contract comparisons, so whether this service owes a '
+  + 'contract move is unknown.';
+
+/** The content arm: there are comparisons, but nothing here has a second version to roll out to. */
+export const OUTSTANDING_SINGLE_VERSION =
+  'This service declares one version of every topic it touches, so there is nothing to roll out.';
+
+/** What each rollout state is called on screen. Never "safe", never "ready", never "clear". */
+export const ROLLOUT_STATE_LABEL: Record<string, string> = {
+  complete: 'covered',
+  awaitingAdapter: 'move outstanding',
+  awaitingOwner: 'completion outstanding',
+  unattributable: 'other side not in this estate',
+  notCompared: 'not compared',
+};
+
+/** The positive label for a breaking change that has been versioned out. */
+export const VERSIONED_OUT_COPY =
+  'Both sides run both versions. This change is breaking and has been versioned out, so no '
+  + 'deployment is coupled to it.';

@@ -789,3 +789,34 @@ button.bz-stat:focus-visible { outline: 2px solid var(--bz-accent); outline-offs
 }
 .bz-catalog-legend { margin: 0.5rem 0 0; font-size: 11px; color: var(--bz-muted); }
 .bz-boundary-detail { font-family: var(--bz-mono); font-size: 11.5px; }
+
+/* ── Outstanding contract moves ───────────────────────────────────────────────────────────────────
+   Inside the Contract card, above what the service currently declares. The VERB is the emphasised
+   element in each row, not the topic and not the verdict: "handle v2" and "produce v2" are different
+   pieces of work by different people, and which applies is the thing a service owner cannot read off
+   the topic name. */
+.bz-outstanding { margin: 0.75rem 0 0.25rem; }
+.bz-outstanding h4 {
+  display: flex; align-items: baseline; gap: 0.5rem;
+  font-size: 11px; margin: 0 0 0.4rem; color: var(--bz-muted);
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.bz-outstanding-count { text-transform: none; letter-spacing: 0; font-size: 11.5px; color: var(--bz-fg); }
+.bz-outstanding-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.3rem; }
+.bz-outstanding-row {
+  display: grid; align-items: baseline; gap: 0.6rem;
+  grid-template-columns: minmax(10rem, auto) minmax(5rem, auto) auto 1fr;
+  padding: 0.3rem 0.5rem; border-radius: var(--bz-radius-sm);
+  background: var(--bz-surface-2);
+  border-left: 3px solid var(--bz-rag-amber);
+}
+/* A catch-up is a gap that exists right now; a completion is a rollout that is merely unfinished.
+   The border is the only difference in weight, because both are still work this service owes. */
+.bz-outstanding-row[data-kind='catchUp'] { border-left-color: var(--bz-rag-red); }
+.bz-outstanding-verb { font-family: var(--bz-mono); font-size: 11.5px; }
+.bz-outstanding-other { font-size: 11.5px; color: var(--bz-muted); }
+.bz-outstanding-empty { margin: 0.6rem 0 0.25rem; }
+
+@media (max-width: 40rem) {
+  .bz-outstanding-row { grid-template-columns: 1fr; gap: 0.15rem; }
+}

@@ -18,14 +18,14 @@ const summary = (entries: { topic: string; status: string; count: number }[]): S
  */
 describe('a status this build does not recognise is not evidence of failure', () => {
   it('discloses the assumption rather than presenting it as a measurement', () => {
-    render(<ServiceUsage usage={summary([{ topic: 'invoice:raise', status: 'success', count: 9781 }])} />);
+    render(<ServiceUsage showUtility={false} usage={summary([{ topic: 'invoice:raise', status: 'success', count: 9781 }])} />);
 
     expect(screen.getByText(/statuses this build does not recognise/)).toBeInTheDocument();
     expect(screen.getByText(/they may not be failures/i)).toBeInTheDocument();
   });
 
   it('says nothing extra when every status is in the known vocabulary', () => {
-    render(<ServiceUsage usage={summary([
+    render(<ServiceUsage showUtility={false} usage={summary([
       { topic: 'invoice:raise', status: 'ok', count: 9781 },
       { topic: 'invoice:raise', status: 'timeout', count: 3 },
     ])} />);
@@ -36,7 +36,7 @@ describe('a status this build does not recognise is not evidence of failure', ()
 
   it('keeps counting an unrecognised status as a failure, which is the safe direction', () => {
     // Assuming the worst is right; presenting the assumption as a measurement is not.
-    render(<ServiceUsage usage={summary([{ topic: 'invoice:raise', status: 'success', count: 9781 }])} />);
+    render(<ServiceUsage showUtility={false} usage={summary([{ topic: 'invoice:raise', status: 'success', count: 9781 }])} />);
     expect(screen.getByText(/9.8k failed/)).toBeInTheDocument();
   });
 });

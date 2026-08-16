@@ -4,3 +4,10 @@ dist/
 storybook-static/
 *.tsbuildinfo
 screenshots/
+
+# Persona-round working files. The evidence harness drives this UI with Playwright from the repo
+# root, and 23 of these were committed by accident in an earlier round — they are one agent's
+# scratch scripts, not part of the project, and they made `git add -A` a hazard for every round
+# after. Ignored rather than policed.
+probe*.mjs
+pe_*.mjs

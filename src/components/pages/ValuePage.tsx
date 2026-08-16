@@ -19,7 +19,8 @@ export function ValuePage() {
   const view = useAppSelector(selectRetirementView);
   const showUtility = useAppSelector(selectShowUtility);
 
-  const openTopic = (topic: string) => dispatch(navigated({ page: 'topic', selected: topic }));
+  const openTopic = (topic: string, version?: string) =>
+    dispatch(navigated({ page: 'topic', selected: topic, selectedVersion: version ?? null }));
   const nothingToShow = view.removed.length === 0 && view.groups.length === 0;
 
   return (

@@ -60,7 +60,7 @@ export function ServiceList({ pageUrl = '' }: ServiceListProps = {}) {
               <TopicList
                 topics={topics[i]?.consumes ?? []}
                 emptyMessage="Consumes nothing."
-                onOpen={(topic) => dispatch(navigated({ page: 'topic', selected: topic }))}
+                onOpen={(topic, version) => dispatch(navigated({ page: 'topic', selected: topic, selectedVersion: version }))}
               />
             </div>
             <div>
@@ -68,7 +68,7 @@ export function ServiceList({ pageUrl = '' }: ServiceListProps = {}) {
               <TopicList
                 topics={topics[i]?.produces ?? []}
                 emptyMessage="Produces nothing."
-                onOpen={(topic) => dispatch(navigated({ page: 'topic', selected: topic }))}
+                onOpen={(topic, version) => dispatch(navigated({ page: 'topic', selected: topic, selectedVersion: version }))}
               />
             </div>
           </div>

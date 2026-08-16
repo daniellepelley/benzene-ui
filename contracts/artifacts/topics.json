@@ -1,63 +1,9 @@
 {
-  "generatedAtUtc": "2026-07-16T09:15:00Z",
+  "generatedAtUtc": "2026-08-16T09:12:00Z",
   "topics": [
     {
-      "topic": "orders:get-all",
-      "version": "",
-      "reserved": false,
-      "consumers": [
-        {
-          "service": "orders-api",
-          "httpMappings": [
-            {
-              "method": "GET",
-              "path": "/orders"
-            }
-          ]
-        }
-      ],
-      "producers": [],
-      "status": null,
-      "requestSchema": null,
-      "responseSchema": {
-        "type": "array",
-        "items": {
-          "title": "OrderDto",
-          "type": "object",
-          "properties": {
-            "id": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "customerEmail": {
-              "type": "string",
-              "format": "email"
-            },
-            "total": {
-              "type": "number",
-              "minimum": 0
-            },
-            "status": {
-              "type": "string",
-              "enum": [
-                "pending",
-                "paid",
-                "shipped"
-              ]
-            }
-          },
-          "required": [
-            "id",
-            "total"
-          ]
-        }
-      },
-      "messageSchema": null,
-      "schemaMismatch": false
-    },
-    {
       "topic": "orders:create",
-      "version": "",
+      "version": "v1",
       "reserved": false,
       "consumers": [
         {
@@ -72,18 +18,18 @@
       ],
       "producers": [],
       "status": null,
+      "schemaMismatch": false,
+      "changes": [],
       "requestSchema": {
-        "title": "CreateOrder",
         "type": "object",
         "properties": {
-          "customerEmail": {
+          "customerId": {
             "type": "string",
-            "format": "email"
+            "format": "uuid"
           },
           "lines": {
             "type": "array",
             "items": {
-              "title": "OrderLine",
               "type": "object",
               "properties": {
                 "sku": {
@@ -91,35 +37,285 @@
                   "pattern": "^[A-Z]{3}-[0-9]{4}$"
                 },
                 "quantity": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "maximum": 99
+                  "type": "integer"
                 }
               },
               "required": [
-                "sku",
-                "quantity"
+                "sku"
               ]
             }
           }
         },
         "required": [
-          "customerEmail",
+          "customerId",
           "lines"
         ]
       },
-      "responseSchema": null,
-      "messageSchema": null,
-      "schemaMismatch": false
+      "responseSchema": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "accepted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "orderId"
+        ]
+      },
+      "compatibility": null
+    },
+    {
+      "topic": "orders:create",
+      "version": "v2",
+      "reserved": false,
+      "consumers": [
+        {
+          "service": "orders-api",
+          "httpMappings": [
+            {
+              "method": "POST",
+              "path": "/orders"
+            }
+          ]
+        }
+      ],
+      "producers": [],
+      "status": null,
+      "schemaMismatch": false,
+      "changes": [
+        {
+          "kind": "schema-changed",
+          "description": "Payload schema changed (request)"
+        }
+      ],
+      "requestSchema": {
+        "type": "object",
+        "properties": {
+          "customerRef": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "sku": {
+                  "type": "string",
+                  "pattern": "^[A-Z]{3}-[0-9]{4}$"
+                },
+                "quantity": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "sku"
+              ]
+            }
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "web",
+              "mobile",
+              "partner"
+            ]
+          }
+        },
+        "required": [
+          "customerRef",
+          "lines",
+          "channel"
+        ]
+      },
+      "responseSchema": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "accepted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "orderId"
+        ]
+      },
+      "compatibility": {
+        "baselineVersion": "v1",
+        "overall": "breaking",
+        "changes": [
+          {
+            "kind": "propertyRemoved",
+            "direction": "request",
+            "path": "orders:create.request.customerId",
+            "description": "Property 'customerId' was removed",
+            "compatibility": "warning"
+          },
+          {
+            "kind": "requiredPropertyAdded",
+            "direction": "request",
+            "path": "orders:create.request.customerRef",
+            "description": "Property 'customerRef' was added (required)",
+            "compatibility": "breaking"
+          },
+          {
+            "kind": "requiredPropertyAdded",
+            "direction": "request",
+            "path": "orders:create.request.channel",
+            "description": "Property 'channel' was added (required)",
+            "compatibility": "breaking"
+          }
+        ],
+        "notComparedReason": null,
+        "truncatedPaths": [],
+        "notComparedSides": []
+      }
+    },
+    {
+      "topic": "orders:get-all",
+      "version": "v1",
+      "reserved": false,
+      "consumers": [
+        {
+          "service": "orders-api",
+          "httpMappings": [
+            {
+              "method": "GET",
+              "path": "/orders"
+            }
+          ]
+        }
+      ],
+      "producers": [],
+      "status": null,
+      "schemaMismatch": false,
+      "changes": [],
+      "requestSchema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "responseSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "customerEmail": {
+            "type": "string",
+            "format": "email"
+          },
+          "total": {
+            "type": "number"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "paid",
+              "shipped"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ]
+      },
+      "compatibility": null
+    },
+    {
+      "topic": "orders:get-all",
+      "version": "v2",
+      "reserved": false,
+      "consumers": [
+        {
+          "service": "orders-api",
+          "httpMappings": [
+            {
+              "method": "GET",
+              "path": "/orders"
+            }
+          ]
+        }
+      ],
+      "producers": [],
+      "status": null,
+      "schemaMismatch": false,
+      "changes": [
+        {
+          "kind": "schema-changed",
+          "description": "Payload schema changed (response)"
+        }
+      ],
+      "requestSchema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "responseSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "customerEmail": {
+            "type": "string",
+            "format": "email"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "paid",
+              "shipped"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ]
+      },
+      "compatibility": {
+        "baselineVersion": "v1",
+        "overall": "breaking",
+        "changes": [
+          {
+            "kind": "propertyRemoved",
+            "direction": "response",
+            "path": "orders:get-all.response.total",
+            "description": "Property 'total' was removed",
+            "compatibility": "breaking"
+          }
+        ],
+        "notComparedReason": null,
+        "truncatedPaths": [],
+        "notComparedSides": []
+      }
     },
     {
       "topic": "payment:capture",
-      "version": "",
+      "version": "v1",
       "reserved": false,
       "consumers": [
         {
           "service": "payments-api",
-          "httpMappings": []
+          "httpMappings": [
+            {
+              "method": "POST",
+              "path": "/payments/capture"
+            }
+          ]
         }
       ],
       "producers": [
@@ -128,8 +324,9 @@
         }
       ],
       "status": null,
-      "requestSchema": {
-        "title": "CapturePayment",
+      "schemaMismatch": false,
+      "changes": [],
+      "messageSchema": {
         "type": "object",
         "properties": {
           "orderId": {
@@ -137,39 +334,94 @@
             "format": "uuid"
           },
           "amount": {
-            "type": "number",
-            "minimum": 0.01
-          },
-          "currency": {
-            "type": "string",
-            "minLength": 3,
-            "maxLength": 3
+            "type": "integer"
           }
         },
-        "required": [
-          "orderId",
-          "amount",
-          "currency"
-        ]
+        "required": []
       },
-      "responseSchema": null,
-      "messageSchema": null,
+      "compatibility": null
+    },
+    {
+      "topic": "payment:capture",
+      "version": "v2",
+      "reserved": false,
+      "consumers": [],
+      "producers": [
+        {
+          "service": "orders-api"
+        }
+      ],
+      "status": null,
       "schemaMismatch": false,
       "changes": [
         {
-          "kind": "consumers-changed",
-          "description": "Consumers changed: +payments-api, -payments-api-legacy"
+          "kind": "schema-changed",
+          "description": "Payload schema changed (message)"
         }
-      ]
+      ],
+      "messageSchema": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "GBP",
+              "EUR",
+              "USD"
+            ]
+          }
+        },
+        "required": [
+          "orderId"
+        ]
+      },
+      "compatibility": {
+        "baselineVersion": "v1",
+        "overall": "breaking",
+        "changes": [
+          {
+            "kind": "propertyAdded",
+            "direction": "event",
+            "path": "payment:capture.message.currency",
+            "description": "Property 'currency' was added",
+            "compatibility": "compatible"
+          },
+          {
+            "kind": "propertyBecameRequired",
+            "direction": "event",
+            "path": "payment:capture.message.orderId",
+            "description": "Property 'orderId' became required",
+            "compatibility": "compatible"
+          },
+          {
+            "kind": "typeChanged",
+            "direction": "event",
+            "path": "payment:capture.message.amount",
+            "description": "Type changed from 'integer' to 'number'",
+            "compatibility": "breaking"
+          }
+        ],
+        "notComparedReason": null,
+        "truncatedPaths": [
+          "payment:capture.message.amount"
+        ],
+        "notComparedSides": []
+      }
     },
     {
       "topic": "shipping:book",
-      "version": "",
+      "version": "v1",
       "reserved": false,
       "consumers": [
         {
-          "service": "shipping-api",
-          "httpMappings": []
+          "service": "shipping-api"
         }
       ],
       "producers": [
@@ -181,8 +433,9 @@
         }
       ],
       "status": null,
-      "requestSchema": {
-        "title": "BookShipment",
+      "schemaMismatch": false,
+      "changes": [],
+      "messageSchema": {
         "type": "object",
         "properties": {
           "orderId": {
@@ -190,7 +443,67 @@
             "format": "uuid"
           },
           "address": {
-            "title": "Address",
+            "type": "object",
+            "properties": {
+              "line1": {
+                "type": "string",
+                "maxLength": 120
+              },
+              "line2": {
+                "type": "string",
+                "maxLength": 120
+              },
+              "postcode": {
+                "type": "string",
+                "maxLength": 12
+              }
+            },
+            "required": [
+              "line1",
+              "postcode"
+            ]
+          }
+        },
+        "required": [
+          "orderId",
+          "address"
+        ]
+      },
+      "compatibility": null
+    },
+    {
+      "topic": "shipping:book",
+      "version": "v2",
+      "reserved": false,
+      "consumers": [
+        {
+          "service": "shipping-api"
+        }
+      ],
+      "producers": [
+        {
+          "service": "orders-api"
+        },
+        {
+          "service": "payments-api"
+        }
+      ],
+      "status": null,
+      "schemaMismatch": false,
+      "changes": [
+        {
+          "kind": "schema-changed",
+          "description": "Payload schema changed (message)"
+        }
+      ],
+      "messageSchema": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "address": {
             "type": "object",
             "properties": {
               "line1": {
@@ -213,15 +526,218 @@
           "address"
         ]
       },
-      "responseSchema": null,
-      "messageSchema": null,
-      "schemaMismatch": true,
+      "compatibility": {
+        "baselineVersion": "v1",
+        "overall": "breaking",
+        "changes": [
+          {
+            "kind": "propertyRemoved",
+            "direction": "event",
+            "path": "shipping:book.message.address.line2",
+            "description": "Property 'line2' was removed",
+            "compatibility": "breaking"
+          }
+        ],
+        "notComparedReason": null,
+        "truncatedPaths": [],
+        "notComparedSides": []
+      }
+    },
+    {
+      "topic": "inventory:reserve",
+      "version": "v1",
+      "reserved": false,
+      "consumers": [
+        {
+          "service": "shipping-api",
+          "httpMappings": [
+            {
+              "method": "POST",
+              "path": "/inventory/reserve"
+            }
+          ]
+        }
+      ],
+      "producers": [
+        {
+          "service": "orders-api"
+        }
+      ],
+      "status": null,
+      "schemaMismatch": false,
+      "changes": [],
+      "requestSchema": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "integer"
+          },
+          "warehouseHint": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sku",
+          "quantity"
+        ]
+      },
+      "compatibility": null
+    },
+    {
+      "topic": "inventory:reserve",
+      "version": "v2",
+      "reserved": false,
+      "consumers": [
+        {
+          "service": "shipping-api",
+          "httpMappings": [
+            {
+              "method": "POST",
+              "path": "/inventory/reserve"
+            }
+          ]
+        }
+      ],
+      "producers": [
+        {
+          "service": "orders-api"
+        }
+      ],
+      "status": null,
+      "schemaMismatch": false,
       "changes": [
         {
           "kind": "schema-changed",
           "description": "Payload schema changed (request)"
         }
-      ]
+      ],
+      "requestSchema": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sku",
+          "quantity"
+        ]
+      },
+      "compatibility": {
+        "baselineVersion": "v1",
+        "overall": "warning",
+        "changes": [
+          {
+            "kind": "propertyRemoved",
+            "direction": "request",
+            "path": "inventory:reserve.request.warehouseHint",
+            "description": "Property 'warehouseHint' was removed",
+            "compatibility": "warning"
+          }
+        ],
+        "notComparedReason": null,
+        "truncatedPaths": [],
+        "notComparedSides": []
+      }
+    },
+    {
+      "topic": "notification:send",
+      "version": "v1",
+      "reserved": false,
+      "consumers": [
+        {
+          "service": "payments-api"
+        }
+      ],
+      "producers": [
+        {
+          "service": "orders-api"
+        }
+      ],
+      "status": null,
+      "schemaMismatch": false,
+      "changes": [],
+      "requestSchema": {
+        "type": "object",
+        "properties": {
+          "recipient": {
+            "type": "string",
+            "format": "email"
+          },
+          "template": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipient",
+          "template"
+        ]
+      },
+      "compatibility": null
+    },
+    {
+      "topic": "notification:send",
+      "version": "v2",
+      "reserved": false,
+      "consumers": [
+        {
+          "service": "payments-api"
+        }
+      ],
+      "producers": [
+        {
+          "service": "orders-api"
+        }
+      ],
+      "status": null,
+      "schemaMismatch": false,
+      "changes": [
+        {
+          "kind": "schema-changed",
+          "description": "Payload schema changed (request)"
+        }
+      ],
+      "requestSchema": {
+        "type": "object",
+        "properties": {
+          "recipient": {
+            "type": "string",
+            "format": "email"
+          },
+          "template": {
+            "type": "string"
+          },
+          "locale": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipient",
+          "template"
+        ]
+      },
+      "compatibility": {
+        "baselineVersion": "v1",
+        "overall": "compatible",
+        "changes": [
+          {
+            "kind": "propertyAdded",
+            "direction": "request",
+            "path": "notification:send.request.locale",
+            "description": "Property 'locale' was added",
+            "compatibility": "compatible"
+          }
+        ],
+        "notComparedReason": null,
+        "truncatedPaths": [],
+        "notComparedSides": []
+      }
     },
     {
       "topic": "order:legacy-export",
@@ -234,22 +750,32 @@
         }
       ],
       "status": "deprecation-candidate",
-      "requestSchema": null,
-      "responseSchema": null,
+      "schemaMismatch": false,
+      "changes": [],
       "messageSchema": {
-        "title": "LegacyOrderExport",
         "type": "object",
         "properties": {
           "orderId": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid"
           },
           "exportedAt": {
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "required": [
+          "orderId"
+        ]
       },
-      "schemaMismatch": false
+      "compatibility": {
+        "baselineVersion": null,
+        "overall": "notCompared",
+        "changes": [],
+        "notComparedReason": "onlyOneVersion",
+        "truncatedPaths": [],
+        "notComparedSides": []
+      }
     },
     {
       "topic": "spec",
@@ -257,30 +783,103 @@
       "reserved": true,
       "consumers": [
         {
-          "service": "orders-api",
-          "httpMappings": []
+          "service": "orders-api"
         },
         {
-          "service": "payments-api",
-          "httpMappings": []
-        },
-        {
-          "service": "shipping-api",
-          "httpMappings": []
+          "service": "payments-api"
         }
       ],
       "producers": [],
       "status": null,
-      "requestSchema": null,
-      "responseSchema": null,
-      "messageSchema": null,
-      "schemaMismatch": false
+      "schemaMismatch": false,
+      "changes": []
     }
   ],
   "removedTopics": [
     {
       "topic": "order:export",
       "version": "v0"
+    }
+  ],
+  "versionCompatibility": [
+    {
+      "topic": "orders:create",
+      "producedVersions": [],
+      "consumedVersions": [
+        "v1",
+        "v2"
+      ],
+      "producedNotConsumed": [],
+      "consumedNotProduced": [],
+      "isCompatible": true
+    },
+    {
+      "topic": "orders:get-all",
+      "producedVersions": [],
+      "consumedVersions": [
+        "v1",
+        "v2"
+      ],
+      "producedNotConsumed": [],
+      "consumedNotProduced": [],
+      "isCompatible": true
+    },
+    {
+      "topic": "payment:capture",
+      "producedVersions": [
+        "v1",
+        "v2"
+      ],
+      "consumedVersions": [
+        "v1"
+      ],
+      "producedNotConsumed": [
+        "v2"
+      ],
+      "consumedNotProduced": [],
+      "isCompatible": false
+    },
+    {
+      "topic": "shipping:book",
+      "producedVersions": [
+        "v1",
+        "v2"
+      ],
+      "consumedVersions": [
+        "v1",
+        "v2"
+      ],
+      "producedNotConsumed": [],
+      "consumedNotProduced": [],
+      "isCompatible": true
+    },
+    {
+      "topic": "inventory:reserve",
+      "producedVersions": [
+        "v1",
+        "v2"
+      ],
+      "consumedVersions": [
+        "v1",
+        "v2"
+      ],
+      "producedNotConsumed": [],
+      "consumedNotProduced": [],
+      "isCompatible": true
+    },
+    {
+      "topic": "notification:send",
+      "producedVersions": [
+        "v1",
+        "v2"
+      ],
+      "consumedVersions": [
+        "v1",
+        "v2"
+      ],
+      "producedNotConsumed": [],
+      "consumedNotProduced": [],
+      "isCompatible": true
     }
   ]
 }

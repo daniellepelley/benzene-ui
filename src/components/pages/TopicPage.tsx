@@ -2,12 +2,17 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   selectTopic, selectTrafficForTopic, selectThread, selectCanPost, selectCanAnnotate,
   selectVersionCompatibility, selectHttpMappingsForTopic, selectLiveForTopic, versionLabel,
-  selectFlowsForTopic, selectFailingFlowsOnly,
+  selectFlowsForTopic, selectFailingFlowsOnly, selectTopicCompatibility, selectVersionSwitcher,
+  selectComparisonsPublished, selectTopicEntries,
 } from '../../store/selectors';
 import { EdgeLivenessChip } from '../controls/EdgeLivenessChip';
-import { navigated, failingFlowsToggled, pivotedToFailingFlows } from '../../store/slices/viewSlice';
+import {
+  navigated, failingFlowsToggled, pivotedToFailingFlows, topicVersionSelected,
+} from '../../store/slices/viewSlice';
 import { draftChanged, draftAuthorChanged, postAnnotation } from '../../store/slices/annotationsSlice';
-import { SchemaTree } from '../sections/SchemaTree';
+import { SchemaTree, type SchemaAnnotation } from '../sections/SchemaTree';
+import { ContractChanges } from '../sections/ContractChanges';
+import { VersionSwitcher } from '../controls/VersionSwitcher';
 import { VersionCompatibility } from '../sections/VersionCompatibility';
 import { TopicLiveStrip } from '../sections/TopicLiveStrip';
 import { UsagePanel } from '../controls/UsagePanel';
@@ -39,8 +44,29 @@ export function TopicPage({ topic }: TopicPageProps) {
   const live = useAppSelector((s: RootState) => selectLiveForTopic(s, topic));
   const flows = useAppSelector((s: RootState) => selectFlowsForTopic(s, topic));
   const failingOnly = useAppSelector(selectFailingFlowsOnly);
+  const contract = useAppSelector((s: RootState) => selectTopicCompatibility(s, topic));
+  const versions = useAppSelector((s: RootState) => selectVersionSwitcher(s, topic));
+  const comparisonsPublished = useAppSelector(selectComparisonsPublished);
+  const allEntries = useAppSelector((s: RootState) => selectTopicEntries(s, topic));
 
   if (!entry) return <EmptyState message={`${topic} is not in the published catalog.`} />;
+
+  // The version this one was compared against, so REMOVED fields can still be drawn on the contract.
+  // Without it the most consequential class of change would be the one class invisible on the tree.
+  const baseline = contract?.baselineVersion != null
+    ? allEntries.find((e) => e.version === contract.baselineVersion) ?? null
+    : null;
+
+  // Field-level changes, keyed by the path SchemaTree walks. `truncatedPaths` rides along so a node
+  // whose type changed can say that nothing beneath it was compared.
+  const fieldMarks = new Map<string, SchemaAnnotation>(
+    (contract?.changes ?? []).map((change) => [change.path, {
+      kind: change.kind,
+      compatibility: change.compatibility,
+      description: change.description,
+      truncated: contract!.truncatedPaths.includes(change.path),
+    }]),
+  );
 
   const openService = (name: string) => dispatch(navigated({ page: 'service', selected: name }));
 
@@ -66,6 +92,14 @@ export function TopicPage({ topic }: TopicPageProps) {
             </button>
           ) : undefined
         }
+      />
+
+      {/* Directly under the head, because which version you are looking at changes the meaning of
+          every field below it. Renders nothing when there is only one version to look at. */}
+      <VersionSwitcher
+        versions={versions}
+        collapsed={!comparisonsPublished && allEntries.length === 1}
+        onSelect={(version) => dispatch(topicVersionSelected(version))}
       />
 
       <section>
@@ -105,6 +139,10 @@ export function TopicPage({ topic }: TopicPageProps) {
         )}
       </section>
 
+      {/* Placed above Traffic: on a page a reader opens to decide whether to ship, what changed in
+          the contract outranks how much traffic it carried. */}
+      <ContractChanges compatibility={contract} published={comparisonsPublished} version={entry.version} />
+
       <VersionCompatibility compatibility={compatibility} />
 
       <section>
@@ -133,9 +171,40 @@ export function TopicPage({ topic }: TopicPageProps) {
 
       <section>
         <h3>Payload</h3>
-        {entry.requestSchema && (<><h4>Request</h4><SchemaTree schema={entry.requestSchema} /></>)}
-        {entry.responseSchema && (<><h4>Response</h4><SchemaTree schema={entry.responseSchema} /></>)}
-        {entry.messageSchema && (<><h4>Message</h4><SchemaTree schema={entry.messageSchema} /></>)}
+        {/* The contract, with the drift marked ON it rather than listed beside it. */}
+        {entry.requestSchema && (
+          <>
+            <h4>Request</h4>
+            <SchemaTree
+              schema={entry.requestSchema}
+              annotations={fieldMarks}
+              rootPath={`${entry.topic}.request`}
+              baseline={baseline?.requestSchema ?? null}
+            />
+          </>
+        )}
+        {entry.responseSchema && (
+          <>
+            <h4>Response</h4>
+            <SchemaTree
+              schema={entry.responseSchema}
+              annotations={fieldMarks}
+              rootPath={`${entry.topic}.response`}
+              baseline={baseline?.responseSchema ?? null}
+            />
+          </>
+        )}
+        {entry.messageSchema && (
+          <>
+            <h4>Message</h4>
+            <SchemaTree
+              schema={entry.messageSchema}
+              annotations={fieldMarks}
+              rootPath={`${entry.topic}.message`}
+              baseline={baseline?.messageSchema ?? null}
+            />
+          </>
+        )}
         {!entry.requestSchema && !entry.responseSchema && !entry.messageSchema && (
           <EmptyState message="No schema published for this topic." />
         )}
@@ -143,7 +212,7 @@ export function TopicPage({ topic }: TopicPageProps) {
 
       {entry.changes && entry.changes.length > 0 && (
         <section>
-          <h3>Changes</h3>
+          <h3>Since the previous snapshot</h3>
           <ul>{entry.changes.map((c, i) => <li key={i}><Chip>{c.kind}</Chip> {c.description}</li>)}</ul>
         </section>
       )}

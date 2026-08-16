@@ -1,0 +1,70 @@
+{
+  "_comment": "A second topics sample, merged into the generated type alongside topics.json (see scripts/generate-contracts.mjs). It exists to widen two things the main estate leaves empty, so the UI is type-checked against them: notComparedSides on a PARTIAL comparison (one side published at v1 and not v2 — the verdict is real but does not cover that side), and notComparedReason 'noSchemaPublished' (neither version publishes any schema, so there was nothing to walk). Both are honesty cases; leaving them untyped is how a render site ends up guessing.",
+  "generatedAtUtc": "2026-08-16T09:12:00Z",
+  "topics": [
+    {
+      "topic": "audit:record",
+      "version": "v1",
+      "reserved": false,
+      "consumers": [{ "service": "orders-api" }],
+      "producers": [{ "service": "payments-api" }],
+      "status": null,
+      "schemaMismatch": false,
+      "changes": [],
+      "requestSchema": {
+        "type": "object",
+        "properties": { "actor": { "type": "string" } },
+        "required": ["actor"]
+      },
+      "responseSchema": {
+        "type": "object",
+        "properties": { "recorded": { "type": "boolean" } },
+        "required": []
+      },
+      "compatibility": null
+    },
+    {
+      "topic": "audit:record",
+      "version": "v2",
+      "reserved": false,
+      "consumers": [{ "service": "orders-api" }],
+      "producers": [{ "service": "payments-api" }],
+      "status": null,
+      "schemaMismatch": false,
+      "changes": [],
+      "requestSchema": {
+        "type": "object",
+        "properties": { "actor": { "type": "string" } },
+        "required": ["actor"]
+      },
+      "compatibility": {
+        "baselineVersion": "v1",
+        "overall": "compatible",
+        "changes": [],
+        "notComparedReason": null,
+        "truncatedPaths": [],
+        "notComparedSides": ["response"]
+      }
+    },
+    {
+      "topic": "telemetry:ping",
+      "version": "v2",
+      "reserved": false,
+      "consumers": [{ "service": "shipping-api" }],
+      "producers": [],
+      "status": null,
+      "schemaMismatch": false,
+      "changes": [],
+      "compatibility": {
+        "baselineVersion": "v1",
+        "overall": "notCompared",
+        "changes": [],
+        "notComparedReason": "noSchemaPublished",
+        "truncatedPaths": [],
+        "notComparedSides": []
+      }
+    }
+  ],
+  "removedTopics": [],
+  "versionCompatibility": []
+}

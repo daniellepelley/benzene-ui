@@ -299,9 +299,23 @@ export const selectVisibleServiceTopics = createSelector(
   },
 );
 
+/**
+ * The entry a topic page should show: the version the reader asked for, or the NEWEST published one.
+ *
+ * This used to be `topics.find(t => t.topic === topic)`, which returned the *lowest* version, because
+ * the aggregator orders `ThenBy(Version)`. That single line hid every schema change in an estate: the
+ * page rendered v1's payload under a v1 chip while the fleet ran v2, with no indication a v2 existed
+ * — so a data map built from this page recorded fields that had already been deleted. Defaulting to
+ * newest is the honest default; a reader who wants an older version can still ask for it by name.
+ */
 export const selectTopic = createSelector(
-  [selectTopics, (_: RootState, topic: string) => topic],
-  (topics, topic) => topics.find((t) => t.topic === topic) ?? null,
+  [selectTopics, (_: RootState, topic: string) => topic, (s: RootState) => s.view.selectedVersion],
+  (topics, topic, version) => {
+    const entries = topics.filter((t) => t.topic === topic);
+    if (entries.length === 0) return null;
+    if (version != null) return entries.find((t) => t.version === version) ?? null;
+    return entries[entries.length - 1]!;
+  },
 );
 
 /** Topics with a status the aggregator flagged — deprecation candidates and gaps. */
@@ -313,6 +327,20 @@ export const selectFlaggedTopics = createSelector([selectTopics], (topics) =>
 export const selectTopicEntries = createSelector(
   [selectTopics, (_: RootState, topic: string) => topic],
   (topics, topic) => topics.filter((t) => t.topic === topic),
+);
+
+/**
+ * The versions of a topic a reader can switch between, newest last, with the one on screen marked.
+ * Empty when the topic has a single version — there is nothing to switch, and rendering a control
+ * with one option implies a choice that does not exist.
+ */
+export const selectVersionSwitcher = createSelector(
+  [selectTopicEntries, (s: RootState) => s.view.selectedVersion],
+  (entries, selected) => {
+    if (entries.length <= 1) return [];
+    const current = selected ?? entries[entries.length - 1]?.version ?? null;
+    return entries.map((entry) => ({ version: entry.version, current: entry.version === current }));
+  },
 );
 
 /** The HTTP routes a topic's consumers expose it on — the only place the wire binding is visible. */
@@ -342,6 +370,98 @@ export const selectVersionCompatibility = createSelector(
   [selectCompatibilityRaw, (_: RootState, topic: string) => topic],
   (rows, topic): TopicsVersionCompatibilityItem | null =>
     (rows as TopicsVersionCompatibilityItem[]).find((v) => v.topic === topic) ?? null,
+);
+
+// ── Contract compatibility (cross-version) ──────────────────────────────────────────────────────
+
+import type { TopicsTopicsItemCompatibility, TopicsTopicsItemCompatibilityChangesItem } from '../contracts';
+
+/** The verdict classes, worst first. This order is the sort order everywhere changes are listed. */
+export const VERDICT_ORDER = ['breaking', 'warning', 'compatible', 'notCompared'] as const;
+export type Verdict = (typeof VERDICT_ORDER)[number];
+
+/**
+ * Whether this estate's aggregator publishes contract comparisons at all.
+ *
+ * A CAPABILITY CHECK ABOUT THE TOOL OUTRANKS A CONTENT CHECK ABOUT THE ESTATE. If no entry carries a
+ * `compatibility` field, the answer to "what changed?" is "this aggregator does not say" — never "no
+ * changes", and never a zero. Two of the three ports that build a catalogue do not compute this, so
+ * this is a live case rather than a defensive one, and getting it wrong would put a false claim about
+ * the reader's own architecture on screen.
+ */
+export const selectComparisonsPublished = createSelector([selectTopics], (topics) =>
+  topics.some((t) => !t.reserved && t.compatibility != null),
+);
+
+/** The compatibility block for the entry a topic page is showing, or null. */
+export const selectTopicCompatibility = createSelector(
+  [selectTopic],
+  (entry): TopicsTopicsItemCompatibility | null => entry?.compatibility ?? null,
+);
+
+export interface LedgerChange extends TopicsTopicsItemCompatibilityChangesItem {
+  topic: string;
+  version: string;
+  baselineVersion: string | null;
+  /** True when this change sits at or beneath a path where a type change stopped the walk. */
+  truncated: boolean;
+}
+
+/**
+ * Every classified change in the estate, worst first — the data behind the changes ledger.
+ *
+ * Reserved topics are excluded for the same reason the aggregator excludes them from the diff: every
+ * service carries the same utility topics and their churn is noise.
+ */
+export const selectAllChanges = createSelector([selectTopics], (topics): LedgerChange[] => {
+  const rows: LedgerChange[] = [];
+  for (const entry of topics) {
+    const compatibility = entry.compatibility;
+    if (entry.reserved || !compatibility) continue;
+    for (const change of compatibility.changes) {
+      rows.push({
+        ...change,
+        topic: entry.topic,
+        version: entry.version,
+        baselineVersion: compatibility.baselineVersion,
+        truncated: compatibility.truncatedPaths.includes(change.path),
+      });
+    }
+  }
+  return rows.sort((a, b) =>
+    VERDICT_ORDER.indexOf(a.compatibility as Verdict) - VERDICT_ORDER.indexOf(b.compatibility as Verdict)
+    || a.topic.localeCompare(b.topic) || a.path.localeCompare(b.path));
+});
+
+/**
+ * Topic versions the aggregator reported as changed but did not classify — an older .NET build, or a
+ * port that detects change without a taxonomy.
+ *
+ * These are kept in their own group and are NEVER sorted into breaking/warning/compatible. Ranking
+ * an unclassified change as if it were compatible is precisely the "absence rendered as good news"
+ * defect, one level up.
+ */
+export const selectUnclassifiedChanges = createSelector([selectTopics], (topics) =>
+  topics
+    .filter((t) => !t.reserved && !t.compatibility && (t.changes?.length ?? 0) > 0)
+    .flatMap((t) => (t.changes ?? []).map((c) => ({ ...c, topic: t.topic, version: t.version }))),
+);
+
+/** Counts by verdict class, for the estate tile and the ledger head. */
+export const selectChangeSummary = createSelector(
+  [selectAllChanges, selectUnclassifiedChanges, selectComparisonsPublished, selectTopics],
+  (changes, unclassified, published, topics) => {
+    const counts: Record<string, number> = { breaking: 0, warning: 0, compatible: 0 };
+    for (const change of changes) counts[change.compatibility] = (counts[change.compatibility] ?? 0) + 1;
+    return {
+      published,
+      counts,
+      unclassified: unclassified.length,
+      /** Topic versions carrying at least one classified change — what the estate tile counts. */
+      changedVersions: topics.filter((t) => !t.reserved && (t.compatibility?.changes.length ?? 0) > 0).length,
+      notCompared: topics.filter((t) => !t.reserved && t.compatibility?.overall === 'notCompared').length,
+    };
+  },
 );
 
 // ── Utility traffic ─────────────────────────────────────────────────────────────────────────────

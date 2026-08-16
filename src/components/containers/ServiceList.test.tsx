@@ -78,7 +78,11 @@ describe('ServiceList — the UI is a function of the store', () => {
 
     expect(screen.getByRole('heading', { name: 'Consumes' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Produces' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /orders:create/ })).toBeInTheDocument();
+    // Each version is its own row and its own accessible name. A versioned catalogue renders one row
+    // per version, and two rows that read identically are two rows a reader cannot tell apart — so
+    // asserting on the bare topic id would pass while the page was ambiguous.
+    expect(screen.getByRole('button', { name: 'orders:create v1' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'orders:create v2' })).toBeInTheDocument();
   });
 
   it('marks a card whose status moved, and no others', () => {

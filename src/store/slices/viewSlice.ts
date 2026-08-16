@@ -1,6 +1,6 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
-export type Page = 'fleet' | 'service' | 'topic' | 'issue' | 'compose' | 'value' | 'test';
+export type Page = 'fleet' | 'service' | 'topic' | 'issue' | 'compose' | 'value' | 'test' | 'changes';
 
 /**
  * View state lives here, not in components.
@@ -21,6 +21,15 @@ export interface ViewState {
    * a composite string through the single-entity shape every other page uses.
    */
   selectedService: string | null;
+  /**
+   * Which version of the selected topic to show, when a reader asked for one specifically.
+   *
+   * `null` means "whichever is newest", not "the unversioned one" — a topic page that silently
+   * showed the OLDEST version was the single defect that hid every schema change in the estate, so
+   * the default has to be the version a reader is most likely to be asking about. A concrete value
+   * only ever comes from a reader choosing it, or from a link that carried one.
+   */
+  selectedVersion: string | null;
   filter: string;
   expandedServices: string[];
   /** Millisecond window the live planes are reporting over. */
@@ -62,6 +71,7 @@ const initialState: ViewState = {
   page: 'fleet',
   selected: null,
   selectedService: null,
+  selectedVersion: null,
   filter: '',
   expandedServices: [],
   rangeMs: 15 * 60 * 1000,
@@ -80,10 +90,17 @@ const viewSlice = createSlice({
   name: 'view',
   initialState,
   reducers: {
-    navigated(state, action: PayloadAction<{ page: Page; selected?: string | null; selectedService?: string | null }>) {
+    navigated(state, action: PayloadAction<{
+      page: Page; selected?: string | null; selectedService?: string | null; selectedVersion?: string | null;
+    }>) {
       state.page = action.payload.page;
       state.selected = action.payload.selected ?? null;
       state.selectedService = action.payload.selectedService ?? null;
+      state.selectedVersion = action.payload.selectedVersion ?? null;
+    },
+    /** A reader switching version on the topic page they are already on. */
+    topicVersionSelected(state, action: PayloadAction<string | null>) {
+      state.selectedVersion = action.payload;
     },
     filterChanged(state, action: PayloadAction<string>) {
       state.filter = action.payload;
@@ -134,6 +151,7 @@ const viewSlice = createSlice({
     pivotedToFailingFlows(state, action: PayloadAction<string>) {
       state.page = 'topic';
       state.selected = action.payload;
+      state.selectedVersion = null;
       state.failingFlowsOnly = true;
     },
   },
@@ -142,6 +160,6 @@ const viewSlice = createSlice({
 export const {
   navigated, filterChanged, serviceToggled, allCollapsed, rangeChanged, utilityToggled,
   failingFlowsToggled, pivotedToFailingFlows, topicFilterChanged, topicSorted, sectionToggled,
-  themeCycled, themeRestored,
+  themeCycled, themeRestored, topicVersionSelected,
 } = viewSlice.actions;
 export default viewSlice.reducer;

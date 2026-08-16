@@ -54,7 +54,8 @@ export function ServicePage({ service }: ServicePageProps) {
   }
 
   const open = (name: string) => dispatch(navigated({ page: 'service', selected: name }));
-  const openTopic = (topic: string) => dispatch(navigated({ page: 'topic', selected: topic }));
+  const openTopic = (topic: string, version?: string) =>
+    dispatch(navigated({ page: 'topic', selected: topic, selectedVersion: version ?? null }));
 
   return (
     <div className="bz-page">

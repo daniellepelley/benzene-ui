@@ -157,8 +157,10 @@ describe('the value view', () => {
 describe('version compatibility', () => {
   it('is absent for a topic the aggregator did not reconcile', async () => {
     // Absent is not "compatible". A green badge on a check nobody ran is an invented reassurance.
+    // order:legacy-export exists at one version, so the aggregator emits no entry for it at all —
+    // there is no cross-version question to answer.
     const store = await ready();
-    expect(selectVersionCompatibility(store.getState(), 'orders:create')).toBeNull();
+    expect(selectVersionCompatibility(store.getState(), 'order:legacy-export')).toBeNull();
   });
 
   it('reports a produced-but-unconsumed version as an incompatibility', async () => {

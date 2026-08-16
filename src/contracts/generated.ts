@@ -95,6 +95,7 @@ export interface UsageEntriesItem {
 }
 
 export interface Topics {
+  _comment?: string;
   generatedAtUtc: string;
   topics: TopicsTopicsItem[];
   removedTopics: TopicsRemovedTopicsItem[];
@@ -108,18 +109,19 @@ export interface TopicsTopicsItem {
   consumers: TopicsTopicsItemConsumersItem[];
   producers: TopicsTopicsItemProducersItem[];
   status: string | null;
-  requestSchema: JsonSchema | null;
-  responseSchema: JsonSchema | null;
-  messageSchema: JsonSchema | null;
   schemaMismatch: boolean;
   changes?: TopicsTopicsItemChangesItem[];
+  requestSchema?: JsonSchema | null;
+  responseSchema?: JsonSchema | null;
+  compatibility?: TopicsTopicsItemCompatibility | null;
+  messageSchema?: JsonSchema | null;
   consumerActivity?: Record<string, EdgeActivity>;
   providerActivity?: Record<string, EdgeActivity>;
 }
 
 export interface TopicsTopicsItemConsumersItem {
   service: string;
-  httpMappings: TopicsTopicsItemConsumersItemHttpMappingsItem[];
+  httpMappings?: TopicsTopicsItemConsumersItemHttpMappingsItem[];
 }
 
 export interface TopicsTopicsItemConsumersItemHttpMappingsItem {
@@ -134,6 +136,23 @@ export interface TopicsTopicsItemProducersItem {
 export interface TopicsTopicsItemChangesItem {
   kind: string;
   description: string;
+}
+
+export interface TopicsTopicsItemCompatibility {
+  baselineVersion: string | null;
+  overall: string;
+  changes: TopicsTopicsItemCompatibilityChangesItem[];
+  notComparedReason: string | null;
+  truncatedPaths: string[];
+  notComparedSides: string[];
+}
+
+export interface TopicsTopicsItemCompatibilityChangesItem {
+  kind: string;
+  direction: string;
+  path: string;
+  description: string;
+  compatibility: string;
 }
 
 export interface TopicsRemovedTopicsItem {

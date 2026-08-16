@@ -78,7 +78,7 @@ describe('ValuePage', () => {
 describe('TopicPage version compatibility', () => {
   it('shows nothing when the aggregator reconciled nothing', async () => {
     const store = await loaded();
-    show(store, <TopicPage topic="orders:create" />);
+    show(store, <TopicPage topic="order:legacy-export" />);
     expect(screen.queryByRole('heading', { name: 'Version compatibility' })).not.toBeInTheDocument();
   });
 

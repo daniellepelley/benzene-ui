@@ -19,7 +19,7 @@ export interface RetirementRowProps {
  * the usage feed is wired* is a case they can act on, or refute.
  */
 export function RetirementRow({ row, rag, onOpen }: RetirementRowProps) {
-  const { entry, evidence, usageTotal } = row;
+  const { entry, evidence, usageTotal, usageVersionAttributed } = row;
   const producers = (entry.producers ?? []).length;
   const consumers = (entry.consumers ?? []).length;
 
@@ -52,7 +52,18 @@ export function RetirementRow({ row, rag, onOpen }: RetirementRowProps) {
         )}
       {evidence.length > 0 && <span className="bz-vd-evidence">{evidence.join(' · ')}</span>}
       {usageTotal != null && usageTotal > 0 && (
-        <span className="bz-vd-usage">{formatCount(usageTotal)} msgs observed</span>
+        <span
+          className="bz-vd-usage"
+          title={entry.version && !usageVersionAttributed
+            ? `The whole topic's traffic. The usage feed does not break it down by version, so none of it is attributed to ${entry.version}.`
+            : undefined}
+        >
+          {formatCount(usageTotal)} msgs observed
+          {/* The estate table carries the same dagger. This page prints the same number and is where
+              a retirement decision is actually made, so it is the worse of the two places to imply a
+              version has carried traffic it may not have carried. */}
+          {entry.version && !usageVersionAttributed && <span className="bz-cat-none">†</span>}
+        </span>
       )}
     </div>
   );

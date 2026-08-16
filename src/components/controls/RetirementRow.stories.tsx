@@ -32,7 +32,7 @@ const meta = {
     rag: 'red',
     row: {
       entry: topic(),
-      usageTotal: 0,
+      usageTotal: 0, usageVersionAttributed: true,
       evidence: ['no declared consumers', 'no traffic observed while the usage feed is wired'],
     },
   },
@@ -44,7 +44,7 @@ export const StrongCandidate: Story = {};
 
 /** No usage feed wired: the structural case stands alone, and says so. */
 export const Unmeasured: Story = {
-  args: { row: { entry: topic(), usageTotal: null, evidence: ['no declared consumers'] } },
+  args: { row: { entry: topic(), usageTotal: null, usageVersionAttributed: true, evidence: ['no declared consumers'] } },
 };
 
 export const VerifyExternally: Story = {
@@ -52,7 +52,7 @@ export const VerifyExternally: Story = {
     rag: 'amber',
     row: {
       entry: topic({ topic: 'partner:settlement', status: 'gap', producers: [] , consumers: [{ service: 'billing-api', httpMappings: [] }] }),
-      usageTotal: 0,
+      usageTotal: 0, usageVersionAttributed: true,
       evidence: ['produced outside this fleet (gap)', 'no traffic observed'],
     },
   },
@@ -64,7 +64,7 @@ export const NoSignal: Story = {
     row: {
       entry: topic({ topic: 'orders:create', version: '', consumers: [{ service: 'orders-api', httpMappings: [] }] }),
       usageTotal: 148_320,
-      evidence: [],
+      evidence: [], usageVersionAttributed: true,
     },
   },
 };
@@ -76,7 +76,7 @@ export const WithChanges: Story = {
         topic: 'payment:capture',
         changes: [{ kind: 'schema-changed', description: 'amount widened from integer to number' }],
       }),
-      usageTotal: 0,
+      usageTotal: 0, usageVersionAttributed: true,
       evidence: ['no traffic observed while the usage feed is wired'],
     },
   },

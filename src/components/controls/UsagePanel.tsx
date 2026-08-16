@@ -51,6 +51,17 @@ export function UsagePanel({ traffic, windowLabel, version = null }: UsagePanelP
       {/* The feed carries no version on its rows, so this total covers the whole topic. Printing it
           unqualified under a version heading tells a reader that version is carrying traffic it may
           not be carrying at all — and on a page that can simultaneously say nothing consumes it. */}
+      {/* A failure count that is partly a guess must say so. The spec lets a receiver with no
+          `isSuccessful` signal treat an application-defined status as a failure, and the usage feed
+          carries no such signal — but permission to assume the worst is not permission to render the
+          assumption as a measurement, least of all on a screen someone deploys from. */}
+      {traffic.unrecognised > 0 && (
+        <p className="bz-usage-note">
+          {traffic.unrecognised.toLocaleString()} of these are in statuses this build does not
+          recognise. They are counted as failures because there is no signal to trust them with —
+          they may not be failures.
+        </p>
+      )}
       {!traffic.versionAttributed && version && (
         <p className="bz-usage-note">
           This is the whole topic&rsquo;s traffic. The usage feed does not break it down by version,

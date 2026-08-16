@@ -6,6 +6,7 @@ import {
 import { loadCatalog } from './store/slices/catalogSlice';
 import { loadAnnotations } from './store/slices/annotationsSlice';
 import { probeFleet, pollInbox, clockTicked, FLEET_POLL_MS, INBOX_POLL_MS } from './store/slices/fleetSlice';
+import { ErrorBoundary } from './components/primitives/ErrorBoundary';
 import { navigated, rangeChanged, themeCycled, themeRestored, type Theme } from './store/slices/viewSlice';
 import {
   selectLoad, selectError, selectPage, selectSelected, selectSelectedService, selectEstateSummary,
@@ -231,7 +232,13 @@ export function App() {
           />
         )}
         {load === 'ready' && (
-          <>
+          // Keyed on the page and selection so navigating away from a crashed view clears the error
+          // — without the key, a boundary that caught once stays caught and every subsequent click
+          // shows the same failure.
+          <ErrorBoundary
+            key={`${page}:${selected ?? ''}:${selectedService ?? ''}`}
+            onReset={() => dispatch(navigated({ page: 'fleet' }))}
+          >
             {page === 'fleet' && <FleetPage />}
             {page === 'service' && selected && <ServicePage service={selected} />}
             {page === 'topic' && selected && <TopicPage topic={selected} />}
@@ -240,7 +247,7 @@ export function App() {
             {page === 'changes' && <ChangesPage />}
             {page === 'value' && <ValuePage />}
             {page === 'test' && <TestConsolePage service={selectedService} topic={selected} />}
-          </>
+          </ErrorBoundary>
         )}
       </main>
     </div>

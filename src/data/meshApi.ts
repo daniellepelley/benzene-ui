@@ -212,7 +212,12 @@ export const createMeshApi = (options: MeshApiOptions = {}): MeshApi => ({
   getTopology: () => getJson<Topology>('topology.json', options.manifestUrl),
   getUsage: () => getJson<Usage>('usage.json', options.manifestUrl),
   getAnnotations: () =>
-    getJson<{ annotations: Annotation[] }>('annotations.json', options.manifestUrl).then((d) => d.annotations),
+    // Coerced at the boundary. An artifact that parses but does not carry the expected array — an
+    // older aggregator, a different port, a hand-edited file — used to reach the store as `undefined`
+    // and take the whole application down on the first selector that filtered it. A missing list is
+    // an empty list; it is not a reason for the product to stop existing.
+    getJson<{ annotations?: Annotation[] }>('annotations.json', options.manifestUrl)
+      .then((d) => (Array.isArray(d.annotations) ? d.annotations : [])),
   ...(options.fleetEndpoint
     ? { getFleet: (query) => meshQuery<FleetView>(options.fleetEndpoint!, 'benzene:mesh:query:fleet', query) }
     : {}),

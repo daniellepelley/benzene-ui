@@ -25,7 +25,7 @@ const meta = {
       rangeLabel: '15 minutes',
       countsSince: null,
     },
-    traffic: { success: 148_000, failure: 300, total: 148_300, observed: true, rowsForTopic: true, versionAttributed: false },
+    traffic: { success: 148_000, failure: 300, total: 148_300, observed: true, rowsForTopic: true, unrecognised: 0, versionAttributed: false },
   },
 } satisfies Meta<typeof TopicLiveStrip>;
 export default meta;
@@ -60,7 +60,7 @@ export const NotObservedAtAll: Story = {
       available: true, observed: null, errors: 0, avgDurationMs: null, statusCounts: {},
       services: [], missingFeeds: [], rangeLabel: '24 hours', countsSince: null,
     },
-    traffic: { success: 0, failure: 0, total: 0, observed: false, rowsForTopic: false, versionAttributed: false },
+    traffic: { success: 0, failure: 0, total: 0, observed: false, rowsForTopic: false, unrecognised: 0, versionAttributed: false },
   },
 };
 

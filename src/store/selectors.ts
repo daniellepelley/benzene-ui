@@ -198,8 +198,28 @@ import type { TopicsTopicsItem, TopologyEdgesItem, UsageEntriesItem } from '../c
  * safe direction: a new status silently counting as success would hide a regression.
  */
 const SUCCESS_STATUSES = new Set(['ok', 'created', 'accepted', 'updated', 'deleted', 'ignored']);
+
+/**
+ * The failure vocabulary this build knows, from `docs/specification/wire-contracts.md` §3.
+ *
+ * Kept explicitly so a status that is in NEITHER set can be recognised as unrecognised. The spec
+ * permits a receiver with no `isSuccessful` signal to classify an application-defined status as a
+ * failure — and the usage feed carries no such signal — but permission to assume the worst is not
+ * permission to present the assumption as a measurement. A feed using an application-defined status
+ * rendered as a confident "100.0% failed", which on a deploy-decision screen is the most damaging
+ * possible reading of an unknown.
+ */
+const KNOWN_FAILURE_STATUSES = new Set([
+  'validation-error', 'not-found', 'unauthorised', 'unauthorized', 'forbidden', 'conflict',
+  'service-unavailable', 'exception', 'timeout', 'no-handler', 'bad-request',
+]);
+
 export const isSuccessStatus = (status: string | null | undefined) =>
   status != null && SUCCESS_STATUSES.has(status);
+
+/** True when this build recognises the status at all — in either vocabulary. */
+export const isKnownStatus = (status: string | null | undefined) =>
+  status != null && (SUCCESS_STATUSES.has(status) || KNOWN_FAILURE_STATUSES.has(status));
 
 export const selectCatalogLoad = (s: RootState) => s.catalog.load;
 
@@ -252,6 +272,12 @@ export interface TopicTraffic {
   /** True when the feed is wired AND reported at least one row for this topic. */
   rowsForTopic: boolean;
   /**
+   * Calls whose status this build does not recognise, counted into `failure` because the spec allows
+   * no better guess — but reported separately so a surface can say the figure is a fallback rather
+   * than a measurement.
+   */
+  unrecognised: number;
+  /**
    * True when this figure covers EVERY version of the topic because the usage feed does not carry a
    * version, and the reader is looking at one version.
    *
@@ -283,13 +309,18 @@ export const selectTrafficForTopic = createSelector(
 
     let success = 0;
     let failure = 0;
+    let unrecognised = 0;
     for (const row of rows) {
       if (isSuccessStatus(row.status)) success += row.count;
-      else failure += row.count;
+      else {
+        failure += row.count;
+        if (!isKnownStatus(row.status)) unrecognised += row.count;
+      }
     }
     return {
       success,
       failure,
+      unrecognised,
       total: success + failure,
       observed: feedWired,
       rowsForTopic: all.length > 0,
@@ -815,6 +846,15 @@ export interface RetirementCandidate {
   entry: TopicsTopicsItem;
   /** null when no usage feed is wired — the difference between unmeasured and measured-at-zero. */
   usageTotal: number | null;
+  /**
+   * False when `usageTotal` is the WHOLE topic's traffic rather than this version's.
+   *
+   * The estate table already discloses this with a dagger; this page printed the same number bare,
+   * so a version that has carried nothing showed the topic's total and read as live. Same product,
+   * same fact, one screen honest and one not — and this is the screen a retirement decision is made
+   * on, so it is the worse of the two places to be silent.
+   */
+  usageVersionAttributed: boolean;
   /** Why this topic landed in this tier. The row exists to defend a decision, so it carries its case. */
   evidence: string[];
 }
@@ -884,6 +924,11 @@ export const selectRetirementView = createSelector(
     const byTier: Record<RetirementTier, RetirementCandidate[]> = { candidate: [], verify: [], ok: [] };
     for (const entry of topics.filter((t) => !t.reserved)) {
       const usageTotal = feedWired ? totalFor(entry.topic, entry.version || null) : null;
+      // Whether the feed can attribute by version at all for this topic. `totalFor` already falls
+      // back to the whole topic when rows carry no version — this records that it did, so the row can
+      // say so instead of presenting a topic total as a version's.
+      const usageVersionAttributed = entries.some(
+        (e) => e.topic === entry.topic && e.version != null && e.version !== '');
       const consumers = (entry.consumers ?? []).length;
       const evidence: string[] = [];
       let tier: RetirementTier;
@@ -921,7 +966,7 @@ export const selectRetirementView = createSelector(
         evidence.push(`declared but never observed producing: ${unobservedProducers.join(', ')}`);
       }
 
-      byTier[tier].push({ entry, usageTotal, evidence });
+      byTier[tier].push({ entry, usageTotal, usageVersionAttributed, evidence });
     }
 
     // Least-used first within a tier, so the strongest candidates float up; unmeasured sorts first

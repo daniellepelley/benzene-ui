@@ -55,6 +55,25 @@ export interface Obligation {
   verb: string;
   /** The change's own verdict, carried so a surface never has to re-derive it. */
   verdict: string;
+  /**
+   * The services on the other side that this obligation is measured against — the ones that have
+   * already moved, or that are waiting.
+   *
+   * A service page said only "the other side has already moved", and the sentence naming WHO lived
+   * on a different screen. A service owner cannot answer "who is blocked on me" from their own page
+   * without it, and that is the question they came with.
+   */
+  counterparts: string[];
+  /**
+   * True when the baseline version is still declared on the owning side, so BOTH versions have to be
+   * live when this service ships.
+   *
+   * `handle v2` reads as `swap to v2`, and on a topic whose producer is still emitting v1 a v2-only
+   * handler kills the live path on deploy. The catalogue knows which case this is — it is the same
+   * condition that decides whether the constraint is pending or already breached — so the row can
+   * say it rather than leaving a service owner to infer it from two version lists.
+   */
+  alongsideBaseline: boolean;
 }
 
 export interface Rollout {
@@ -90,6 +109,15 @@ export interface Rollout {
   obligations: Obligation[];
   /** The ordering constraint between the two ends, or null when there is nothing to order. */
   constraint: string | null;
+  /**
+   * True when the constraint is not pending but already broken: no service declares the baseline on
+   * the owning side any more, so whatever is still on the adapting side has nothing to talk to.
+   *
+   * Kept as a flag rather than left implicit in the sentence, because it is the difference between
+   * "you have time" and "this is live", and a surface that ranks or colours needs to know without
+   * parsing prose.
+   */
+  breached: boolean;
   /**
    * The categorical claim, present only when `disjoint`. Kept separate from `constraint` so a
    * surface can render the ordering without inheriting the stronger statement.
@@ -224,24 +252,42 @@ export function buildRollouts(
       const adapterVerb = verbFor(adapter, ownerSide);
 
       const obligations: Obligation[] = [];
-      const owe = (services: string[], role: OwnerSide, kind: ObligationKind, verb: Verb) => {
+      const owe = (
+        services: string[], role: OwnerSide, kind: ObligationKind, verb: Verb, counterparts: string[],
+      ) => {
         for (const service of services) {
           obligations.push({
             service, topic, baselineVersion, version: entry.version, kind, role,
             verb: `${verb.imperative} ${entry.version}`,
             verdict: compatibility.overall,
+            counterparts,
+            // Only a catch-up can strand live traffic: the owner is still on the baseline AND still
+            // on it now. A completion has nobody left to strand.
+            alongsideBaseline: kind === 'catchUp' && ownerAtBaseline.length > 0,
           });
         }
       };
-      if (state === 'awaitingAdapter') owe(outstandingAdapters, adapter, 'catchUp', adapterVerb);
-      if (state === 'awaitingOwner') owe(outstandingOwners, owner, 'completion', ownerVerb);
+      if (state === 'awaitingAdapter') owe(outstandingAdapters, adapter, 'catchUp', adapterVerb, ownerAtCurrent);
+      if (state === 'awaitingOwner') owe(outstandingOwners, owner, 'completion', ownerVerb, adapterAtCurrent);
       // A mixed pair can owe on both sides at once, and suppressing one of them would hide a deploy.
       if (ownerSide === 'mixed' && state === 'awaitingAdapter' && outstandingOwners.length > 0) {
-        owe(outstandingOwners, owner, 'completion', ownerVerb);
+        owe(outstandingOwners, owner, 'completion', ownerVerb, adapterAtCurrent);
       }
 
+      // Whether the constraint is still PENDING or already BREACHED, which decides the tense.
+      //
+      // "A must move before B stops" is the right sentence only while B has not stopped. Where no
+      // owner declares the baseline any more, B stopped already: the deadline has passed, the gap is
+      // live, and a future-tense sentence reads to someone under pressure as "not yet urgent". An
+      // on-call engineer read exactly that off `inventory:reserve` while the call was failing 100%.
+      const ownerLeftBaseline = ownerAtBaseline.length === 0;
+
       let constraint: string | null = null;
-      if (ownerSide !== 'mixed' && state === 'awaitingAdapter') {
+      if (ownerSide !== 'mixed' && state === 'awaitingAdapter' && ownerLeftBaseline) {
+        constraint = `${list(ownerAtCurrent)} no longer ${ownerVerb.third} ${topic} ${baselineVersion}, `
+          + `and ${list(outstandingAdapters)} is still ${adapterVerb.gerund} it. `
+          + `${list(outstandingAdapters)} must ${adapterVerb.imperative} ${entry.version}.`;
+      } else if (ownerSide !== 'mixed' && state === 'awaitingAdapter') {
         constraint = `${list(outstandingAdapters)} must ${adapterVerb.imperative} ${topic} `
           + `${entry.version} before ${list(ownerAtCurrent)} stops ${ownerVerb.gerund} ${baselineVersion}. `
           + `${list(ownerAtCurrent)} already ${ownerVerb.third} ${entry.version}.`;
@@ -263,6 +309,7 @@ export function buildRollouts(
         outstanding: [...new Set(obligations.map((o) => o.service))].sort(),
         obligations,
         constraint,
+        breached: state === 'awaitingAdapter' && ownerLeftBaseline,
         disjointNote: disjoint
           ? `No version of ${topic} produced in this estate is handled in this estate.`
           : null,

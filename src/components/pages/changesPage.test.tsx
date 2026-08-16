@@ -233,7 +233,12 @@ describe('the rollouts grain', () => {
     const store = await rolloutEstate();
     show(store, <ChangesPage />);
 
-    expect(screen.getByText(/must send inventory:reserve v2 before/)).toBeInTheDocument();
+    // Present tense here: shipping-api has already dropped v1, so the deadline has passed and a
+    // "before X stops" sentence would read as "not yet urgent" on a call failing 100%.
+    expect(screen.getByText(/shipping-api no longer handles inventory:reserve v1/)).toBeInTheDocument();
+    expect(screen.getByText(/gap live now/)).toBeInTheDocument();
+    // …and still future tense where the other side genuinely has not stopped.
+    expect(screen.getAllByText(/before orders-api stops producing v1/).length).toBeGreaterThan(0);
     expect(screen.queryByText(/must ship together/)).not.toBeInTheDocument();
     expect(screen.queryByText(/deploy first/i)).not.toBeInTheDocument();
   });
@@ -312,6 +317,6 @@ describe('the estate tile re-bases on the join', () => {
 
     const section = screen.getByRole('heading', { name: 'Contract changes' }).closest('section')!;
     // The proven outage leads, and its constraint sentence is on the front door.
-    expect(within(section).getByText(/must send inventory:reserve v2 before/)).toBeInTheDocument();
+    expect(within(section).getByText(/shipping-api no longer handles inventory:reserve v1/)).toBeInTheDocument();
   });
 });

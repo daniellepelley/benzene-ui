@@ -1,0 +1,14 @@
+import { chromium } from 'playwright';
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1440, height: 1800 } });
+await page.goto('http://localhost:8930/', { waitUntil: 'networkidle' });
+await page.waitForTimeout(2000);
+const btns = await page.getByRole('button', { name: 'show', exact: true }).all();
+await btns[btns.length-1].click();
+await page.waitForTimeout(2500);
+const box = await page.locator('svg').last().boundingBox();
+console.log("svg box", JSON.stringify(box));
+await page.screenshot({ path: '/tmp/claude-0/-home-user-Benzene/77b3f3e3-e32a-52a7-bd95-4e3fccac2f7b/scratchpad/shots/16-topo.png', clip: { x: Math.max(0,box.x-20), y: Math.max(0,box.y-60), width: box.width+40, height: box.height+80 } , fullPage: true});
+const html = await page.locator('svg').last().evaluate(n => n.outerHTML);
+console.log(html.slice(0,4000));
+await browser.close();

@@ -1,6 +1,6 @@
 import type { Rollout } from '../../store/rollouts';
 import { VerdictBadge } from './ContractChanges';
-import { ROLLOUT_STATE_LABEL, VERSIONED_OUT_COPY } from './compatibilityCopy';
+import { ROLLOUT_BREACHED_LABEL, ROLLOUT_STATE_LABEL, VERSIONED_OUT_COPY } from './compatibilityCopy';
 
 export interface RolloutListProps {
   rollouts: Rollout[];
@@ -34,8 +34,8 @@ export function RolloutList({ rollouts, onOpenTopic, onOpenService }: RolloutLis
           data-disjoint={r.disjoint ? 'true' : undefined}
         >
           <div className="bz-rollout-head">
-            <span className="bz-vc-chip" data-state={r.state}>
-              {ROLLOUT_STATE_LABEL[r.state] ?? r.state}
+            <span className="bz-vc-chip" data-state={r.state} data-breached={r.breached ? 'true' : undefined}>
+              {r.breached ? ROLLOUT_BREACHED_LABEL : (ROLLOUT_STATE_LABEL[r.state] ?? r.state)}
             </span>
             <button type="button" className="bz-topic-name" onClick={() => onOpenTopic(r.topic, r.version)}>
               {r.topic}

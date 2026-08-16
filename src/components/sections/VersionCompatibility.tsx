@@ -2,7 +2,7 @@ import type { TopicsVersionCompatibilityItem } from '../../contracts';
 import type { Rollout } from '../../store/rollouts';
 import { Chip } from '../primitives/Chip';
 import {
-  DISJOINT_CLAIM_NOTE, NO_PRODUCER_COPY, POLLED_INSTANCE_CAVEAT, ROLLOUT_STATE_LABEL,
+  DISJOINT_CLAIM_NOTE, NO_PRODUCER_COPY, POLLED_INSTANCE_CAVEAT, ROLLOUT_BREACHED_LABEL, ROLLOUT_STATE_LABEL,
   VERSIONED_OUT_COPY,
 } from './compatibilityCopy';
 
@@ -68,8 +68,9 @@ export function VersionCompatibility({ compatibility, rollout }: VersionCompatib
           topic is already looking, rather than in a section of their own. */}
       {rollout && (
         <p className="bz-vc-state">
-          <span className="bz-vc-chip" data-state={rollout.state} data-verdict={rollout.verdict}>
-            {ROLLOUT_STATE_LABEL[rollout.state] ?? rollout.state}
+          <span className="bz-vc-chip" data-state={rollout.state} data-verdict={rollout.verdict}
+            data-breached={rollout.breached ? 'true' : undefined}>
+            {rollout.breached ? ROLLOUT_BREACHED_LABEL : (ROLLOUT_STATE_LABEL[rollout.state] ?? rollout.state)}
           </span>
           {rollout.constraint && <span className="bz-vc-constraint">{rollout.constraint}</span>}
         </p>

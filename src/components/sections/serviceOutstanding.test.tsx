@@ -114,3 +114,38 @@ describe('the empty states', () => {
     expect(screen.getByText(/does not publish contract comparisons/)).toBeTruthy();
   });
 });
+
+/**
+ * Two findings from the same service owner, one round apart. The first version of this block named
+ * neither the counterpart nor the fact that the old version has to stay live — so the sentence a
+ * service owner would actually paste into Slack lived on a different screen, and `handle v2` read as
+ * `swap to v2` on a topic whose producer was still emitting v1.
+ */
+describe('the row answers "who is blocked on me" and "what do I keep alive"', () => {
+  it('names the counterpart rather than saying "the other side"', () => {
+    show('billing-api');
+    const placed = screen.getAllByRole('listitem').find((li) => li.textContent?.includes('order:placed'))!;
+    expect(placed.textContent).toContain('orders-api has already moved');
+    expect(placed.textContent).toContain('cannot retire v1 until this ships');
+  });
+
+  it('says the baseline must stay live while the other side is still on it', () => {
+    show('billing-api');
+    const placed = screen.getAllByRole('listitem').find((li) => li.textContent?.includes('order:placed'))!;
+    // orders-api produces v1 AND v2, so a v2-only handler here kills the live path on deploy.
+    expect(placed.textContent).toContain('keep v1 live');
+  });
+
+  it('does not say it on a completion, which has nobody left to strand', () => {
+    show('billing-api');
+    const raise = screen.getAllByRole('listitem').find((li) => li.textContent?.includes('invoice:raise'))!;
+    expect(raise.textContent).not.toContain('keep v1 live');
+    expect(raise.textContent).toContain('ledger-api is already reading v2');
+  });
+
+  it('does not say it where the other side has already left the baseline', () => {
+    // shipping-api dropped inventory:reserve v1 entirely; there is no live v1 path to protect.
+    const orders = obligationsFor('orders-api');
+    expect(orders[0]!.alongsideBaseline).toBe(false);
+  });
+});

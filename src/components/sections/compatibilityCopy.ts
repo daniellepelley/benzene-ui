@@ -149,3 +149,14 @@ export const ROLLOUT_STATE_LABEL: Record<string, string> = {
 export const VERSIONED_OUT_COPY =
   'Both sides run both versions. This change is breaking and has been versioned out, so no '
   + 'deployment is coupled to it.';
+
+/**
+ * The label for a constraint that is not pending but already broken.
+ *
+ * "Move outstanding" and "gap live now" are the same state and completely different urgencies: in
+ * the first the other side is still on the old version, in the second it has already left and
+ * whatever is still talking to it has nothing to talk to. An on-call engineer read the pending
+ * wording off a call that was failing 100% and under-rated the incident by a grade, so the two are
+ * labelled apart rather than left to the sentence beneath.
+ */
+export const ROLLOUT_BREACHED_LABEL = 'gap live now';

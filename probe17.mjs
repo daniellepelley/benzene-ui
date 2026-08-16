@@ -1,0 +1,12 @@
+import { chromium } from 'playwright';
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1440, height: 700 } });
+await page.goto('http://localhost:8930/', { waitUntil: 'networkidle' });
+await page.waitForTimeout(2000);
+const btns = await page.getByRole('button', { name: 'show', exact: true }).all();
+await btns[btns.length-1].click();
+await page.waitForTimeout(2000);
+await page.locator('svg[role="img"]').last().scrollIntoViewIfNeeded();
+await page.waitForTimeout(800);
+await page.screenshot({ path: '/tmp/claude-0/-home-user-Benzene/77b3f3e3-e32a-52a7-bd95-4e3fccac2f7b/scratchpad/shots/17-topo.png' });
+await browser.close();

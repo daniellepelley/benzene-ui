@@ -157,9 +157,29 @@ describe('rollouts — the constraint sentence', () => {
   });
 
   it('uses "send" for a caller adapting to a handler, not "produce"', () => {
-    expect(at('inventory:reserve').constraint).toBe(
-      'orders-api must send inventory:reserve v2 before shipping-api stops handling v1. '
-      + 'shipping-api already handles v2.');
+    expect(at('inventory:reserve').constraint).toContain('is still sending it');
+    expect(at('inventory:reserve').constraint).toContain('must send v2');
+  });
+
+  /**
+   * "A must move before B stops" is the right sentence only while B has not stopped. On
+   * `inventory:reserve` the handler dropped v1 already, so the deadline has passed and the calls are
+   * failing now — and an on-call engineer read the future tense as "not yet urgent" while the edge
+   * was at a 100% error rate.
+   */
+  it('switches to the present tense when the deadline has already passed', () => {
+    const r = at('inventory:reserve');
+    expect(r.breached).toBe(true);
+    expect(r.constraint).toBe(
+      'shipping-api no longer handles inventory:reserve v1, and orders-api is still sending it. '
+      + 'orders-api must send v2.');
+  });
+
+  it('keeps the future tense while the other side genuinely has not stopped', () => {
+    // orders-api still produces payment:capture v1, so payments-api does still have time.
+    const r = at('payment:capture');
+    expect(r.breached).toBe(false);
+    expect(r.constraint).toContain('before orders-api stops producing v1');
   });
 
   it('states a completion as unblocked rather than as a deadline', () => {

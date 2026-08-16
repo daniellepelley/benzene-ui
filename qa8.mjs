@@ -1,0 +1,14 @@
+import { chromium } from 'playwright';
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1440, height: 1400 } });
+page.on('pageerror', e => console.log('PAGE ERR: '+e.message));
+await page.goto('http://localhost:8930/#topic/payment%3Acapture@v2', { waitUntil: 'networkidle' });
+await page.waitForTimeout(1200);
+await page.getByRole('button', { name: 'compose a message' }).click();
+await page.waitForTimeout(2000);
+console.log('URL:', page.url());
+console.log(await page.locator('body').innerText());
+console.log('=== CONTROLS ===');
+const ctrls = await page.evaluate(() => [...document.querySelectorAll('button,select,input,textarea')].map(e=>e.tagName+'|'+(e.className||'').toString().slice(0,30)+'|'+(e.getAttribute('type')||'')+'|'+(e.innerText||e.value||'').replace(/\n/g,'\\n').slice(0,80)));
+console.log(ctrls.join('\n'));
+await browser.close();

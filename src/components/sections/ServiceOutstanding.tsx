@@ -2,6 +2,12 @@ import type { Obligation } from '../../store/rollouts';
 import { VerdictBadge } from './ContractChanges';
 import { OUTSTANDING_EMPTY, OUTSTANDING_NOT_PUBLISHED, OUTSTANDING_SINGLE_VERSION } from './compatibilityCopy';
 
+/** Oxford-free list join, matching the constraint sentences. */
+const list = (services: string[]): string =>
+  (services.length <= 1
+    ? services[0] ?? ''
+    : `${services.slice(0, -1).join(', ')} and ${services[services.length - 1]}`);
+
 export interface ServiceOutstandingProps {
   service: string;
   obligations: Obligation[];
@@ -68,11 +74,24 @@ export function ServiceOutstanding({
                 still leaves this service a deploy to do — which is exactly why the obligation is not
                 derived from the verdict. */}
             <VerdictBadge verdict={o.verdict} attribute={false} baseline={o.baselineVersion} />
+            {/* Named, not "the other side". A service owner's first click has to answer "who is
+                blocked on me" without a hop to another screen, and the anonymous phrasing put the
+                one sentence they would paste into Slack on a page they had not opened. */}
             <span className="bz-outstanding-other">
-              {o.kind === 'catchUp'
-                ? 'the other side has already moved'
-                : 'the other side is already reading it'}
+              {o.counterparts.length === 0
+                ? (o.kind === 'catchUp' ? 'the other side has already moved' : 'the other side is already reading it')
+                : o.kind === 'catchUp'
+                  ? `${list(o.counterparts)} has already moved, and cannot retire ${o.baselineVersion} until this ships`
+                  : `${list(o.counterparts)} is already reading ${o.version}`}
             </span>
+            {/* `handle v2` reads as `swap to v2`. On a topic whose other side is still on the
+                baseline, a version-only deploy kills the live path — which the catalogue knows and
+                the row used to leave the reader to infer from two version lists. */}
+            {o.alongsideBaseline && (
+              <span className="bz-outstanding-alongside">
+                keep {o.baselineVersion} live — {list(o.counterparts)} still uses it
+              </span>
+            )}
           </li>
         ))}
       </ul>

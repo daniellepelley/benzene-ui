@@ -1,0 +1,17 @@
+import { chromium } from 'playwright';
+const base = 'http://localhost:8930/';
+const route = process.argv[2] || '';
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1440, height: 1400 } });
+const errs = [];
+page.on('console', m => { if (m.type()==='error') errs.push('CONSOLE ERR: '+m.text()); });
+page.on('pageerror', e => errs.push('PAGE ERR: '+e.message));
+await page.goto(base + route, { waitUntil: 'networkidle' });
+await page.waitForTimeout(2000);
+console.log('=== URL:', page.url());
+console.log(await page.locator('body').innerText());
+console.log('=== LINKS ===');
+const links = await page.locator('a').evaluateAll(as => as.map(a => (a.getAttribute('href')||'')+' :: '+a.innerText.replace(/\n/g,' ').slice(0,60)));
+console.log([...new Set(links)].join('\n'));
+if (errs.length) console.log('=== ERRORS ===\n'+errs.join('\n'));
+await browser.close();

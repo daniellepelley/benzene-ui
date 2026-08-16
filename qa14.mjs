@@ -1,0 +1,13 @@
+import { chromium } from 'playwright';
+const browser = await chromium.launch();
+const p = await browser.newPage({ viewport:{width:1440,height:1400} });
+p.on('pageerror', e=>console.log('PAGE ERR '+e.message));
+await p.goto('http://localhost:8930/#fleet', { waitUntil:'networkidle' });
+await p.waitForTimeout(1200);
+await p.getByRole('button',{name:'Test',exact:true}).click();
+await p.waitForTimeout(2000);
+console.log('URL:', p.url());
+console.log(await p.locator('body').innerText());
+console.log('=== CONTROLS ===');
+console.log((await p.evaluate(()=>[...document.querySelectorAll('button,select,input,textarea')].map(e=>e.tagName+'|'+(e.className||'').toString().slice(0,28)+'|'+(e.innerText||e.value||'').replace(/\n/g,'\\n').slice(0,70)))).join('\n'));
+await browser.close();

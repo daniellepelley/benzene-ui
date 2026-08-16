@@ -1,0 +1,13 @@
+import { chromium } from 'playwright';
+const browser = await chromium.launch();
+const p = await browser.newPage({ viewport:{width:1440,height:1400} });
+p.on('pageerror', e=>console.log('PAGE ERR '+e.message));
+await p.goto('http://localhost:8930/#test', { waitUntil:'networkidle' });
+await p.waitForTimeout(1200);
+await p.locator('select').nth(1).selectOption('payments-api');
+await p.waitForTimeout(1200);
+console.log('URL after service:', p.url());
+console.log(await p.locator('body').innerText());
+console.log('=== SELECT OPTIONS ===');
+console.log((await p.evaluate(()=>[...document.querySelectorAll('select')].map(s=>s.outerHTML.slice(0,600)))).join('\n\n'));
+await browser.close();

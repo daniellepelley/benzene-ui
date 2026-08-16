@@ -1,0 +1,15 @@
+import { chromium } from 'playwright';
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1440, height: 1400 } });
+page.on('pageerror', e => console.log('PAGE ERR: '+e.message));
+await page.goto('http://localhost:8930/#topic/payment%3Acapture@v2', { waitUntil: 'networkidle' });
+await page.waitForTimeout(1200);
+await page.locator('button.bz-version-opt', { hasText: 'v1' }).first().click();
+await page.waitForTimeout(1500);
+console.log('URL after picking v1:', page.url());
+console.log(await page.locator('body').innerText());
+console.log('--- BACK BUTTON ---');
+await page.goBack(); await page.waitForTimeout(1200);
+console.log('after back URL:', page.url());
+console.log('header:', (await page.locator('body').innerText()).split('\n').slice(12,22).join(' / '));
+await browser.close();

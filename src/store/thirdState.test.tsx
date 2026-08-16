@@ -139,3 +139,63 @@ describe('a count without a period is not a measurement', () => {
     expect(selectUsageWindow(store.getState())).toBeNull();
   });
 });
+
+/**
+ * With the live plane down, `0 DEGRADED / 0 UNREACHABLE` rendered directly beneath a banner saying
+ * the plane could not be reached — claims about reachability made by a UI that had just admitted it
+ * cannot measure reachability. The tile one place to the right already knew how to say
+ * `— NOT COMPUTED`; these three did not.
+ */
+describe('health counts a UI cannot measure are not asserted as zero', () => {
+  const renderEstate = async (over = {}) => {
+    const store = await ready(over);
+    const { render } = await import('@testing-library/react');
+    const { Provider } = await import('react-redux');
+    const { FleetPage } = await import('../components/pages/FleetPage');
+    render(<Provider store={store}><FleetPage /></Provider>);
+    return store;
+  };
+
+  /**
+   * "Unreachable" is a stat-tile label AND the word the estate list uses for a service in that
+   * state, so a bare `getByText` matches two unrelated nodes and fails for a reason that has nothing
+   * to do with the rule under test. Scope to the tile.
+   */
+  const statTile = (label: string, screen: { getAllByText: (t: string) => HTMLElement[] }) => {
+    const tile = screen.getAllByText(label)
+      .map((node) => node.closest('.bz-stat'))
+      .find((node): node is HTMLElement => node != null);
+    if (tile == null) throw new Error(`no stat tile labelled "${label}"`);
+    return tile;
+  };
+
+  it('says not computed when the plane is wired and not answering', async () => {
+    const { screen } = await import('@testing-library/react');
+    const { probeFleet } = await import('./slices/fleetSlice');
+    const store = await ready({ getFleet: async () => { throw new Error('ECONNREFUSED'); } });
+    // The slice stamps a failure with the LAST TICKED CLOCK rather than `Date.now()` — a selector or
+    // reducer that reads the wall clock is neither testable nor memoisable. Without a tick there is
+    // no `lastFailAt` at all, and "wired but not answering" is indistinguishable from "never wired",
+    // which is right of the slice and merely a setup step here.
+    store.dispatch(clockTicked(T0));
+    await store.dispatch(probeFleet());
+
+    const { render } = await import('@testing-library/react');
+    const { Provider } = await import('react-redux');
+    const { FleetPage } = await import('../components/pages/FleetPage');
+    render(<Provider store={store}><FleetPage /></Provider>);
+
+    const tile = statTile('Unreachable', screen);
+    expect(tile.textContent).toContain('—');
+    expect(tile.textContent).toContain('not computed');
+  });
+
+  it('still counts normally when no collector is wired at all', async () => {
+    // No plane is not a gap in knowledge — the manifest is a perfectly good source for declared
+    // status, and degrading it would make the product useless the moment a collector is unwired.
+    const { screen } = await import('@testing-library/react');
+    await renderEstate();
+    const tile = statTile('Unreachable', screen);
+    expect(tile.textContent).not.toContain('not computed');
+  });
+});

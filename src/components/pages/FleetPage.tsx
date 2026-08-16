@@ -3,7 +3,7 @@ import {
   selectEstateSummary, selectDivergences, selectIssueSummary, selectFleetAvailable,
   selectFlaggedTopics, selectEdges, selectFlows, selectFailingFlowsOnly, selectInboxIssues,
   selectServiceRags, selectCollapsedSections, selectFilter, selectVisibleServices,
-  selectChangeSummary, selectRollouts, selectFeedErrors, selectNeverHeartbeated,
+  selectChangeSummary, selectRollouts, selectFeedErrors, selectNeverHeartbeated, selectFeedHealth,
   selectUndeclaredServices,
 } from '../../store/selectors';
 import { navigated, failingFlowsToggled, sectionToggled, filterChanged } from '../../store/slices/viewSlice';
@@ -55,6 +55,8 @@ export function FleetPage() {
   // five here are the same five at the top there.
   const rollouts = useAppSelector(selectRollouts);
   const feedErrors = useAppSelector(selectFeedErrors);
+  // Wired but not answering is the case that matters: no collector at all is not a gap in knowledge.
+  const liveWired = useAppSelector(selectFeedHealth) != null;
   const neverHeartbeated = useAppSelector(selectNeverHeartbeated);
   const undeclared = useAppSelector(selectUndeclaredServices);
   const topRollouts = rollouts.slice(0, CHANGES_PREVIEW);
@@ -68,11 +70,31 @@ export function FleetPage() {
 
   const openService = (name: string) => dispatch(navigated({ page: 'service', selected: name }));
 
+  /*
+   * THE HEALTH TILES ARE FED BY THE MANIFEST, WHICH IS A SNAPSHOT.
+   *
+   * With the live plane down, `0 DEGRADED / 0 UNREACHABLE` rendered directly beneath a banner saying
+   * the plane could not be reached — claims about reachability made by a UI that had just admitted it
+   * cannot measure reachability. The tile one place to the right already knows how to say
+   * `— NOT COMPUTED` when its input is unreadable; these three did not.
+   *
+   * A count of services by status is a contract fact worth keeping, so this feeds it properly rather
+   * than deleting it: the manifest supplies the count, and where the live plane is wired but not
+   * answering, the derived-from-observation tiles say they were not computed instead of asserting a
+   * zero. `Services` stays a real number — the manifest is a perfectly good source for how many
+   * services exist, and that is a different question from whether they are up.
+   */
+  const healthUnknown = liveWired && !liveAvailable;
+  const healthTile = (key: string, value: number, label: string, rag: Rag) =>
+    (healthUnknown
+      ? { key, value: 0, label, placeholder: '—', note: 'not computed — the live plane is not answering' }
+      : { key, value, label, rag });
+
   const stats = [
     { key: 'total', value: summary.total, label: 'Services' },
-    { key: 'red', value: summary.counts.red, label: 'Unhealthy', rag: 'red' as const },
-    { key: 'amber', value: summary.counts.amber, label: 'Degraded', rag: 'amber' as const },
-    { key: 'gone', value: summary.counts.gone, label: 'Unreachable', rag: 'gone' as const },
+    healthTile('red', summary.counts.red, 'Unhealthy', 'red'),
+    healthTile('amber', summary.counts.amber, 'Degraded', 'amber'),
+    healthTile('gone', summary.counts.gone, 'Unreachable', 'gone'),
     // One definition, one number. `summary.drift` counts SERVICES whose spec hash moved, while the
     // changed-topic count is a different figure on a different page — which is why a reader could see
     // "1" here and "4" on the Value page and have no way to reconcile them. This tile now counts the

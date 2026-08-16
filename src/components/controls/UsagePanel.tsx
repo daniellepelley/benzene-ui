@@ -1,9 +1,17 @@
+import type { ReactNode } from 'react';
 import type { TopicTraffic } from '../../store/selectors';
 import { EmptyState } from '../primitives/EmptyState';
 
 export interface UsagePanelProps {
   traffic: TopicTraffic;
-  windowLabel?: string;
+  /**
+   * What period these counts cover.
+   *
+   * A node, not a string, because the honest form of this phrase is a pair of dates that carry their
+   * ages — and a usage window that ended five weeks ago is the single fact that decides whether the
+   * number beside it can be quoted.
+   */
+  windowLabel?: ReactNode;
   /**
    * The version the surrounding page is showing, when there is one. Used only to state honestly that
    * the figure is NOT scoped to it when the feed cannot attribute by version.
@@ -45,7 +53,7 @@ export function UsagePanel({ traffic, windowLabel, version = null }: UsagePanelP
         <span className="bz-usage-fail" style={{ width: `${pct(traffic.failure)}%` }} />
       </div>
       <p className="bz-usage-legend">
-        <strong>{traffic.total.toLocaleString()}</strong> calls{windowLabel ? ` ${windowLabel}` : ''} ·{' '}
+        <strong>{traffic.total.toLocaleString()}</strong> calls{windowLabel ? <> {windowLabel}</> : null} ·{' '}
         {traffic.failure.toLocaleString()} failed ({(failureRate * 100).toFixed(1)}%)
       </p>
       {/* The feed carries no version on its rows, so this total covers the whole topic. Printing it

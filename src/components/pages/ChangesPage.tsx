@@ -1,7 +1,7 @@
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   selectAllChanges, selectUnclassifiedChanges, selectChangeSummary, selectComparisonsPublished,
-  selectRollouts, selectOutstandingByService, VERDICT_ORDER, type LedgerChange,
+  selectRollouts, selectOutstandingByService, selectNow, VERDICT_ORDER, type LedgerChange,
 } from '../../store/selectors';
 import {
   navigated, changeFilterChanged, changeServiceFiltered, changeVerdictFiltered, changeStateFiltered,
@@ -9,6 +9,7 @@ import {
 } from '../../store/slices/viewSlice';
 import { PageHead } from '../controls/PageHead';
 import { EmptyState } from '../primitives/EmptyState';
+import { Stamp } from '../primitives/Stamp';
 import { VerdictBadge, shortPath } from '../sections/ContractChanges';
 import { RolloutList } from '../sections/RolloutList';
 import {
@@ -45,6 +46,7 @@ export function ChangesPage() {
   const state = useAppSelector((s: RootState) => s.view.changeState);
   const rollouts = useAppSelector(selectRollouts);
   const byService = useAppSelector(selectOutstandingByService);
+  const now = useAppSelector(selectNow);
 
   // The union of both sides, not just whoever is on the changed entry. Built from `services` alone,
   // this list silently omitted exactly the population a release review is trying to enumerate — the
@@ -111,7 +113,10 @@ export function ChangesPage() {
           anything — and this is the sentence that stops the ledger being read as "since yesterday". */}
       <p className="bz-page-note">
         Comparing each topic version against the version published before it, in the catalogue
-        published{generatedAt ? ` at ${generatedAt}` : ''}.
+        published{' '}
+        {/* With its age. Every obligation on this page is derived from that catalogue, so how old it
+            is decides whether "4 of 6 topics awaiting a move" is today's news or July's. */}
+        <Stamp iso={generatedAt} now={now} absent="at an unstated time" />.
       </p>
 
       {!published ? (

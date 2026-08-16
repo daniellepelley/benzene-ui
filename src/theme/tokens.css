@@ -500,6 +500,17 @@ input, select, textarea {
 .bz-live-silent { font-size: 0.82rem; color: var(--bz-muted); }
 .bz-live-missing { font-size: 0.72rem; color: var(--bz-rag-amber); font-style: italic; }
 .bz-issue-seen, .bz-issue-exemplars { font-size: 0.82rem; color: var(--bz-muted); margin: 0.2rem 0; }
+
+/* THE DATE/AGE RULE, rendered. The date is the evidence and the age is the decision, so the age is
+   the half that has to survive a glance — it keeps the body colour while the date recedes. Both
+   always appear; neither is any use alone. */
+.bz-stamp { white-space: nowrap; }
+.bz-stamp time { font-variant-numeric: tabular-nums; color: var(--bz-muted); }
+.bz-stamp-label { color: var(--bz-muted); }
+.bz-stamp-age { color: inherit; }
+/* An absent timestamp is a fact about the feed, not a blank — it reads as the third state, not as
+   a missing value nobody noticed. */
+.bz-stamp[data-absent] { font-style: italic; color: var(--bz-muted); white-space: normal; }
 .bz-svc-links { display: inline-flex; gap: 0.5rem; margin-left: auto; font-size: 0.8rem; }
 .bz-svc-links a { color: var(--bz-accent); }
 .bz-health > li { display: block; padding: 0.3rem 0; }

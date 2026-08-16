@@ -1,9 +1,12 @@
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { selectIssueSummary, selectFleetAvailable, selectInboxIssues } from '../../store/selectors';
+import {
+  selectIssueSummary, selectFleetAvailable, selectInboxIssues, selectNow,
+} from '../../store/selectors';
 import { navigated } from '../../store/slices/viewSlice';
 import { IssueRow, issueHeadline } from '../controls/IssueRow';
 import { EmptyState } from '../primitives/EmptyState';
 import { Chip } from '../primitives/Chip';
+import { Stamp } from '../primitives/Stamp';
 
 export interface IssuePageProps {
   /** An issue fingerprint, or 'all' for the inbox. */
@@ -15,6 +18,7 @@ export function IssuePage({ selected }: IssuePageProps) {
   const available = useAppSelector(selectFleetAvailable);
   const issues = useAppSelector(selectInboxIssues);
   const summary = useAppSelector(selectIssueSummary);
+  const now = useAppSelector(selectNow);
 
   if (!available) {
     // No collector is not an empty inbox — saying "no issues" would be a lie of omission.
@@ -30,8 +34,11 @@ export function IssuePage({ selected }: IssuePageProps) {
         <IssueRow issue={issue} />
         <p className="bz-issue-seen">
           {/* First and last seen, not "when it happened": this is a merged signature, and how long
-              it has been recurring is what decides whether it is a regression or background noise. */}
-          first seen {issue.firstSeen} · last seen {issue.lastSeen}
+              it has been recurring is what decides whether it is a regression or background noise.
+              Both carry their age, because "first seen 34d ago, still recurring 2m ago" is the whole
+              judgement and two raw UTC strings made the reader compute it. */}
+          <Stamp iso={issue.firstSeen} now={now} label="first seen" /> ·{' '}
+          <Stamp iso={issue.lastSeen} now={now} label="last seen" />
         </p>
         {issue.exemplarTraceIds.length > 0 && (
           <p className="bz-issue-exemplars">

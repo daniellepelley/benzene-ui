@@ -11,7 +11,7 @@ import { navigated, rangeChanged, themeCycled, themeRestored, type Theme } from 
 import {
   selectLoad, selectError, selectPage, selectSelected, selectSelectedService, selectEstateSummary,
   selectFeedHealth, selectRefreshState, selectRefreshNote, selectCanRefresh, selectLogoutUrl,
-  RANGE_OPTIONS,
+  selectNow, RANGE_OPTIONS,
 } from './store/selectors';
 import {
   FleetPage, ServicePage, TopicPage, IssuePage, ComposePage, ValuePage, TestConsolePage,
@@ -20,6 +20,7 @@ import {
 import { FeedHealthLine } from './components/controls/FeedHealthLine';
 import { EmptyState } from './components/primitives/EmptyState';
 import { StatusGlyph } from './components/primitives/StatusGlyph';
+import { Stamp } from './components/primitives/Stamp';
 import { RangePicker } from './components/controls/RangePicker';
 import { ThemeToggle } from './components/controls/ThemeToggle';
 import { RefreshButton } from './components/controls/RefreshButton';
@@ -45,6 +46,7 @@ export function App() {
   const summary = useAppSelector(selectEstateSummary);
   const feedHealth = useAppSelector(selectFeedHealth);
   const generatedAtUtc = useAppSelector((s) => s.estate.generatedAtUtc);
+  const now = useAppSelector(selectNow);
   const liveAvailable = useAppSelector((s) => s.fleet.available);
   const theme = useAppSelector((s) => s.view.theme);
   const canRefresh = useAppSelector(selectCanRefresh);
@@ -146,12 +148,18 @@ export function App() {
           Benzene Mesh
         </button>
         {/* How old is what I am looking at. It is in the contract and was rendered nowhere — a
-            dashboard that will not say when it was last right is asking to be trusted blindly. */}
-        {generatedAtUtc && (
-          <span className="bz-app-meta" title="When the aggregator last published these artifacts">
-            generated {generatedAtUtc}
-          </span>
-        )}
+            dashboard that will not say when it was last right is asking to be trusted blindly.
+            The AGE is the half that decides anything: a 2.5-month-stale snapshot rendered a raw UTC
+            string indistinguishable from a fresh one, while every obligation on the Changes page was
+            computed from it. */}
+        <span className="bz-app-meta" title="When the aggregator last published these artifacts">
+          <Stamp
+            iso={generatedAtUtc}
+            now={now}
+            label="generated"
+            absent="the aggregator published no timestamp with these artifacts"
+          />
+        </span>
         <nav className="bz-nav">
           <button
             type="button"

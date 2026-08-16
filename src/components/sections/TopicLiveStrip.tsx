@@ -1,6 +1,7 @@
 import type { TopicLive, TopicTraffic } from '../../store/selectors';
 import { formatCount } from '../../store/selectors';
 import { Chip } from '../primitives/Chip';
+import { Stamp } from '../primitives/Stamp';
 
 export interface TopicLiveStripProps {
   live: TopicLive;
@@ -8,6 +9,8 @@ export interface TopicLiveStripProps {
   traffic: TopicTraffic;
   /** Drills the error count into the flows behind it. Without it the count is a dead end. */
   onShowFailingFlows?: () => void;
+  /** The ticked clock, so every date on the strip carries its age. */
+  now: number;
 }
 
 /**
@@ -22,7 +25,7 @@ export interface TopicLiveStripProps {
  * Live silence is reported as silence *in that window*, not as zero traffic: a topic with no live
  * rows in fifteen minutes and thousands of messages in the usage feed is a quiet topic, not a dead one.
  */
-export function TopicLiveStrip({ live, traffic, onShowFailingFlows }: TopicLiveStripProps) {
+export function TopicLiveStrip({ live, traffic, onShowFailingFlows, now }: TopicLiveStripProps) {
   if (!live.available) return null;
 
   return (
@@ -42,6 +45,17 @@ export function TopicLiveStrip({ live, traffic, onShowFailingFlows }: TopicLiveS
             {traffic.observed
               ? `no live traffic in the last ${live.rangeLabel}`
               : `not observed in the live mesh in the last ${live.rangeLabel}`}
+            {/* THE QUESTION THE READER ACTUALLY HAD. "Observed 0 in fifteen minutes" says almost
+                nothing about a topic that fires twice a day, and everything about one that fires
+                every second — and only the date tells them which this is. The collector stamps it on
+                every trace event and nothing in the product read it. */}
+            {' · '}
+            <Stamp
+              iso={live.lastSeen}
+              now={now}
+              label="last carried traffic"
+              absent="this plane has never seen it carry traffic"
+            />
           </span>
         </>
       ) : (
@@ -52,7 +66,9 @@ export function TopicLiveStrip({ live, traffic, onShowFailingFlows }: TopicLiveS
             {/* The counts do not always answer the picked window. When they do not, they say so here
                 rather than borrowing the window's label — see TopicLive.countsSince. */}
             <span className="bz-live-window">
-              {live.countsSince ? `counts cover from ${live.countsSince}` : `last ${live.rangeLabel}`}
+              {live.countsSince
+                ? <>counts cover from <Stamp iso={live.countsSince} now={now} /></>
+                : `last ${live.rangeLabel}`}
             </span>
           </span>
           <span className="bz-live-item" data-failing={live.errors > 0 ? 'true' : undefined}>
@@ -110,6 +126,12 @@ export function TopicLiveStrip({ live, traffic, onShowFailingFlows }: TopicLiveS
                     {status} {formatCount(count)}
                   </Chip>
                 ))}
+            </span>
+          )}
+          {live.lastSeen && (
+            <span className="bz-live-item">
+              <span className="bz-live-k">last carried traffic</span>
+              <Stamp iso={live.lastSeen} now={now} />
             </span>
           )}
           {live.missingFeeds.length > 0 && (

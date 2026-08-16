@@ -3,7 +3,9 @@ import { createStore } from './store';
 import { loadCatalog } from './slices/catalogSlice';
 import { loadService } from './slices/estateSlice';
 import { utilityToggled } from './slices/viewSlice';
-import { selectUsageForService, selectServiceAbout, usageGroups, formatCount, formatAge } from './selectors';
+import {
+  selectUsageForService, selectServiceAbout, usageGroups, formatCount, formatAge, formatStamp,
+} from './selectors';
 import { fakeMeshApi } from '../test/fakeMeshApi';
 import type { ServiceSnapshot, Usage, UsageEntriesItem } from '../contracts';
 
@@ -213,5 +215,56 @@ describe('formatting', () => {
     expect(formatAge(3 * 24 * 3_600_000)).toBe('3d');
     // Clock skew can put an observation slightly in the future. "-3s ago" is worse than "just now".
     expect(formatAge(-3_000)).toBe('just now');
+  });
+});
+
+/**
+ * THE DATE/AGE RULE, at the one place that implements it.
+ *
+ * A date is never rendered without its age, and an age never without its date. Every surface goes
+ * through here, and the `Stamp` primitive is the only component allowed to call it — so these
+ * assertions are the whole rule, and `architecture.test.ts` enforces that nothing bypasses them.
+ */
+describe('formatStamp', () => {
+  const NOW = Date.parse('2026-08-09T06:00:00Z');
+
+  it('renders the date and the age together, always', () => {
+    const stamp = formatStamp('2026-07-15T09:15:00Z', NOW);
+    expect(stamp).not.toBeNull();
+    expect(stamp!.date).toBe('2026-07-15 09:15 UTC');
+    expect(stamp!.age).toBe('25d ago');
+    expect(stamp!.text).toBe('2026-07-15 09:15 UTC (25d ago)');
+  });
+
+  it('formats in UTC, not the host locale', () => {
+    // The artifacts are UTC and the collector is UTC. A reader comparing the screen against a log
+    // line must not have to work out which zone the screen decided to use.
+    expect(formatStamp('2026-01-02T23:45:00Z', NOW)!.date).toBe('2026-01-02 23:45 UTC');
+    expect(formatStamp('2026-01-02T23:45:00+02:00', NOW)!.date).toBe('2026-01-02 21:45 UTC');
+  });
+
+  it('returns null for an absent or unparseable instant, so the caller states the third state', () => {
+    // Never an epoch, never "1970": an absent timestamp is a fact about the feed, and a plausible
+    // wrong date is worse than a stated absence.
+    expect(formatStamp(null, NOW)).toBeNull();
+    expect(formatStamp(undefined, NOW)).toBeNull();
+    expect(formatStamp('', NOW)).toBeNull();
+    expect(formatStamp('not a date', NOW)).toBeNull();
+  });
+
+  it('omits the age rather than inventing one before the clock has ticked', () => {
+    // `fleet.now` rests at 0 until the app ticks it — that is "no clock yet", not midnight in 1970,
+    // and computing an age from it would render every timestamp as 56 years old.
+    const stamp = formatStamp('2026-07-15T09:15:00Z', 0);
+    expect(stamp!.age).toBeNull();
+    expect(stamp!.text).toBe('2026-07-15 09:15 UTC');
+  });
+
+  it('says "just now" rather than a negative age when the clock is skewed', () => {
+    expect(formatStamp('2026-08-09T06:00:02Z', NOW)!.age).toBe('just now');
+  });
+
+  it('keeps the machine-readable instant, so a copy-paste survives', () => {
+    expect(formatStamp('2026-07-15T09:15:00Z', NOW)!.iso).toBe('2026-07-15T09:15:00Z');
   });
 });

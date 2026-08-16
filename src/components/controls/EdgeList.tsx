@@ -2,6 +2,7 @@ import { edgeLivenessFromField } from '../../contracts/mesh';
 import type { TopologyEdgesItem } from '../../contracts';
 import { EmptyState } from '../primitives/EmptyState';
 import { Chip } from '../primitives/Chip';
+import { Stamp } from '../primitives/Stamp';
 
 export interface EdgeListProps {
   edges: TopologyEdgesItem[];
@@ -9,12 +10,14 @@ export interface EdgeListProps {
   show: 'client' | 'server';
   emptyMessage: string;
   onOpen?: (service: string) => void;
+  /** The ticked clock. `mesh.md` §4.2's "last observed at" is only useful with its age beside it. */
+  now: number;
 }
 
 const rate = (v: number | null | undefined) =>
   v == null ? null : `${(v * 100).toFixed(1)}%`;
 
-export function EdgeList({ edges, show, emptyMessage, onOpen }: EdgeListProps) {
+export function EdgeList({ edges, show, emptyMessage, onOpen, now }: EdgeListProps) {
   if (edges.length === 0) return <EmptyState message={emptyMessage} />;
 
   return (
@@ -55,8 +58,9 @@ export function EdgeList({ edges, show, emptyMessage, onOpen }: EdgeListProps) {
                 declared — never observed
               </Chip>
             ) : liveness === 'observed' ? (
-              <Chip title={`Declared by the services' contracts; last traced ${e.lastObservedAt}`}>
-                declared — last observed {e.lastObservedAt}
+              <Chip title="Declared by the services' contracts, and traced at least once">
+                declared — last observed{' '}
+                <Stamp iso={e.lastObservedAt} now={now} absent="at an unstated time" />
               </Chip>
             ) : (
               <Chip title="Declared by the services' contracts; no trace source has observed this call">

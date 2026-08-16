@@ -6,7 +6,7 @@ import {
   selectFlowsForService, selectFailingFlowsOnly, selectServiceChangeSummary,
   selectObligationsForService, selectComparisonsPublished, selectServiceHasVersionPairs,
   selectRolloutsAwaitedByService, selectUsageWindow, selectMissingFeedsForService,
-  selectObservedHealth,
+  selectObservedHealth, selectNow, selectFleetService,
 } from '../../store/selectors';
 import { navigated, utilityToggled, failingFlowsToggled, changeServiceFiltered,
 } from '../../store/slices/viewSlice';
@@ -44,6 +44,8 @@ export function ServicePage({ service }: ServicePageProps) {
   const liveness = useAppSelector((s: RootState) => selectLiveness(s, service));
   const issues = useAppSelector((s: RootState) => selectIssuesForService(s, service));
   const live = useAppSelector(selectFleetAvailable);
+  const now = useAppSelector(selectNow);
+  const observed = useAppSelector((s: RootState) => selectFleetService(s, service));
   const entity = `service:${service}`;
   const thread = useAppSelector((s: RootState) => selectThread(s, entity));
   const canPost = useAppSelector(selectCanPost);
@@ -162,16 +164,21 @@ export function ServicePage({ service }: ServicePageProps) {
         {/* mesh.md §4: the edge list is the declared graph (`consumes`/`topics`), not trace-derived —
             an empty list means no service has registered the other end, never "nothing observed". */}
         <h4>Outbound</h4>
-        <EdgeList edges={edges.outbound} show="server" emptyMessage="Declares no outbound calls." onOpen={open} />
+        <EdgeList edges={edges.outbound} show="server" emptyMessage="Declares no outbound calls." onOpen={open} now={now} />
         <h4>Inbound</h4>
-        <EdgeList edges={edges.inbound} show="client" emptyMessage="No service declares a call to this one." onOpen={open} />
+        <EdgeList edges={edges.inbound} show="client" emptyMessage="No service declares a call to this one." onOpen={open} now={now} />
       </Card>
 
       {/* STATE — everything about this instant, including when the snapshot was taken. That row used
           to sit in About, directly above the drift line, which is precisely why the line that decides
           a release read as a timestamp. */}
       <Card title="State">
-        <ServiceLiveness about={about} liveness={live ? liveness : null} />
+        <ServiceLiveness
+          about={about}
+          liveness={live ? liveness : null}
+          now={now}
+          lastSeen={observed?.lastSeen ?? null}
+        />
         <HealthChecks snapshot={snapshot} />
       </Card>
 

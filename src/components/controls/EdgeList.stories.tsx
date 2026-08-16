@@ -5,7 +5,7 @@ import type { TopologyEdgesItem } from '../../contracts';
 const e = (over: Partial<TopologyEdgesItem>): TopologyEdgesItem =>
   ({ client: 'orders-api', server: 'payments-api', source: 'tempo', requestsPerMinute: 86.4, errorRate: 0.18, p50LatencyMs: 45, p95LatencyMs: 420, p99LatencyMs: 890, ...over }) as TopologyEdgesItem;
 
-const meta = { title: 'Controls/EdgeList', component: EdgeList, args: { edges: [e({})], show: 'server', emptyMessage: 'Nothing observed.' } } satisfies Meta<typeof EdgeList>;
+const meta = { title: 'Controls/EdgeList', component: EdgeList, args: { edges: [e({})], show: 'server', emptyMessage: 'Nothing observed.', now: Date.parse('2026-08-09T06:00:00Z') } } satisfies Meta<typeof EdgeList>;
 export default meta;
 type Story = StoryObj<typeof meta>;
 

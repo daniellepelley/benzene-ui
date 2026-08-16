@@ -93,7 +93,8 @@ export const selectFleetAvailable = (s: RootState) => s.fleet.available;
 export const selectFleetLoad = (s: RootState) => s.fleet.load;
 const selectFleetServices = (s: RootState) => s.fleet.services;
 const selectFleetTopics = (s: RootState) => s.fleet.topics;
-const selectNow = (s: RootState) => s.fleet.now;
+/** The ticked wall clock. Exported because every `Stamp` needs it and no component may read one. */
+export const selectNow = (s: RootState) => s.fleet.now;
 /**
  * The inbox, windowed on `lastSeen`.
  *
@@ -986,6 +987,59 @@ export const formatAge = (ms: number): string => {
   return `${Math.round(h / 24)}d`;
 };
 
+/**
+ * A moment, rendered.
+ *
+ * THE DATE/AGE RULE: **a date is never rendered without its age, and an age is never rendered
+ * without its date.** One helper, one test, every surface.
+ *
+ * Half the product printed raw UTC strings — `generated 2026-07-15T09:15:00Z` in the chrome,
+ * `first seen … · last seen …` on the issue page — and left the reader to do the subtraction. A
+ * 2.5-month-stale snapshot then rendered identically to a fresh one *while the page computed "4 of
+ * 6 topics awaiting a move" from it*. The other half printed a bare age with nothing to anchor it,
+ * which cannot be quoted into a document or compared against a deployment record.
+ *
+ * `mesh.md` §4.2 already mandates the discipline one grain down — *"a collector MUST report last
+ * observed at (or its absence) per edge rather than collapsing it to a boolean, so a reader can
+ * judge staleness for itself"* — and this is that sentence applied to the renders.
+ *
+ * Returns `null` for an absent or unparseable timestamp, so the caller renders the third state
+ * rather than a plausible-looking epoch. The date is formatted from the ISO string in UTC, never
+ * through the host locale: the artifacts are UTC, the collector is UTC, and a reader comparing the
+ * screen against a log line must not have to guess which zone the screen is in.
+ */
+export interface StampText {
+  /** `2026-07-15 09:15 UTC`. */
+  date: string;
+  /** `32d ago`, or null when no clock has ticked yet — an age nobody has measured, not a zero. */
+  age: string | null;
+  /** The original ISO string, for `dateTime`/`title` attributes. */
+  iso: string;
+  /** Date and age together, in the one order every surface uses. */
+  text: string;
+}
+
+export const formatStamp = (iso: string | null | undefined, now: number): StampText | null => {
+  if (iso == null || iso === '') return null;
+  const at = Date.parse(iso);
+  if (Number.isNaN(at)) return null;
+
+  const d = new Date(at);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const date = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`
+    + ` ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} UTC`;
+
+  // `now === 0` is the store's "no clock has ticked" resting value, not midnight in 1970. It lasts
+  // one frame in the app and for the whole of any test that does not tick, and in both cases the
+  // honest answer is that the age is unmeasured — so the date renders alone rather than claiming an
+  // age of 56 years.
+  if (now <= 0) return { date, age: null, iso, text: date };
+
+  const ageText = formatAge(now - at);
+  const age = ageText === 'just now' ? 'just now' : `${ageText} ago`;
+  return { date, age, iso, text: `${date} (${age})` };
+};
+
 // ── Service self-description ────────────────────────────────────────────────────────────────────
 
 export interface ServiceDescription {
@@ -1494,6 +1548,16 @@ export interface TopicLive {
    */
   registeredHandlers: string[];
   /**
+   * When this topic last carried a message, per the collector — or null when it never has, or when
+   * the plane does not report it.
+   *
+   * The collector stamps `topic.LastSeen` on every trace event and it was read nowhere. `observed 0`
+   * over a 15-minute window says almost nothing on a topic that fires twice a day; "last carried
+   * traffic 3d ago" answers the question the reader actually had, and is the sentence `mesh.md` §4.2
+   * requires rather than a boolean.
+   */
+  lastSeen: string | null;
+  /**
    * Services the collector has actually TRACED handling this topic — the genuine observation.
    *
    * Three facts, three feeds, and the product must never print one under another's label. `declared`
@@ -1576,6 +1640,11 @@ export const selectLiveForTopic = createSelector(
       // Not who was seen handling it: the plane carries no per-handler invocation count, so there is
       // no observation here to report. Naming it `services` and labelling it "observed handlers" put
       // a registration under a heading that claimed measurement, directly beneath `observed 0`.
+      // The NEWEST across the rows in scope: the topic carried traffic if any version of it did.
+      lastSeen: rows.reduce<string | null>((newest, r) => {
+        if (r.lastSeen == null || r.lastSeen === '') return newest;
+        return newest == null || Date.parse(r.lastSeen) > Date.parse(newest) ? r.lastSeen : newest;
+      }, null),
       registeredHandlers: [...new Set(rows.flatMap((r) => r.consumers))].sort(),
       ...observedHandlersFor(catalogue, topic, version),
       missingFeeds,

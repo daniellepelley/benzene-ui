@@ -16,6 +16,7 @@ const meta = {
   args: {
     live: {
       available: true,
+      lastSeen: null,
       observed: 4820,
       errors: 17,
       avgDurationMs: 14.2,
@@ -27,6 +28,7 @@ const meta = {
       countsSince: null,
     },
     traffic: { success: 148_000, failure: 300, total: 148_300, observed: true, rowsForTopic: true, unrecognised: 0, versionAttributed: false },
+    now: Date.parse('2026-08-09T06:00:00Z'),
   },
 } satisfies Meta<typeof TopicLiveStrip>;
 export default meta;
@@ -37,7 +39,8 @@ export const Live: Story = {};
 export const NoFailures: Story = {
   args: {
     live: {
-      available: true, observed: 4820, errors: 0, avgDurationMs: 11.8,
+      available: true,
+      lastSeen: null, observed: 4820, errors: 0, avgDurationMs: 11.8,
       statusCounts: { ok: 4820 }, registeredHandlers: ['orders-api'], missingFeeds: [],
       observedHandlers: [], activityWired: false,
       rangeLabel: '15 minutes', countsSince: null,
@@ -49,7 +52,8 @@ export const NoFailures: Story = {
 export const QuietInWindow: Story = {
   args: {
     live: {
-      available: true, observed: null, errors: 0, avgDurationMs: null, statusCounts: {},
+      available: true,
+      lastSeen: null, observed: null, errors: 0, avgDurationMs: null, statusCounts: {},
       registeredHandlers: [],
       observedHandlers: [], activityWired: false, missingFeeds: [], rangeLabel: '15 minutes', countsSince: null,
     },
@@ -60,7 +64,8 @@ export const QuietInWindow: Story = {
 export const NotObservedAtAll: Story = {
   args: {
     live: {
-      available: true, observed: null, errors: 0, avgDurationMs: null, statusCounts: {},
+      available: true,
+      lastSeen: null, observed: null, errors: 0, avgDurationMs: null, statusCounts: {},
       registeredHandlers: [],
       observedHandlers: [], activityWired: false, missingFeeds: [], rangeLabel: '24 hours', countsSince: null,
     },
@@ -73,6 +78,7 @@ export const MultipleObservedHandlers: Story = {
   args: {
     live: {
       available: true,
+      lastSeen: null,
       observed: 9100,
       errors: 240,
       avgDurationMs: 88.4,
@@ -90,7 +96,8 @@ export const MultipleObservedHandlers: Story = {
 export const CountsAnswerAnotherWindow: Story = {
   args: {
     live: {
-      available: true, observed: 148320, errors: 300, avgDurationMs: 14.2,
+      available: true,
+      lastSeen: null, observed: 148320, errors: 300, avgDurationMs: 14.2,
       statusCounts: { ok: 148020 }, registeredHandlers: ['orders-api'], missingFeeds: [],
       observedHandlers: [], activityWired: false,
       rangeLabel: '15 minutes', countsSince: '2026-08-08T06:00:00Z',
@@ -102,7 +109,8 @@ export const CountsAnswerAnotherWindow: Story = {
 export const DimensionAbsent: Story = {
   args: {
     live: {
-      available: true, observed: 9100, errors: 240, avgDurationMs: null,
+      available: true,
+      lastSeen: null, observed: 9100, errors: 240, avgDurationMs: null,
       statusCounts: { ok: 8860 }, registeredHandlers: ['payments-api'], missingFeeds: ['duration'],
       observedHandlers: [], activityWired: false,
       rangeLabel: '1 hour', countsSince: null,
@@ -114,7 +122,8 @@ export const DimensionAbsent: Story = {
 export const NoLivePlane: Story = {
   args: {
     live: {
-      available: false, observed: null, errors: 0, avgDurationMs: null, statusCounts: {},
+      available: false,
+      lastSeen: null, observed: null, errors: 0, avgDurationMs: null, statusCounts: {},
       registeredHandlers: [],
       observedHandlers: [], activityWired: false, missingFeeds: [], rangeLabel: '15 minutes', countsSince: null,
     },

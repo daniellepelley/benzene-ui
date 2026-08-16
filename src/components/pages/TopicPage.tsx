@@ -4,7 +4,7 @@ import {
   selectVersionCompatibility, selectHttpMappingsForTopic, selectLiveForTopic, versionLabel,
   selectRolloutForTopic, selectUsageWindow,
   selectFlowsForTopic, selectFailingFlowsOnly, selectTopicCompatibility, selectVersionSwitcher,
-  selectComparisonsPublished, selectTopicEntries,
+  selectComparisonsPublished, selectTopicEntries, selectNow,
 } from '../../store/selectors';
 import { EdgeLivenessChip } from '../controls/EdgeLivenessChip';
 import {
@@ -25,6 +25,7 @@ import { PageHead } from '../controls/PageHead';
 import { Badge } from '../primitives/Badge';
 import { Chip } from '../primitives/Chip';
 import { EmptyState } from '../primitives/EmptyState';
+import { Stamp } from '../primitives/Stamp';
 import type { RootState } from '../../store/store';
 
 export interface TopicPageProps {
@@ -36,6 +37,7 @@ export function TopicPage({ topic }: TopicPageProps) {
   const entry = useAppSelector((s: RootState) => selectTopic(s, topic));
   const traffic = useAppSelector((s: RootState) => selectTrafficForTopic(s, topic));
   const usageWindow = useAppSelector(selectUsageWindow);
+  const now = useAppSelector(selectNow);
   const entity = `topic:${topic}`;
   const thread = useAppSelector((s: RootState) => selectThread(s, entity));
   const canPost = useAppSelector(selectCanPost);
@@ -180,6 +182,7 @@ export function TopicPage({ topic }: TopicPageProps) {
         <TopicLiveStrip
           live={live}
           traffic={traffic}
+          now={now}
           onShowFailingFlows={() => dispatch(pivotedToFailingFlows(topic))}
         />
         {/* The window as DATES when the feed states them. "Over the usage feed's own window" is
@@ -188,7 +191,15 @@ export function TopicPage({ topic }: TopicPageProps) {
         <UsagePanel
           traffic={traffic}
           windowLabel={usageWindow
-            ? `between ${usageWindow.from} and ${usageWindow.to}`
+            ? (
+              <>
+                between <Stamp iso={usageWindow.from} now={now} />
+                {' and '}
+                {/* The END carries the age, because that is the staleness of the whole figure: a
+                    window that closed five weeks ago makes every count beside it historical. */}
+                <Stamp iso={usageWindow.to} now={now} />
+              </>
+            )
             : "over the usage feed's own window, which the feed does not state"}
           version={entry.version}
         />

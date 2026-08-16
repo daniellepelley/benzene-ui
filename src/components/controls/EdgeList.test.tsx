@@ -3,6 +3,9 @@ import { render, screen } from '@testing-library/react';
 import type { TopologyEdgesItem } from '../../contracts';
 import { EdgeList } from './EdgeList';
 
+/** Fixed, so an age never changes under the assertions. */
+const NOW = Date.parse('2026-08-16T08:50:00Z');
+
 /**
  * A topology edge exists in two honest states: measured — a trace source (Tempo/Jaeger/X-Ray) observed
  * the call and reported traffic — and structural — the call is only *declared* by the services' contracts,
@@ -19,7 +22,7 @@ const edge = (over: Partial<TopologyEdgesItem>): TopologyEdgesItem =>
 
 describe('EdgeList — structural vs measured edges', () => {
   it('renders a structural edge (no traffic metrics) without crashing', () => {
-    render(<EdgeList edges={[edge({})]} show="server" emptyMessage="none" />);
+    render(<EdgeList edges={[edge({})]} show="server" emptyMessage="none" now={NOW} />);
     expect(screen.getByText('payments-api')).toBeInTheDocument();
     expect(screen.getByText('structural — no traffic observed')).toBeInTheDocument();
   });
@@ -29,7 +32,7 @@ describe('EdgeList — structural vs measured edges', () => {
       <EdgeList
         edges={[edge({ source: 'tempo', requestsPerMinute: 86.4, errorRate: 0.18, p95LatencyMs: 420 })]}
         show="server"
-        emptyMessage="none"
+        emptyMessage="none" now={NOW}
       />,
     );
     expect(screen.getByText('86.4/min')).toBeInTheDocument();
@@ -43,7 +46,7 @@ describe('EdgeList — structural vs measured edges', () => {
       <EdgeList
         edges={[edge({ source: 'tempo', requestsPerMinute: 6.2, errorRate: null, p95LatencyMs: 15 })]}
         show="server"
-        emptyMessage="none"
+        emptyMessage="none" now={NOW}
       />,
     );
     expect(screen.getByText('6.2/min')).toBeInTheDocument();
@@ -58,12 +61,12 @@ describe('EdgeList — structural vs measured edges', () => {
  */
 describe('EdgeList — declared vs. observed (mesh.md §4.2)', () => {
   it('renders today\'s structural message when the aggregator has not wired liveness at all', () => {
-    render(<EdgeList edges={[edge({})]} show="server" emptyMessage="none" />);
+    render(<EdgeList edges={[edge({})]} show="server" emptyMessage="none" now={NOW} />);
     expect(screen.getByText('structural — no traffic observed')).toBeInTheDocument();
   });
 
   it('flags a declared edge no trace has ever exercised as a decommission candidate', () => {
-    render(<EdgeList edges={[edge({ lastObservedAt: null })]} show="server" emptyMessage="none" />);
+    render(<EdgeList edges={[edge({ lastObservedAt: null })]} show="server" emptyMessage="none" now={NOW} />);
     expect(screen.getByText('declared — never observed')).toBeInTheDocument();
     expect(screen.queryByText('structural — no traffic observed')).not.toBeInTheDocument();
   });
@@ -73,9 +76,14 @@ describe('EdgeList — declared vs. observed (mesh.md §4.2)', () => {
       <EdgeList
         edges={[edge({ lastObservedAt: '2026-08-15T08:50:00Z' })]}
         show="server"
-        emptyMessage="none"
+        emptyMessage="none" now={NOW}
       />,
     );
-    expect(screen.getByText('declared — last observed 2026-08-15T08:50:00Z')).toBeInTheDocument();
+    // The DATE AND THE AGE, per the rule. A raw ISO string made the reader subtract, and this row is
+    // the one place `mesh.md` §4.2's "last observed at" reaches the screen — the age is the half that
+    // decides whether an edge is a decommission candidate.
+    expect(screen.getByText(/declared — last observed/)).toBeInTheDocument();
+    expect(screen.getByText('2026-08-15 08:50 UTC')).toBeInTheDocument();
+    expect(screen.getByText('(24h ago)')).toBeInTheDocument();
   });
 });

@@ -43,19 +43,22 @@ export const NoSelfDescription: Story = {
 
 export const NotLoaded: Story = { args: { about: null } };
 
+/** Fixed, so the stories render the same ages on every run rather than aging as the day goes on. */
+const NOW = Date.parse('2026-08-09T06:00:00Z');
+
 /** The other half: when we last looked, and whether the service is still answering. */
 export const Liveness: StoryObj<typeof ServiceLiveness> = {
-  render: () => <ServiceLiveness about={about} liveness="live" />,
+  render: () => <ServiceLiveness about={about} liveness="live" now={NOW} lastSeen="2026-08-09T05:59:30Z" />,
 };
 
 /** Declared healthy, observed silent — the divergence the two planes exist to expose. */
 export const DeclaredHealthyButStale: StoryObj<typeof ServiceLiveness> = {
-  render: () => <ServiceLiveness about={about} liveness="stale" />,
+  render: () => <ServiceLiveness about={about} liveness="stale" now={NOW} lastSeen="2026-08-09T02:14:00Z" />,
 };
 
 /** Never heartbeated is not a fault: most likely the reporting middleware simply is not wired. */
 export const NeverHeartbeated: StoryObj<typeof ServiceLiveness> = {
-  render: () => <ServiceLiveness about={about} liveness="silent" />,
+  render: () => <ServiceLiveness about={about} liveness="silent" now={NOW} />,
 };
 
 /**

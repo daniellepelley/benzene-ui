@@ -2,6 +2,7 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   selectTopic, selectTrafficForTopic, selectThread, selectCanPost, selectCanAnnotate,
   selectVersionCompatibility, selectHttpMappingsForTopic, selectLiveForTopic, versionLabel,
+  selectRolloutForTopic,
   selectFlowsForTopic, selectFailingFlowsOnly, selectTopicCompatibility, selectVersionSwitcher,
   selectComparisonsPublished, selectTopicEntries,
 } from '../../store/selectors';
@@ -40,6 +41,8 @@ export function TopicPage({ topic }: TopicPageProps) {
   const annotations = useAppSelector((s: RootState) => s.annotations);
   const writable = useAppSelector(selectCanAnnotate);
   const compatibility = useAppSelector((s: RootState) => selectVersionCompatibility(s, topic));
+  // The other half of the same question, for the exact version pair on screen.
+  const rollout = useAppSelector((s: RootState) => selectRolloutForTopic(s, topic));
   const httpMappings = useAppSelector((s: RootState) => selectHttpMappingsForTopic(s, topic));
   const live = useAppSelector((s: RootState) => selectLiveForTopic(s, topic));
   const flows = useAppSelector((s: RootState) => selectFlowsForTopic(s, topic));
@@ -158,7 +161,7 @@ export function TopicPage({ topic }: TopicPageProps) {
           the contract outranks how much traffic it carried. */}
       <ContractChanges compatibility={contract} published={comparisonsPublished} version={entry.version} />
 
-      <VersionCompatibility compatibility={compatibility} />
+      <VersionCompatibility compatibility={compatibility} rollout={rollout} />
 
       <section>
         <h3>Traffic</h3>

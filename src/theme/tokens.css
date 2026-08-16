@@ -820,3 +820,22 @@ button.bz-stat:focus-visible { outline: 2px solid var(--bz-accent); outline-offs
 @media (max-width: 40rem) {
   .bz-outstanding-row { grid-template-columns: 1fr; gap: 0.15rem; }
 }
+
+/* ── Rollout state on the version-compatibility panel ─────────────────────────────────────────────
+   The constraint sentence is body text, not a chip: it is the most important thing on the panel and
+   it is a sentence, so it gets read rather than scanned. The chip beside it names the state so the
+   panel is still scannable at a glance without the sentence carrying the whole load. */
+.bz-vc-state { display: flex; gap: 0.5rem; align-items: baseline; flex-wrap: wrap; margin: 0 0 0.5rem; }
+.bz-vc-chip {
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 2px 7px; border-radius: var(--bz-radius-sm);
+  background: var(--bz-chip-bg); color: var(--bz-chip-fg); white-space: nowrap;
+}
+/* Only an OUTSTANDING move is coloured. A covered pair — including a breaking change that has been
+   versioned out — takes the neutral chip, because colouring it would re-create exactly the cry-wolf
+   this branch exists to remove. */
+.bz-vc-chip[data-state='awaitingAdapter'] { background: var(--bz-rag-red-bg); color: var(--bz-rag-red); }
+.bz-vc-chip[data-state='awaitingOwner'] { background: var(--bz-rag-amber-bg); color: var(--bz-rag-amber); }
+.bz-vc-constraint { font-size: 0.88rem; }
+.bz-vc-disjoint { margin-top: -0.35rem; }
+.bz-vc-caveat { margin: 0.6rem 0 0; font-size: 11.5px; }

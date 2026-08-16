@@ -1689,3 +1689,18 @@ export const selectCatalogTotal = createSelector(
   [selectTopics, selectShowUtility],
   (topics, showUtility) => topics.filter((t) => showUtility || !t.reserved).length,
 );
+
+/**
+ * The rollout for the exact version pair a topic page is showing.
+ *
+ * Version-aware because the panel it feeds sits beside a version switcher: showing v2's ordering
+ * constraint while the reader is looking at v1's schema is the same class of defect as seeding a v1
+ * body under a v2 label.
+ */
+export const selectRolloutForTopic = createSelector(
+  [selectRollouts, selectTopic],
+  (rollouts, entry) =>
+    (entry
+      ? rollouts.find((r) => r.topic === entry.topic && r.version === entry.version)
+      : undefined) ?? null,
+);

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { optionsFromDocument, createMeshApi } from './meshApi';
 import { MeshDispatchBlockedError } from '../store/slices/composeSlice';
+import { MeshFetchError } from '../store/slices/estateSlice';
 
 const doc = (attributes: Record<string, string> = {}) => {
   const root = document.createElement('html');
@@ -21,6 +22,8 @@ describe('deployment configuration', () => {
         'data-fleet-url': '/benzene/mesh',
         'data-annotations-url': '/benzene/annotations',
         'data-dispatch-url': '/benzene/invoke',
+        'data-refresh-url': '/benzene/mesh/refresh',
+        'data-logout-url': '/benzene/auth/logout',
       }),
     );
 
@@ -29,19 +32,32 @@ describe('deployment configuration', () => {
       fleetEndpoint: '/benzene/mesh',
       annotationsEndpoint: '/benzene/annotations',
       dispatchEndpoint: '/benzene/invoke',
+      refreshEndpoint: '/benzene/mesh/refresh',
+      logoutUrl: '/benzene/auth/logout',
     });
   });
 
   it('lets a query parameter point the page at another estate', () => {
     // A link has to be able to override a baked-in default, or one dashboard can never show another.
     const options = optionsFromDocument(
-      loc('?url=https://other.example/manifest.json&fleet=https://other.example/mesh&dispatch=https://other.example/invoke'),
-      doc({ 'data-manifest-url': '/artifacts/manifest.json', 'data-fleet-url': '/benzene/mesh' }),
+      loc(
+        '?url=https://other.example/manifest.json&fleet=https://other.example/mesh' +
+          '&dispatch=https://other.example/invoke&refresh=https://other.example/refresh' +
+          '&logout=https://other.example/logout',
+      ),
+      doc({
+        'data-manifest-url': '/artifacts/manifest.json',
+        'data-fleet-url': '/benzene/mesh',
+        'data-refresh-url': '/benzene/mesh/refresh',
+        'data-logout-url': '/benzene/auth/logout',
+      }),
     );
 
     expect(options.manifestUrl).toBe('https://other.example/manifest.json');
     expect(options.fleetEndpoint).toBe('https://other.example/mesh');
     expect(options.dispatchEndpoint).toBe('https://other.example/invoke');
+    expect(options.refreshEndpoint).toBe('https://other.example/refresh');
+    expect(options.logoutUrl).toBe('https://other.example/logout');
   });
 
   it('configures nothing when the deployment says nothing', () => {
@@ -52,6 +68,8 @@ describe('deployment configuration', () => {
       fleetEndpoint: undefined,
       annotationsEndpoint: undefined,
       dispatchEndpoint: undefined,
+      refreshEndpoint: undefined,
+      logoutUrl: undefined,
     });
   });
 
@@ -60,6 +78,82 @@ describe('deployment configuration', () => {
     // collector must not have this silently also turn on live dispatch.
     const api = createMeshApi({ fleetEndpoint: '/benzene/invoke' });
     expect(api.sendMessage).toBeUndefined();
+  });
+
+  it('does not wire requestRefresh without a refresh endpoint', () => {
+    // Same rule again: no endpoint, no capability, and therefore no control on the page. A mesh that
+    // publishes on a schedule and cannot be poked must not grow a button that 404s.
+    expect(createMeshApi({ fleetEndpoint: '/benzene/mesh' }).requestRefresh).toBeUndefined();
+    expect(createMeshApi({ refreshEndpoint: '/benzene/mesh/refresh' }).requestRefresh).toBeTypeOf('function');
+  });
+});
+
+describe('asking the mesh for a discovery pass', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const refreshFetch = (response: Partial<Response>) => {
+    const fetchMock = vi.fn(async () => ({ ok: true, status: 202, statusText: 'Accepted', ...response }));
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  };
+
+  it('POSTs with the X-Benzene-Refresh header the server requires', async () => {
+    // This header IS the CSRF defence: a cross-site form cannot set one, and a cross-origin fetch
+    // that does gets preflighted and refused. The server rejects a POST without it, so losing this
+    // line would break every refresh — and "fixing" it by making it configurable would break the
+    // defence instead.
+    const fetchMock = refreshFetch({});
+
+    await createMeshApi({ refreshEndpoint: '/benzene/mesh/refresh' }).requestRefresh!();
+
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toMatch(/\/benzene\/mesh\/refresh$/);
+    expect(init.method).toBe('POST');
+    expect(init.headers).toMatchObject({ 'X-Benzene-Refresh': '1' });
+    // The session cookie has to travel, or an authenticated mesh sees an anonymous request.
+    expect(init.credentials).toBe('same-origin');
+  });
+
+  it('rejects with the status attached, so 429 and 401 can be told apart from a real failure', async () => {
+    for (const [status, statusText] of [
+      [429, 'Too Many Requests'],
+      [401, 'Unauthorized'],
+      [500, 'Internal Server Error'],
+    ] as const) {
+      refreshFetch({ ok: false, status, statusText });
+      const failed = createMeshApi({ refreshEndpoint: '/refresh' }).requestRefresh!();
+
+      await expect(failed).rejects.toBeInstanceOf(MeshFetchError);
+      await expect(failed).rejects.toMatchObject({ status });
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+describe('artifact fetches carry their status', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('rejects a missing manifest with a 404 that a reducer can recognise', async () => {
+    // The whole point: "the mesh has not published yet" is a 404 and nothing else. Reading it out of
+    // the message string would be a regex over English.
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 404, statusText: 'Not Found' })));
+
+    const failed = createMeshApi().getManifest();
+
+    await expect(failed).rejects.toBeInstanceOf(MeshFetchError);
+    await expect(failed).rejects.toMatchObject({ status: 404 });
+    // The message is unchanged from before the status existed — it is still what an operator reads.
+    await expect(failed).rejects.toThrow('404 Not Found for manifest.json');
+  });
+
+  it('reports a server error as a server error, not as a missing artifact', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 500, statusText: 'Internal Server Error' })));
+
+    await expect(createMeshApi().getManifest()).rejects.toMatchObject({ status: 500 });
   });
 });
 

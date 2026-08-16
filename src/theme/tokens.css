@@ -377,9 +377,36 @@ input, select, textarea {
 .bz-nav button[aria-current='page'] { background: var(--bz-accent); color: var(--bz-accent-contrast); border-color: var(--bz-accent); }
 /* The window picker holds the right-hand end of the bar. The service filter used to sit here and
    moved to the list it filters; nothing else in the header belongs on that side. */
-/* The toggle is always rendered and always last, so it — not the window picker, which disappears
-   with the live plane — is what holds the right-hand end of the bar. */
-.bz-theme-toggle { margin-left: auto; width: 1.9rem; padding: 0.15rem 0; text-align: center; line-height: 1.3; }
+/* Refresh, theme and sign-out are the controls about the page rather than about the estate, and the
+   group — not any one of them — holds the right-hand end, because two of the three are absent unless
+   the deployment wired them and an `auto` margin on a control that may not render moves the bar. */
+.bz-app-tools { margin-left: auto; display: inline-flex; align-items: center; gap: 0.6rem; }
+.bz-theme-toggle { width: 1.9rem; padding: 0.15rem 0; text-align: center; line-height: 1.3; }
+
+/* ── Session and freshness ─────────────────────────────────────────────────────────────────────
+   Both are absent entirely when unconfigured, so neither ever renders as a dead control. */
+.bz-signout { font-size: 0.82rem; color: var(--bz-muted); text-decoration: none; }
+.bz-signout:hover { color: var(--bz-accent); text-decoration: underline; }
+.bz-refresh { display: inline-flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; }
+.bz-refresh-go { font-size: 0.82rem; padding: 0.15rem 0.6rem; }
+.bz-refresh-go:disabled { opacity: 0.55; cursor: progress; }
+.bz-refresh-note { font-size: 0.78rem; color: var(--bz-muted); }
+/* Rate-limited is not a fault. Only a real failure is allowed to be red, or red stops meaning it. */
+.bz-refresh-note[data-tone='bad'] { color: var(--bz-rag-red); }
+
+/* The first minute of a deployment: nothing published yet, and one obvious way out of it. The
+   dashed box is the EmptyState primitive's `unknown` tone, not a second one drawn here. */
+.bz-first-run { padding: 2.5rem 0; text-align: center; }
+.bz-first-run h2 { margin: 0 0 0.6rem; font-size: 1.05rem; }
+.bz-first-run .bz-empty { justify-content: center; margin-bottom: 1rem; }
+.bz-first-run .bz-refresh { justify-content: center; }
+/* Here the refresh is the page's one call to action, so it wears the primary button's clothes —
+   the composer's, verbatim, rather than a third kind of accent button. */
+.bz-first-run .bz-refresh-go {
+  padding: 0.35rem 1rem; border-color: var(--bz-accent);
+  background: var(--bz-accent); color: var(--bz-accent-contrast); font-weight: 600;
+}
+.bz-first-run .bz-page-note { margin: 0; }
 .bz-page section { margin-bottom: 1.75rem; }
 .bz-page h2 { font-size: 1.15rem; margin: 0 0 0.6rem; }
 .bz-page h3 { font-size: 0.98rem; margin: 0 0 0.45rem; }

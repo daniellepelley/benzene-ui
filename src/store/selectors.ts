@@ -18,6 +18,12 @@ export const RAG_GLYPH: Record<Rag, string> = { red: '▲', amber: '◆', green:
 
 export const selectLoad = (s: RootState) => s.estate.load;
 export const selectError = (s: RootState) => s.estate.error;
+export const selectRefreshState = (s: RootState) => s.estate.refresh;
+export const selectRefreshNote = (s: RootState) => s.estate.refreshNote;
+/** Whether a Refresh control can do anything at all — see capabilitiesSlice. */
+export const selectCanRefresh = (s: RootState) => s.capabilities.refresh;
+/** Where signing out goes, or null when this deployment has no session to end. */
+export const selectLogoutUrl = (s: RootState) => s.capabilities.logoutUrl;
 export const selectFilter = (s: RootState) => s.view.filter;
 export const selectPage = (s: RootState) => s.view.page;
 export const selectSelected = (s: RootState) => s.view.selected;

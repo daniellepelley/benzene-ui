@@ -12,7 +12,7 @@ const options = optionsFromDocument(window.location, document.documentElement);
 const api = createMeshApi(options);
 const store = createStore(api, {
   // Deployment shape is state like everything else — see capabilitiesSlice.
-  capabilities: capabilitiesOf(api, options.manifestUrl),
+  capabilities: capabilitiesOf(api, options.manifestUrl, options.logoutUrl),
 });
 
 connectRouting(store, window);

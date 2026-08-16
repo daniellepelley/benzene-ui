@@ -19,25 +19,52 @@ export interface CapabilitiesState {
   /** Messages can be composed AND sent. */
   invoke: boolean;
   /**
+   * The mesh will run a discovery pass on demand, so a Refresh control has something to do. Without
+   * it the catalog changes only when the mesh's own schedule runs, and no control is offered.
+   */
+  refresh: boolean;
+  /**
    * Where this deployment published its artifacts, when it said.
    *
    * Deployment shape is a fact about the mesh, not a component's business — the same reason the
-   * three booleans live here. It is needed to build links that must resolve in the reader's
-   * deployment rather than in ours.
+   * booleans live here. It is needed to build links that must resolve in the reader's deployment
+   * rather than in ours.
    */
   manifestUrl: string | null;
+  /**
+   * Where signing out goes, when the page is served behind a login gate.
+   *
+   * A URL rather than a boolean because signing out is a plain navigation to the host's logout
+   * endpoint, which redirects — there is nothing to fetch and nothing to await. Null means no auth
+   * is configured, which is the ordinary local and static-hosting case, and means no control at all
+   * rather than a disabled one.
+   */
+  logoutUrl: string | null;
 }
 
-export const capabilitiesOf = (api: MeshApi, manifestUrl?: string): CapabilitiesState => ({
+export const capabilitiesOf = (
+  api: MeshApi,
+  manifestUrl?: string,
+  logoutUrl?: string,
+): CapabilitiesState => ({
   fleet: typeof api.getFleet === 'function',
   annotate: typeof api.postAnnotation === 'function',
   invoke: typeof api.sendMessage === 'function',
+  refresh: typeof api.requestRefresh === 'function',
   manifestUrl: manifestUrl ?? null,
+  logoutUrl: logoutUrl ?? null,
 });
 
 const capabilitiesSlice = createSlice({
   name: 'capabilities',
-  initialState: { fleet: false, annotate: false, invoke: false, manifestUrl: null } as CapabilitiesState,
+  initialState: {
+    fleet: false,
+    annotate: false,
+    invoke: false,
+    refresh: false,
+    manifestUrl: null,
+    logoutUrl: null,
+  } as CapabilitiesState,
   reducers: {},
 });
 

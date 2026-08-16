@@ -20,6 +20,9 @@ export * from './controls/EstateStats';
 export * from './controls/PageHead';
 export * from './controls/CollapsibleSection';
 export * from './controls/ThemeToggle';
+export * from './controls/RefreshButton';
+export * from './controls/SignOut';
+export * from './controls/CatalogEmpty';
 
 export * from './sections/SchemaTree';
 export * from './sections/HealthChecks';

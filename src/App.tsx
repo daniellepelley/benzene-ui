@@ -1,13 +1,16 @@
 import { useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from './store/hooks';
-import { loadManifest, loadService, refreshManifest, ARTIFACT_POLL_MS } from './store/slices/estateSlice';
+import {
+  loadManifest, loadService, refreshManifest, refreshEstate, ARTIFACT_POLL_MS,
+} from './store/slices/estateSlice';
 import { loadCatalog } from './store/slices/catalogSlice';
 import { loadAnnotations } from './store/slices/annotationsSlice';
 import { probeFleet, pollInbox, clockTicked, FLEET_POLL_MS, INBOX_POLL_MS } from './store/slices/fleetSlice';
 import { navigated, rangeChanged, themeCycled, themeRestored, type Theme } from './store/slices/viewSlice';
 import {
   selectLoad, selectError, selectPage, selectSelected, selectSelectedService, selectEstateSummary,
-  selectFeedHealth, RANGE_OPTIONS,
+  selectFeedHealth, selectRefreshState, selectRefreshNote, selectCanRefresh, selectLogoutUrl,
+  RANGE_OPTIONS,
 } from './store/selectors';
 import {
   FleetPage, ServicePage, TopicPage, IssuePage, ComposePage, ValuePage, TestConsolePage,
@@ -17,6 +20,9 @@ import { EmptyState } from './components/primitives/EmptyState';
 import { StatusGlyph } from './components/primitives/StatusGlyph';
 import { RangePicker } from './components/controls/RangePicker';
 import { ThemeToggle } from './components/controls/ThemeToggle';
+import { RefreshButton } from './components/controls/RefreshButton';
+import { SignOut } from './components/controls/SignOut';
+import { CatalogEmpty } from './components/controls/CatalogEmpty';
 
 /** Where a reader's theme choice is remembered between visits. */
 const THEME_KEY = 'benzene.mesh.theme';
@@ -39,6 +45,11 @@ export function App() {
   const generatedAtUtc = useAppSelector((s) => s.estate.generatedAtUtc);
   const liveAvailable = useAppSelector((s) => s.fleet.available);
   const theme = useAppSelector((s) => s.view.theme);
+  const canRefresh = useAppSelector(selectCanRefresh);
+  const refresh = useAppSelector(selectRefreshState);
+  const refreshNote = useAppSelector(selectRefreshNote);
+  const logoutUrl = useAppSelector(selectLogoutUrl);
+  const onRefresh = () => void dispatch(refreshEstate());
 
   useEffect(() => {
     void dispatch(loadManifest());
@@ -177,7 +188,22 @@ export function App() {
           available={liveAvailable}
           onChange={(ms) => dispatch(rangeChanged(ms))}
         />
-        <ThemeToggle theme={theme} onCycle={() => dispatch(themeCycled())} />
+        {/* Appearance, freshness and session: the three things that are about this page rather than
+            about the estate, held together at the right-hand end of the bar. Each is absent when the
+            deployment has not wired it, so an unauthenticated local mesh gets only the toggle. */}
+        <span className="bz-app-tools">
+          {/* Stood down while the first-run state is on screen: that state carries its own copy of
+              this control as its call to action, and two Refresh buttons — each answering a throttle
+              with its own message — would be one more than the page has questions. */}
+          <RefreshButton
+            available={canRefresh && load !== 'empty'}
+            state={refresh}
+            note={refreshNote}
+            onRefresh={onRefresh}
+          />
+          <ThemeToggle theme={theme} onCycle={() => dispatch(themeCycled())} />
+          <SignOut url={logoutUrl} />
+        </span>
       </header>
 
       {/* Only when something is wrong: a green line here would be chrome in the place a warning
@@ -187,6 +213,15 @@ export function App() {
       <main>
         {load === 'loading' && <EmptyState message="Loading the estate…" />}
         {load === 'failed' && <EmptyState message={error ?? 'The estate could not be loaded.'} />}
+        {/* Not a failure: the mesh is up and has published nothing yet. See CatalogEmpty. */}
+        {load === 'empty' && (
+          <CatalogEmpty
+            canRefresh={canRefresh}
+            refresh={refresh}
+            refreshNote={refreshNote}
+            onRefresh={onRefresh}
+          />
+        )}
         {load === 'ready' && (
           <>
             {page === 'fleet' && <FleetPage />}

@@ -123,6 +123,46 @@ export const POLLED_INSTANCE_CAVEAT =
   + 'rollout, instances of the same service can legitimately disagree.';
 
 /**
+ * The same caveat, QUANTIFIED — or withdrawn, where the plane says it does not apply.
+ *
+ * The hedge above was added for honesty and became the thing blocking action: a platform engineer
+ * with a MOVED verdict in front of them could not tell whether it meant "this service has moved" or
+ * "one of its four instances has". `FleetViewServicesItem.instances` answers exactly that and had
+ * never been read.
+ *
+ * Three outcomes, and the middle one is the point — the product stops hedging where it has no reason
+ * to. What it never does is *resolve* the ambiguity: on four instances it says four, not "1 of 4 have
+ * moved", because the collector counts instances and the aggregator polls one of them, and nothing
+ * anywhere joins those two facts. Quantified, not resolved.
+ */
+export const instanceCaveat = (service: string, instances: number | null): string => {
+  if (instances == null) return POLLED_INSTANCE_CAVEAT;
+  if (instances === 1) {
+    return `${service} runs a single instance, so this is the whole truth — there is no other `
+      + 'instance the poll could have reached.';
+  }
+  return `The collector has seen ${instances} instances of ${service}; this contract is what the one `
+    + 'that answered the aggregator’s poll declared.';
+};
+
+/**
+ * The estate-wide form. Withdrawn only when the plane accounts for every declared service.
+ *
+ * `null` means the plane could not account for the estate — no collector, or a service with no row —
+ * and the unqualified caveat stands. An empty list is a genuine finding: every service runs one
+ * instance, so no poll anywhere could have reached a disagreeing one.
+ */
+export const estateInstanceCaveat = (multiInstance: string[] | null): string => {
+  if (multiInstance == null) return POLLED_INSTANCE_CAVEAT;
+  if (multiInstance.length === 0) {
+    return 'Every service in this estate runs a single instance, so each contract below is the whole '
+      + 'truth — there is no other instance the poll could have reached.';
+  }
+  return `${POLLED_INSTANCE_CAVEAT} The collector has seen more than one instance of `
+    + `${multiInstance.join(', ')}.`;
+};
+
+/**
  * No obligation, and the tool did look. Names WHAT WAS CHECKED, and nothing wider.
  *
  * The previous wording — "every version this service declares is covered on both sides of every

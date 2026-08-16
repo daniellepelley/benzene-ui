@@ -262,6 +262,49 @@ export const selectUndeclaredServices = createSelector(
   },
 );
 
+/**
+ * How many instances of a service the collector has seen — or null when it cannot say.
+ *
+ * This is what withdraws a caveat. `POLLED_INSTANCE_CAVEAT` exists because the aggregator's spec
+ * poll reaches whichever instance the load balancer chose, so during a rollout two runs can
+ * legitimately disagree — and it turns every OWES/MOVED verdict on the product's best surface into a
+ * maybe. A caveat added for honesty was blocking action on the output the whole rollout feature
+ * exists to produce.
+ *
+ * On a service running one instance the hedge is simply false, and `instances` has been on the wire
+ * the whole time, unread. Null (no plane, or no row for this service) keeps the caveat: unknown is
+ * not one.
+ */
+export const selectInstanceCount = createSelector(
+  [selectFleetServices, selectFleetAvailable, (_: RootState, service: string) => service],
+  (observed, available, service): number | null => {
+    if (!available) return null;
+    const row = observed.find((o) => o.service === service);
+    // Zero is "the collector has seen none", which is not a count of instances — it is the absence
+    // of an observation, and hedging is right there.
+    return row == null || row.instances <= 0 ? null : row.instances;
+  },
+);
+
+/**
+ * Services the collector has seen running more than one instance.
+ *
+ * The estate-wide form of the same withdrawal: on an estate where the plane accounts for every
+ * declared service and each runs one instance, the poll cannot have reached a disagreeing instance,
+ * so the caveat is withdrawn everywhere rather than merely per service. Null — not an empty list —
+ * whenever the plane cannot account for the whole estate, because "I found none" and "I could not
+ * look" must not render the same.
+ */
+export const selectMultiInstanceServices = createSelector(
+  [(s: RootState) => s.estate.services, selectFleetServices, selectFleetAvailable],
+  (declared, observed, available): string[] | null => {
+    if (!available || declared.length === 0) return null;
+    const rows = new Map(observed.map((o) => [o.service, o]));
+    if (declared.some((d) => (rows.get(d.name)?.instances ?? 0) <= 0)) return null;
+    return declared.filter((d) => (rows.get(d.name)!.instances) > 1).map((d) => d.name);
+  },
+);
+
 // ── Catalog: topics, topology, usage ────────────────────────────────────────────────────────────
 
 import type { TopicsTopicsItem, TopologyEdgesItem, UsageEntriesItem } from '../contracts';

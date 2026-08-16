@@ -184,3 +184,37 @@ describe('a service that owes nothing is not thereby declared healthy', () => {
     expect(screen.queryByText(/Waiting on/)).toBeNull();
   });
 });
+
+/**
+ * A CAVEAT ADDED FOR HONESTY WAS BLOCKING ACTION.
+ *
+ * `POLLED_INSTANCE_CAVEAT` is true and it turns every OWES/MOVED verdict on the product's best
+ * surface into a maybe: a platform engineer reading MOVED could not tell whether it meant "this
+ * service has moved" or "one of its four instances has". `FleetViewServicesItem.instances` answers
+ * exactly that and had never been read.
+ *
+ * The rule is symmetric with the third state elsewhere: state the measurement with its scope, or
+ * state that it was not measured — and stop hedging where there is nothing to hedge about.
+ */
+describe('the polled-instance caveat is quantified, and withdrawn where it does not apply', () => {
+  it('is withdrawn outright on a service running one instance', () => {
+    show('billing-api', { instances: 1 });
+    expect(screen.getByText(/billing-api runs a single instance, so this is the whole truth/)).toBeTruthy();
+    expect(screen.queryByText(/instances of the same service can legitimately disagree/)).toBeNull();
+  });
+
+  it('is quantified, not resolved, on a service running several', () => {
+    // Never "1 of 4 have moved": the collector counts instances and the aggregator polls one of
+    // them, and nothing anywhere joins those two facts. Saying four is honest; saying which is not.
+    show('billing-api', { instances: 4 });
+    expect(screen.getByText(/collector has seen 4 instances of billing-api/)).toBeTruthy();
+    expect(screen.queryByText(/1 of 4/)).toBeNull();
+  });
+
+  it('keeps the unqualified caveat when the plane cannot say', () => {
+    // No collector, or no row for this service. Unknown is not one instance, and a withdrawal built
+    // on an absent count would be the absence-as-good-news defect on the product's sharpest claim.
+    show('billing-api', { instances: null });
+    expect(screen.getByText(/instances of the same service can legitimately disagree/)).toBeTruthy();
+  });
+});

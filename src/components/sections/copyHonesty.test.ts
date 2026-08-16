@@ -24,10 +24,16 @@ const rollouts = buildRollouts(estate.topics, estate.versionCompatibility);
  * Exported functions are called with representative arguments rather than skipped: a sentence built
  * at render time is exactly as capable of over-claiming as a constant, and skipping them would leave
  * the most dynamic copy in the feature unchecked.
+ *
+ * ONE ENTRY PER BRANCH, not per function. `instanceCaveat` withdraws a hedge on one arm and keeps it
+ * on another; auditing whichever arm happened to be listed would leave the interesting half — the
+ * one that stops hedging — unchecked, which is the arm most able to over-claim.
  */
-const CALLS: Record<string, unknown[]> = {
-  OUTSTANDING_EMPTY: ['billing-api'],
-  notComparedSideCopy: [['request', 'response'], 'v1'],
+const CALLS: Record<string, unknown[][]> = {
+  OUTSTANDING_EMPTY: [['billing-api']],
+  notComparedSideCopy: [[['request', 'response'], 'v1']],
+  instanceCaveat: [['shipping-api', null], ['shipping-api', 1], ['shipping-api', 4]],
+  estateInstanceCaveat: [[null], [[]], [['shipping-api', 'billing-api']]],
 };
 
 const strings = (): string[] => {
@@ -35,10 +41,10 @@ const strings = (): string[] => {
   for (const [name, value] of Object.entries(copy)) {
     if (typeof value === 'string') out.push(value);
     else if (typeof value === 'function') {
-      const args = CALLS[name];
+      const calls = CALLS[name];
       // A new exported helper with no entry here is a gap in the audit, not something to skip past.
-      expect(args, `add ${name} to CALLS so its output is audited`).toBeDefined();
-      out.push((value as (...a: unknown[]) => string)(...args!));
+      expect(calls, `add ${name} to CALLS so its output is audited`).toBeDefined();
+      for (const args of calls!) out.push((value as (...a: unknown[]) => string)(...args));
     } else if (value && typeof value === 'object') {
       out.push(...Object.values(value as Record<string, string>));
     }

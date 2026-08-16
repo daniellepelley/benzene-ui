@@ -7,7 +7,8 @@ import { fleetView, fleetService } from '../test/fleetView';
 import { fakeMeshApi } from '../test/fakeMeshApi';
 import {
   selectMissingFeedsForService, selectObservedHealth, selectNeverHeartbeated,
-  selectUndeclaredServices, selectDivergences, selectUsageWindow,
+  selectUndeclaredServices, selectDivergences, selectUsageWindow, selectInstanceCount,
+  selectMultiInstanceServices,
 } from './selectors';
 
 /**
@@ -119,6 +120,32 @@ describe('a service the collector sees and the catalogue does not', () => {
 
     expect(selectUndeclaredServices(store.getState())).toEqual(['promo-api']);
   });
+
+  it('claims nothing when no collector is wired', async () => {
+    // Without a plane there are no observations, so nothing can be observed-but-undeclared. Reporting
+    // an empty list as "no undeclared services" would be the absence-as-good-news defect again.
+    const store = await ready();
+    expect(selectUndeclaredServices(store.getState())).toEqual([]);
+  });
+
+  it('reaches the estate page, with the diagnosis attached', async () => {
+    // The selector existing is not the feature. What a platform engineer needed was the SENTENCE —
+    // "the aggregator has not fetched a spec for it" — because the service being live and absent is
+    // an aggregator wiring problem, not a service problem, and every other cause of "why isn't my
+    // service showing up" sends them somewhere else.
+    const { render, screen } = await import('@testing-library/react');
+    const { Provider } = await import('react-redux');
+    const { FleetPage } = await import('../components/pages/FleetPage');
+    const store = await ready();
+    store.dispatch(fleetObserved(fleetView({
+      services: [fleetService({ service: 'orders-api' }), fleetService({ service: 'promo-api' })],
+    })));
+
+    render(<Provider store={store}><FleetPage /></Provider>);
+    expect(screen.getByText(/reporting to the\s+collector and absent from the manifest/)).toBeInTheDocument();
+    expect(screen.getByText(/the aggregator has not fetched a spec for/)).toBeInTheDocument();
+    expect(screen.getByText('promo-api')).toBeInTheDocument();
+  });
 });
 
 describe('a count without a period is not a measurement', () => {
@@ -197,5 +224,93 @@ describe('health counts a UI cannot measure are not asserted as zero', () => {
     await renderEstate();
     const tile = statTile('Unreachable', screen);
     expect(tile.textContent).not.toContain('not computed');
+  });
+});
+
+/**
+ * A CAVEAT ADDED FOR HONESTY WAS BLOCKING ACTION.
+ *
+ * `POLLED_INSTANCE_CAVEAT` is true, and it converted every OWES/MOVED verdict on the product's best
+ * surface into a maybe. `FleetViewServicesItem.instances` says whether the hedge applies at all, and
+ * had never been read. Withdrawing it is only sound where the count is genuinely known — which makes
+ * this the same third-state rule as the rest of the wave, applied to a hedge instead of a figure.
+ */
+describe('the polled-instance hedge is withdrawn only where the plane can withdraw it', () => {
+  it('reads the instance count the collector reports', async () => {
+    const store = await ready();
+    store.dispatch(fleetObserved(fleetView({
+      services: [
+        fleetService({ service: 'orders-api', instances: 1 }),
+        fleetService({ service: 'payments-api', instances: 4 }),
+      ],
+    })));
+
+    expect(selectInstanceCount(store.getState(), 'orders-api')).toBe(1);
+    expect(selectInstanceCount(store.getState(), 'payments-api')).toBe(4);
+  });
+
+  it('is null, not one, when the plane has no row for the service', async () => {
+    // Unknown is not a single instance. A withdrawal built on an absent count would be
+    // absence-as-good-news on the sharpest claim the product makes.
+    const store = await ready();
+    store.dispatch(fleetObserved(fleetView({
+      services: [fleetService({ service: 'orders-api', instances: 1 })],
+    })));
+
+    expect(selectInstanceCount(store.getState(), 'shipping-api')).toBeNull();
+  });
+
+  it('is null when no collector is wired at all', async () => {
+    const store = await ready();
+    expect(selectInstanceCount(store.getState(), 'orders-api')).toBeNull();
+  });
+
+  it('treats a reported zero as no observation rather than a count', async () => {
+    const store = await ready();
+    store.dispatch(fleetObserved(fleetView({
+      services: [fleetService({ service: 'orders-api', instances: 0 })],
+    })));
+
+    expect(selectInstanceCount(store.getState(), 'orders-api')).toBeNull();
+  });
+
+  it('withdraws the estate-wide hedge only when every declared service is accounted for', async () => {
+    const store = await ready();
+    store.dispatch(fleetObserved(fleetView({
+      services: [
+        fleetService({ service: 'orders-api', instances: 1 }),
+        fleetService({ service: 'payments-api', instances: 1 }),
+        fleetService({ service: 'shipping-api', instances: 1 }),
+      ],
+    })));
+
+    // An EMPTY list is the finding — nothing runs more than one instance — as distinct from null,
+    // which is "the plane could not account for the estate".
+    expect(selectMultiInstanceServices(store.getState())).toEqual([]);
+  });
+
+  it('names the multi-instance services rather than collapsing them to a flag', async () => {
+    const store = await ready();
+    store.dispatch(fleetObserved(fleetView({
+      services: [
+        fleetService({ service: 'orders-api', instances: 1 }),
+        fleetService({ service: 'payments-api', instances: 3 }),
+        fleetService({ service: 'shipping-api', instances: 1 }),
+      ],
+    })));
+
+    expect(selectMultiInstanceServices(store.getState())).toEqual(['payments-api']);
+  });
+
+  it('stays null when one declared service has no row, however many others do', async () => {
+    const store = await ready();
+    store.dispatch(fleetObserved(fleetView({
+      services: [
+        fleetService({ service: 'orders-api', instances: 1 }),
+        fleetService({ service: 'payments-api', instances: 1 }),
+      ],
+    })));
+
+    expect(selectMultiInstanceServices(store.getState())).toBeNull();
   });
 });

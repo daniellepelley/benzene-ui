@@ -1,7 +1,8 @@
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   selectAllChanges, selectUnclassifiedChanges, selectChangeSummary, selectComparisonsPublished,
-  selectRollouts, selectOutstandingByService, selectNow, VERDICT_ORDER, type LedgerChange,
+  selectRollouts, selectOutstandingByService, selectNow, selectMultiInstanceServices,
+  VERDICT_ORDER, type LedgerChange,
 } from '../../store/selectors';
 import {
   navigated, changeFilterChanged, changeServiceFiltered, changeVerdictFiltered, changeStateFiltered,
@@ -13,7 +14,7 @@ import { Stamp } from '../primitives/Stamp';
 import { VerdictBadge, shortPath } from '../sections/ContractChanges';
 import { RolloutList } from '../sections/RolloutList';
 import {
-  BY_SERVICE_SCOPE, NOT_PUBLISHED_COPY, NO_RELEASE_TRAIN_COPY, POLLED_INSTANCE_CAVEAT,
+  BY_SERVICE_SCOPE, NOT_PUBLISHED_COPY, NO_RELEASE_TRAIN_COPY, estateInstanceCaveat,
   ROLLOUT_SCOPE_CAVEAT, ROLLOUT_STATE_HELP, ROLLOUT_STATE_LABEL, SCOPE_CAVEAT,
   UNCLASSIFIED_GROUP_COPY, VERDICT_LABEL,
 } from '../sections/compatibilityCopy';
@@ -47,6 +48,7 @@ export function ChangesPage() {
   const rollouts = useAppSelector(selectRollouts);
   const byService = useAppSelector(selectOutstandingByService);
   const now = useAppSelector(selectNow);
+  const multiInstance = useAppSelector(selectMultiInstanceServices);
 
   // The union of both sides, not just whoever is on the changed entry. Built from `services` alone,
   // this list silently omitted exactly the population a release review is trying to enumerate — the
@@ -315,7 +317,7 @@ export function ChangesPage() {
       <p className="bz-muted bz-changes-caveat">
         {mode === 'rollouts' ? ROLLOUT_SCOPE_CAVEAT : SCOPE_CAVEAT}
       </p>
-      {mode === 'rollouts' && <p className="bz-muted bz-changes-caveat">{POLLED_INSTANCE_CAVEAT}</p>}
+      {mode === 'rollouts' && <p className="bz-muted bz-changes-caveat">{estateInstanceCaveat(multiInstance)}</p>}
     </div>
   );
 }

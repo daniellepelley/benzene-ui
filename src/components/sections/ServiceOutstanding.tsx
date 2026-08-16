@@ -1,7 +1,7 @@
 import type { Obligation, Rollout } from '../../store/rollouts';
 import { VerdictBadge } from './ContractChanges';
 import {
-  OUTSTANDING_EMPTY, OUTSTANDING_NOT_PUBLISHED, OUTSTANDING_SINGLE_VERSION, POLLED_INSTANCE_CAVEAT,
+  OUTSTANDING_EMPTY, OUTSTANDING_NOT_PUBLISHED, OUTSTANDING_SINGLE_VERSION, instanceCaveat,
 } from './compatibilityCopy';
 
 /** Oxford-free list join, matching the constraint sentences. */
@@ -25,6 +25,14 @@ export interface ServiceOutstandingProps {
   published: boolean;
   /** Whether any topic this service touches has more than one version. */
   hasVersionPairs: boolean;
+  /**
+   * How many instances of this service the collector has seen, or null when it cannot say.
+   *
+   * Quantifies — and on a single-instance service withdraws — the polled-instance caveat below. This
+   * is the most instance-sensitive assertion in the product, so it is the one that most needed the
+   * hedge and gains the most from dropping it where it does not apply.
+   */
+  instances?: number | null;
   onOpenTopic: (topic: string, version: string) => void;
 }
 
@@ -47,7 +55,7 @@ export interface ServiceOutstandingProps {
  * `rollouts.ts` and rendered here.
  */
 export function ServiceOutstanding({
-  service, obligations, awaiting = [], published, hasVersionPairs, onOpenTopic,
+  service, obligations, awaiting = [], published, hasVersionPairs, instances = null, onOpenTopic,
 }: ServiceOutstandingProps) {
   const waitingOn = awaiting.length > 0 && (
     <section className="bz-outstanding bz-waiting">
@@ -140,7 +148,7 @@ export function ServiceOutstanding({
       {/* The most instance-sensitive assertion in the product — it names one service and one action
           — and it was the surface without the caveat. It sat on the two screens a reader drills
           into and was missing from the two they scan. */}
-      <p className="bz-muted bz-outstanding-caveat">{POLLED_INSTANCE_CAVEAT}</p>
+      <p className="bz-muted bz-outstanding-caveat">{instanceCaveat(service, instances)}</p>
       {waitingOn}
     </section>
   );

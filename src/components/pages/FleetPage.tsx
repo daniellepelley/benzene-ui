@@ -4,7 +4,7 @@ import {
   selectFlaggedTopics, selectEdges, selectFlows, selectFailingFlowsOnly, selectInboxIssues,
   selectServiceRags, selectCollapsedSections, selectFilter, selectVisibleServices,
   selectChangeSummary, selectRollouts, selectFeedErrors, selectNeverHeartbeated, selectFeedHealth,
-  selectUndeclaredServices,
+  selectUndeclaredServices, selectMultiInstanceServices,
 } from '../../store/selectors';
 import { navigated, failingFlowsToggled, sectionToggled, filterChanged } from '../../store/slices/viewSlice';
 import { ServiceList } from '../containers/ServiceList';
@@ -16,7 +16,7 @@ import { EstateStats } from '../controls/EstateStats';
 import { IssueRow } from '../controls/IssueRow';
 import { StatusGlyph } from '../primitives/StatusGlyph';
 import { RolloutList } from '../sections/RolloutList';
-import { POLLED_INSTANCE_CAVEAT } from '../sections/compatibilityCopy';
+import { estateInstanceCaveat } from '../sections/compatibilityCopy';
 import { Chip } from '../primitives/Chip';
 import type { Rag } from '../../contracts';
 
@@ -59,6 +59,7 @@ export function FleetPage() {
   const liveWired = useAppSelector(selectFeedHealth) != null;
   const neverHeartbeated = useAppSelector(selectNeverHeartbeated);
   const undeclared = useAppSelector(selectUndeclaredServices);
+  const multiInstance = useAppSelector(selectMultiInstanceServices);
   const topRollouts = rollouts.slice(0, CHANGES_PREVIEW);
   const outstandingRollouts = rollouts.filter((r) => r.outstanding.length > 0);
 
@@ -229,7 +230,7 @@ export function FleetPage() {
               fed by the issue feed, and a contract obligation is derivable with ZERO telemetry.
               Filing it there would make this wave's headline vanish on every estate without a
               collector, and would quietly turn a review surface into an incident one. */}
-          <p className="bz-muted bz-changes-caveat">{POLLED_INSTANCE_CAVEAT}</p>
+          <p className="bz-muted bz-changes-caveat">{estateInstanceCaveat(multiInstance)}</p>
           <RolloutList
             rollouts={topRollouts}
             onOpenTopic={(topic, version) => dispatch(navigated({

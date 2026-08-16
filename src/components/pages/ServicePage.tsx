@@ -6,7 +6,7 @@ import {
   selectFlowsForService, selectFailingFlowsOnly, selectServiceChangeSummary,
   selectObligationsForService, selectComparisonsPublished, selectServiceHasVersionPairs,
   selectRolloutsAwaitedByService, selectUsageWindow, selectMissingFeedsForService,
-  selectObservedHealth, selectNow, selectFleetService,
+  selectObservedHealth, selectNow, selectFleetService, selectInstanceCount,
 } from '../../store/selectors';
 import { navigated, utilityToggled, failingFlowsToggled, changeServiceFiltered,
 } from '../../store/slices/viewSlice';
@@ -46,6 +46,7 @@ export function ServicePage({ service }: ServicePageProps) {
   const live = useAppSelector(selectFleetAvailable);
   const now = useAppSelector(selectNow);
   const observed = useAppSelector((s: RootState) => selectFleetService(s, service));
+  const instances = useAppSelector((s: RootState) => selectInstanceCount(s, service));
   const entity = `service:${service}`;
   const thread = useAppSelector((s: RootState) => selectThread(s, entity));
   const canPost = useAppSelector(selectCanPost);
@@ -143,6 +144,7 @@ export function ServicePage({ service }: ServicePageProps) {
           awaiting={awaiting}
           published={comparisonsPublished}
           hasVersionPairs={hasVersionPairs}
+          instances={instances}
           onOpenTopic={openTopic}
         />
         <div className="bz-svc-topics">

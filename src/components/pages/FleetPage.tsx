@@ -3,7 +3,7 @@ import {
   selectEstateSummary, selectDivergences, selectIssueSummary, selectFleetAvailable,
   selectFlaggedTopics, selectEdges, selectFlows, selectFailingFlowsOnly, selectInboxIssues,
   selectServiceRags, selectCollapsedSections, selectFilter, selectVisibleServices,
-  selectChangeSummary, selectAllChanges,
+  selectChangeSummary, selectRollouts,
 } from '../../store/selectors';
 import { navigated, failingFlowsToggled, sectionToggled, filterChanged } from '../../store/slices/viewSlice';
 import { ServiceList } from '../containers/ServiceList';
@@ -14,7 +14,7 @@ import { FlowList } from '../controls/FlowList';
 import { EstateStats } from '../controls/EstateStats';
 import { IssueRow } from '../controls/IssueRow';
 import { StatusGlyph } from '../primitives/StatusGlyph';
-import { VerdictBadge, shortPath } from '../sections/ContractChanges';
+import { RolloutList } from '../sections/RolloutList';
 import { Chip } from '../primitives/Chip';
 import type { Rag } from '../../contracts';
 
@@ -48,8 +48,12 @@ export function FleetPage() {
   const filter = useAppSelector(selectFilter);
   const visible = useAppSelector(selectVisibleServices);
   const changeSummary = useAppSelector(selectChangeSummary);
-  const allChanges = useAppSelector(selectAllChanges);
-  const topChanges = allChanges.slice(0, CHANGES_PREVIEW);
+  // The preview shows ROLLOUTS, not field diffs. A field diff is not an estate-level object; a topic
+  // mid-migration with a named blocker is. Ranked by the same rule as the Rollouts screen, so the
+  // five here are the same five at the top there.
+  const rollouts = useAppSelector(selectRollouts);
+  const topRollouts = rollouts.slice(0, CHANGES_PREVIEW);
+  const outstandingRollouts = rollouts.filter((r) => r.outstanding.length > 0);
 
   // A default-collapsed section inverts the flag rather than seeding the store, so a reader who
   // opens one keeps it open without the store carrying a special case for it.
@@ -73,7 +77,14 @@ export function FleetPage() {
         key: 'changes',
         value: changeSummary.total,
         label: 'Contract changes',
-        rag: ((changeSummary.counts.breaking ?? 0) > 0 ? 'red' : 'amber') as Rag,
+        // Red on the JOIN, not on the verdict. `breaking` alone painted the estate red for a
+        // migration that had been versioned out and needed nobody to do anything — a finished piece
+        // of work rendered as an emergency at the top of the first screen anybody opens. The tile's
+        // VALUE is unchanged; only what makes it red is.
+        rag: (outstandingRollouts.some((r) => r.verdict === 'breaking') ? 'red' : 'amber') as Rag,
+        note: outstandingRollouts.length > 0
+          ? `${outstandingRollouts.length} awaiting a move`
+          : 'none awaiting a move',
         onClick: () => dispatch(navigated({ page: 'changes' })),
       }
       : {
@@ -124,45 +135,32 @@ export function FleetPage() {
           it above the alert inbox put it in the position a reader's eye reserves for "why was I
           paged" — at 3am that costs seconds that matter. It sits above the service list because it
           is closer in kind to an open issue than to an inventory row. */}
-      {changeSummary.published && topChanges.length > 0 && (
+      {changeSummary.published && topRollouts.length > 0 && (
         <section>
           <div className="bz-section-head">
             <h2>Contract changes</h2>
-            <span className="bz-page-note">against each topic’s previous version</span>
+            <span className="bz-page-note">
+              which topic versions are covered on both sides, against each topic’s previous version
+            </span>
             <button
               type="button"
               className="bz-section-more"
               onClick={() => dispatch(navigated({ page: 'changes' }))}
             >
-              see all {allChanges.length} →
+              see all {rollouts.length} →
             </button>
           </div>
-          <ul className="bz-ledger">
-            {topChanges.map((change) => (
-              <li
-                key={`${change.topic}@${change.version}:${change.path}:${change.kind}`}
-                className="bz-change bz-ledger-row"
-                data-verdict={change.compatibility}
-              >
-                <VerdictBadge verdict={change.compatibility} attribute={false} />
-                <button
-                  type="button"
-                  className="bz-topic-name"
-                  onClick={() => dispatch(navigated({
-                    page: 'topic', selected: change.topic, selectedVersion: change.version,
-                  }))}
-                >
-                  {change.topic}
-                  <span className="bz-topic-version">
-                    {change.baselineVersion ? `${change.baselineVersion} → ${change.version}` : change.version}
-                  </span>
-                </button>
-                <span className="bz-change-side">{change.direction}</span>
-                <code className="bz-change-path" title={change.path}>{shortPath(change.path)}</code>
-                <span className="bz-change-desc">{change.description}</span>
-              </li>
-            ))}
-          </ul>
+          {/* Not in "needs attention", deliberately: that section is gated on a live collector and
+              fed by the issue feed, and a contract obligation is derivable with ZERO telemetry.
+              Filing it there would make this wave's headline vanish on every estate without a
+              collector, and would quietly turn a review surface into an incident one. */}
+          <RolloutList
+            rollouts={topRollouts}
+            onOpenTopic={(topic, version) => dispatch(navigated({
+              page: 'topic', selected: topic, selectedVersion: version,
+            }))}
+            onOpenService={openService}
+          />
         </section>
       )}
 

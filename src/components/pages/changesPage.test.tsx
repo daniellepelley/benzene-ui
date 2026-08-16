@@ -264,3 +264,54 @@ describe('the rollouts grain', () => {
     expect(screen.getByText(/whether a producer emits both versions of every message/)).toBeInTheDocument();
   });
 });
+
+/**
+ * The tile went red whenever any change was breaking, which painted the estate red for a migration
+ * that had been versioned out and needed nobody to do anything — a finished piece of work rendered
+ * as an emergency, at the top of the first screen anybody opens.
+ */
+describe('the estate tile re-bases on the join', () => {
+  const withTopics = async (t: unknown) => {
+    const store = createStore(fakeMeshApi({ getTopics: async () => t as Topics }));
+    await store.dispatch(loadManifest());
+    await store.dispatch(loadCatalog());
+    return store;
+  };
+
+  it('is red while a breaking change still has somebody outstanding', async () => {
+    const store = await withTopics(rollout);
+    show(store, <FleetPage />);
+    const tile = screen.getAllByText('Contract changes')
+      .map((el) => el.closest('.bz-stat')).find(Boolean) as HTMLElement;
+    expect(tile.dataset.rag).toBe('red');
+    expect(within(tile).getByText(/awaiting a move/)).toBeInTheDocument();
+  });
+
+  it('is not red for an estate whose breaking changes are all versioned out', async () => {
+    // Strip the three uncovered rollouts, leaving only shipping:book and notification:send — both
+    // fully dual-run, one of them breaking.
+    const covered = {
+      ...(rollout as unknown as Topics),
+      topics: (rollout as unknown as Topics).topics.filter(
+        (t) => ['shipping:book', 'notification:send', 'spec'].includes(t.topic)),
+      versionCompatibility: (rollout as unknown as { versionCompatibility: { topic: string }[] })
+        .versionCompatibility.filter((v) => ['shipping:book', 'notification:send'].includes(v.topic)),
+    };
+    const store = await withTopics(covered);
+    show(store, <FleetPage />);
+
+    const tile = screen.getAllByText('Contract changes')
+      .map((el) => el.closest('.bz-stat')).find(Boolean) as HTMLElement;
+    expect(tile.dataset.rag).not.toBe('red');
+    expect(within(tile).getByText('none awaiting a move')).toBeInTheDocument();
+  });
+
+  it('previews rollouts rather than field diffs, which are not estate-level objects', async () => {
+    const store = await withTopics(rollout);
+    show(store, <FleetPage />);
+
+    const section = screen.getByRole('heading', { name: 'Contract changes' }).closest('section')!;
+    // The proven outage leads, and its constraint sentence is on the front door.
+    expect(within(section).getByText(/must send inventory:reserve v2 before/)).toBeInTheDocument();
+  });
+});

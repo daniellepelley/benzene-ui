@@ -3,7 +3,7 @@ import {
   selectTopicsForService, selectEdgesForService, selectLiveness, selectIssuesForService,
   selectFleetAvailable, ragForStatus, selectThread, selectCanPost, selectCanAnnotate,
   selectServiceAbout, selectUsageForService, selectShowUtility, selectFeedHealth,
-  selectFlowsForService, selectFailingFlowsOnly,
+  selectFlowsForService, selectFailingFlowsOnly, selectServiceChangeSummary,
 } from '../../store/selectors';
 import { navigated, utilityToggled, failingFlowsToggled } from '../../store/slices/viewSlice';
 import { draftChanged, draftAuthorChanged, postAnnotation } from '../../store/slices/annotationsSlice';
@@ -13,7 +13,9 @@ import { LiveStrip } from '../controls/LiveStrip';
 import { IssueRow } from '../controls/IssueRow';
 import { FeedHealthLine } from '../controls/FeedHealthLine';
 import { FlowList } from '../controls/FlowList';
-import { ServiceAbout } from '../sections/ServiceAbout';
+import { ServiceAbout, ServiceLiveness } from '../sections/ServiceAbout';
+import { ServiceDrift } from '../sections/ServiceDrift';
+import { Card } from '../primitives/Card';
 import { ServiceUsage } from '../sections/ServiceUsage';
 import { HealthChecks } from '../sections/HealthChecks';
 import { Thread } from '../sections/Thread';
@@ -48,6 +50,8 @@ export function ServicePage({ service }: ServicePageProps) {
   const feedHealth = useAppSelector(selectFeedHealth);
   const flows = useAppSelector((s: RootState) => selectFlowsForService(s, service));
   const failingOnly = useAppSelector(selectFailingFlowsOnly);
+  const contractChanges = useAppSelector((s: RootState) => selectServiceChangeSummary(s, service));
+  const viewChanges = () => dispatch(navigated({ page: 'changes' }));
 
   if (!entry) {
     return <EmptyState message={`${service} is not in the estate manifest.`} />;
@@ -76,56 +80,66 @@ export function ServicePage({ service }: ServicePageProps) {
 
       <FeedHealthLine health={feedHealth} />
 
-      <section>
-        <h3>About</h3>
-        <ServiceAbout about={about} liveness={live ? liveness : null} />
-      </section>
+      {/* CONTRACT — what this service's shape is, and whether it moved. Grouped first and together
+          because that is the question a reader opens a service page to answer; it used to be split
+          across two sections with the health and usage panels in between. */}
+      <Card title="Contract">
+        <ServiceAbout about={about} />
+        <ServiceDrift drift={about?.drift ?? null} changes={contractChanges} onViewChanges={viewChanges} />
+        <div className="bz-svc-topics">
+          <div>
+            <h4>Consumes</h4>
+            <TopicList topics={topics.consumes} emptyMessage="Consumes nothing." onOpen={openTopic} />
+          </div>
+          <div>
+            <h4>Produces</h4>
+            <TopicList topics={topics.produces} emptyMessage="Produces nothing." onOpen={openTopic} />
+          </div>
+        </div>
+      </Card>
 
-      <section><h3>Health</h3><HealthChecks snapshot={snapshot} /></section>
+      {/* CALLS — deliberately its own card rather than merged into Contract. Readers took a produced
+          topic for an outbound call when the two sat under peer headings; merging them would make
+          that reading correct-looking rather than fixing it. */}
+      <Card title="Calls">
+        {/* mesh.md §4: the edge list is the declared graph (`consumes`/`topics`), not trace-derived —
+            an empty list means no service has registered the other end, never "nothing observed". */}
+        <h4>Outbound</h4>
+        <EdgeList edges={edges.outbound} show="server" emptyMessage="Declares no outbound calls." onOpen={open} />
+        <h4>Inbound</h4>
+        <EdgeList edges={edges.inbound} show="client" emptyMessage="No service declares a call to this one." onOpen={open} />
+      </Card>
 
-      <section>
-        <h3>Usage</h3>
+      {/* STATE — everything about this instant, including when the snapshot was taken. That row used
+          to sit in About, directly above the drift line, which is precisely why the line that decides
+          a release read as a timestamp. */}
+      <Card title="State">
+        <ServiceLiveness about={about} liveness={live ? liveness : null} />
+        <HealthChecks snapshot={snapshot} />
+      </Card>
+
+      <Card title="Traffic">
         <ServiceUsage
           usage={usage}
           showUtility={showUtility}
           onToggleUtility={() => dispatch(utilityToggled())}
         />
-      </section>
-
-      <section>
-        <h3>Topics</h3>
-        <h4>Consumes</h4>
-        <TopicList topics={topics.consumes} emptyMessage="Consumes nothing." onOpen={openTopic} />
-        <h4>Produces</h4>
-        <TopicList topics={topics.produces} emptyMessage="Produces nothing." onOpen={openTopic} />
-      </section>
-
-      <section>
-        {/* mesh.md §4: the edge list is the declared graph (`consumes`/`topics`), not trace-derived —
-            an empty list means no service has registered the other end, never "nothing observed". */}
-        <h3>Calls</h3>
-        <h4>Outbound</h4>
-        <EdgeList edges={edges.outbound} show="server" emptyMessage="Declares no outbound calls." onOpen={open} />
-        <h4>Inbound</h4>
-        <EdgeList edges={edges.inbound} show="client" emptyMessage="No service declares a call to this one." onOpen={open} />
-      </section>
+        {live && (
+          <>
+            <h4>Flows</h4>
+            <FlowList
+              view={flows}
+              failingOnly={failingOnly}
+              subject={service}
+              onToggleFailing={() => dispatch(failingFlowsToggled())}
+              onOpenService={open}
+            />
+          </>
+        )}
+      </Card>
 
       {live && (
-        <section>
-          <h3>Flows</h3>
-          <FlowList
-            view={flows}
-            failingOnly={failingOnly}
-            subject={service}
-            onToggleFailing={() => dispatch(failingFlowsToggled())}
-            onOpenService={open}
-          />
-        </section>
-      )}
-
-      {live && (
-        <section>
-          <h3>Issues</h3>
+        <Card title="Issues">
           {issues.length === 0 ? (
             <EmptyState message="No issues observed for this service." tone="clear" />
           ) : (
@@ -137,11 +151,10 @@ export function ServicePage({ service }: ServicePageProps) {
               />
             ))
           )}
-        </section>
+        </Card>
       )}
 
-      <section>
-        <h3>Discussion</h3>
+      <Card title="Discussion">
         <Thread annotations={thread} />
         <Composer
           draft={annotations.draft}
@@ -160,7 +173,7 @@ export function ServicePage({ service }: ServicePageProps) {
               }
             : {})}
         />
-      </section>
+      </Card>
     </div>
   );
 }

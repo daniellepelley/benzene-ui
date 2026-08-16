@@ -102,7 +102,7 @@ describe('the estate tile for contract changes', () => {
     const store = await loaded({ getTopics: async () => withoutComparisons() });
     show(store, <FleetPage />);
 
-    const stats = screen.getByText('Contract changes').closest('.bz-stat')!;
+    const stats = screen.getByText('Contract changes').closest('.bz-stat') as HTMLElement;
     expect(within(stats).getByText('—')).toBeInTheDocument();
     expect(within(stats).getByText('not computed')).toBeInTheDocument();
     expect(stats.tagName).toBe('DIV'); // inert: no onClick, so no false affordance

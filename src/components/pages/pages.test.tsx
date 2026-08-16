@@ -120,8 +120,14 @@ describe('ServicePage', () => {
     show(store, <ServicePage service="orders-api" />);
 
     expect(screen.getByRole('heading', { name: 'orders-api' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Topics' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Calls' })).toBeInTheDocument();
+    // Five cards, not eight peer sections. What a service's contract IS and whether it MOVED are the
+    // same question, so they share a card; Calls stays separate because readers were reading a
+    // produced topic as an outbound call when the two sat under peer headings.
+    for (const card of ['Contract', 'Calls', 'State', 'Traffic']) {
+      expect(screen.getByRole('heading', { name: card })).toBeInTheDocument();
+    }
+    expect(screen.getByRole('heading', { name: 'Consumes' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Produces' })).toBeInTheDocument();
   });
 
   it('says so plainly when a service is not in the manifest', async () => {

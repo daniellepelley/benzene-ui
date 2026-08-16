@@ -464,6 +464,32 @@ export const selectChangeSummary = createSelector(
   },
 );
 
+/**
+ * The contract changes belonging to one service — the topics it produces or consumes.
+ *
+ * Attribution is by PARTICIPATION, not authorship: the catalogue records who is on each end of a
+ * topic, not whose declaration moved. A topic with two producers therefore attributes its change to
+ * both. That is honest but coarse, and the alternative (per-provider attribution) needs a collector
+ * change, so the copy that uses this must not imply it names a culprit.
+ */
+export const selectServiceChangeSummary = createSelector(
+  [selectTopics, (_: RootState, service: string) => service],
+  (topics, service) => {
+    const mine = topics.filter((t) =>
+      !t.reserved
+      && (t.consumers?.some((c) => c.service === service) || t.producers?.some((p) => p.service === service))
+      && (t.compatibility?.changes.length ?? 0) > 0);
+
+    const all = mine.flatMap((t) => t.compatibility!.changes);
+    return {
+      topics: mine.length,
+      changes: all.length,
+      breaking: all.filter((c) => c.compatibility === 'breaking').length,
+      warning: all.filter((c) => c.compatibility === 'warning').length,
+    };
+  },
+);
+
 // ── Utility traffic ─────────────────────────────────────────────────────────────────────────────
 
 export const selectShowUtility = (s: RootState) => s.view.showUtility;

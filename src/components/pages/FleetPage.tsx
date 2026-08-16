@@ -3,6 +3,7 @@ import {
   selectEstateSummary, selectDivergences, selectIssueSummary, selectFleetAvailable,
   selectFlaggedTopics, selectEdges, selectFlows, selectFailingFlowsOnly, selectInboxIssues,
   selectServiceRags, selectCollapsedSections, selectFilter, selectVisibleServices,
+  selectChangeSummary, selectAllChanges,
 } from '../../store/selectors';
 import { navigated, failingFlowsToggled, sectionToggled, filterChanged } from '../../store/slices/viewSlice';
 import { ServiceList } from '../containers/ServiceList';
@@ -13,10 +14,15 @@ import { FlowList } from '../controls/FlowList';
 import { EstateStats } from '../controls/EstateStats';
 import { IssueRow } from '../controls/IssueRow';
 import { StatusGlyph } from '../primitives/StatusGlyph';
+import { VerdictBadge, shortPath } from '../sections/ContractChanges';
 import { Chip } from '../primitives/Chip';
+import type { Rag } from '../../contracts';
 
 /** How many issues the front door shows before handing off to the full inbox. */
 const INBOX_PREVIEW = 5;
+
+/** How many changes the front door shows before handing off to the ledger. */
+const CHANGES_PREVIEW = 5;
 
 /**
  * The estate at a glance.
@@ -41,6 +47,9 @@ export function FleetPage() {
   const collapsed = useAppSelector(selectCollapsedSections);
   const filter = useAppSelector(selectFilter);
   const visible = useAppSelector(selectVisibleServices);
+  const changeSummary = useAppSelector(selectChangeSummary);
+  const allChanges = useAppSelector(selectAllChanges);
+  const topChanges = allChanges.slice(0, CHANGES_PREVIEW);
 
   // A default-collapsed section inverts the flag rather than seeding the store, so a reader who
   // opens one keeps it open without the store carrying a special case for it.
@@ -55,7 +64,22 @@ export function FleetPage() {
     { key: 'red', value: summary.counts.red, label: 'Unhealthy', rag: 'red' as const },
     { key: 'amber', value: summary.counts.amber, label: 'Degraded', rag: 'amber' as const },
     { key: 'gone', value: summary.counts.gone, label: 'Unreachable', rag: 'gone' as const },
-    { key: 'drift', value: summary.drift, label: 'Contract drift', rag: 'amber' as const },
+    // One definition, one number. `summary.drift` counts SERVICES whose spec hash moved, while the
+    // changed-topic count is a different figure on a different page — which is why a reader could see
+    // "1" here and "4" on the Value page and have no way to reconcile them. This tile now counts the
+    // thing the reader is actually asking about, and leads to the ledger that explains it.
+    changeSummary.published
+      ? {
+        key: 'changes',
+        value: changeSummary.changedVersions,
+        label: 'Contract changes',
+        rag: ((changeSummary.counts.breaking ?? 0) > 0 ? 'red' : 'amber') as Rag,
+        onClick: () => dispatch(navigated({ page: 'changes' })),
+      }
+      : {
+        // Never a 0 here: this aggregator did not look, which is not the same as finding nothing.
+        key: 'changes', value: 0, label: 'Contract changes', placeholder: '—', note: 'not computed',
+      },
   ];
 
   return (
@@ -69,6 +93,50 @@ export function FleetPage() {
           <StatusGlyph rag="amber" label="divergence" /> {divergences.length} declaring healthy but
           silent: {divergences.map((d) => <Chip key={d} tone="warn">{d}</Chip>)}
         </p>
+      )}
+
+      {/* Between "needs attention" and the service list: a change that breaks a consumer is closer
+          in kind to an open issue than to an inventory row. */}
+      {changeSummary.published && topChanges.length > 0 && (
+        <section>
+          <div className="bz-section-head">
+            <h2>Contract changes</h2>
+            <span className="bz-page-note">against each topic’s previous version</span>
+            <button
+              type="button"
+              className="bz-section-more"
+              onClick={() => dispatch(navigated({ page: 'changes' }))}
+            >
+              see all {allChanges.length} →
+            </button>
+          </div>
+          <ul className="bz-ledger">
+            {topChanges.map((change) => (
+              <li
+                key={`${change.topic}@${change.version}:${change.path}:${change.kind}`}
+                className="bz-change bz-ledger-row"
+                data-verdict={change.compatibility}
+              >
+                <VerdictBadge verdict={change.compatibility} attribute={false} />
+                <button
+                  type="button"
+                  className="bz-topic-name"
+                  onClick={() => dispatch(navigated({
+                    page: 'topic', selected: change.topic, selectedVersion: change.version,
+                  }))}
+                >
+                  {change.topic}
+                  <span className="bz-topic-version">
+                    {change.baselineVersion ? `${change.baselineVersion} → ${change.version}` : change.version}
+                  </span>
+                </button>
+                <span className="bz-change-side">{change.direction}</span>
+                <code className="bz-change-path" title={change.path}>{shortPath(change.path)}</code>
+                <span className="bz-change-desc">{change.description}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {liveAvailable && inbox.length > 0 && (

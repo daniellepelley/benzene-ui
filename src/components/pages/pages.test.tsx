@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { act } from 'react';
 import { createStore } from '../../store/store';
@@ -92,7 +92,10 @@ describe('FleetPage', () => {
 
     expect(screen.getByRole('heading', { name: 'Needs attention' })).toBeInTheDocument();
     expect(screen.getByText('System.NullReferenceException on payment:capture')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /see all/ })).toBeInTheDocument();
+    // Two sections now hand off to a fuller list — issues and contract changes — so the assertion
+    // has to name which one, or it passes on either and tests neither.
+    const attention = screen.getByRole('heading', { name: 'Needs attention' }).closest('section')!;
+    expect(within(attention).getByRole('button', { name: /see all/ })).toBeInTheDocument();
   });
 
   it('states the inbox window, because it is deliberately not the picked range', async () => {

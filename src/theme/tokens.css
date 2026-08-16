@@ -729,3 +729,13 @@ input, select, textarea {
 
 /* The version is part of the button's label, not a chip beside it — see TopicList. */
 .bz-topic-version { margin-left: 0.35rem; font-family: var(--bz-mono); font-size: 10.5px; color: var(--bz-muted); }
+
+/* The ledger reuses .bz-change and widens it by one column for the topic button. */
+.bz-ledger { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35rem; }
+.bz-ledger-row { grid-template-columns: auto minmax(10rem, auto) auto minmax(6rem, auto) 1fr; }
+/* A stat tile only becomes a button when it has somewhere to go, so these styles are scoped to the
+   element type rather than the class — an inert tile must gain no affordance at all. */
+button.bz-stat { cursor: pointer; text-align: left; font: inherit; border: 1px solid transparent; }
+button.bz-stat:hover { border-color: var(--bz-accent); }
+button.bz-stat:focus-visible { outline: 2px solid var(--bz-accent); outline-offset: 2px; }
+.bz-stat-note { margin-left: 0.35rem; font-style: italic; opacity: 0.8; }

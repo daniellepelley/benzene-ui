@@ -4,5 +4,6 @@ export * from './TopicPage';
 export * from './IssuePage';
 export * from './ComposePage';
 export * from './ValuePage';
+export * from './ChangesPage';
 export * from './SpecPage';
 export * from './TestConsolePage';

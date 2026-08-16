@@ -14,6 +14,7 @@ import {
 } from './store/selectors';
 import {
   FleetPage, ServicePage, TopicPage, IssuePage, ComposePage, ValuePage, TestConsolePage,
+  ChangesPage,
 } from './components/pages';
 import { FeedHealthLine } from './components/controls/FeedHealthLine';
 import { EmptyState } from './components/primitives/EmptyState';
@@ -160,6 +161,13 @@ export function App() {
           </button>
           <button
             type="button"
+            aria-current={page === 'changes' ? 'page' : undefined}
+            onClick={() => dispatch(navigated({ page: 'changes' }))}
+          >
+            Changes
+          </button>
+          <button
+            type="button"
             aria-current={page === 'value' ? 'page' : undefined}
             onClick={() => dispatch(navigated({ page: 'value' }))}
           >
@@ -229,6 +237,7 @@ export function App() {
             {page === 'topic' && selected && <TopicPage topic={selected} />}
             {page === 'issue' && <IssuePage selected={selected ?? 'all'} />}
             {page === 'compose' && selected && <ComposePage topic={selected} service={selectedService} />}
+            {page === 'changes' && <ChangesPage />}
             {page === 'value' && <ValuePage />}
             {page === 'test' && <TestConsolePage service={selectedService} topic={selected} />}
           </>

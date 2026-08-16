@@ -78,10 +78,15 @@ describe('traffic', () => {
   it('distinguishes "no usage source" from "zero traffic"', async () => {
     // Zero measured traffic is a deprecation candidate. Zero because nothing measures is not a
     // finding at all, and conflating them invents work.
+    //
+    // The two facts are now separate fields, because one word for both is what let a WIRED feed with
+    // no rows for a topic render as "no usage source is wired" — sending a reader to debug a healthy
+    // exporter, while another page turned the same absence into retirement evidence.
     const store = await ready();
-    const unmeasured = selectTrafficForTopic(store.getState(), 'topic-that-does-not-exist');
-    expect(unmeasured.observed).toBe(false);
-    expect(unmeasured.total).toBe(0);
+    const noRows = selectTrafficForTopic(store.getState(), 'topic-that-does-not-exist');
+    expect(noRows.observed).toBe(true); // the feed IS wired in this fixture
+    expect(noRows.rowsForTopic).toBe(false); // it just said nothing about this topic
+    expect(noRows.total).toBe(0);
   });
 });
 

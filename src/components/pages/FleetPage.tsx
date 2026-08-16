@@ -209,7 +209,12 @@ export function FleetPage() {
       <CollapsibleSection
         id="topics"
         title="Topics"
-        note={flagged.length > 0 ? `${flagged.length} flagged` : undefined}
+        // Counts everything the table badges, not just the lifecycle `status` field. The verdict
+        // badges live in the same column, so a count that ignored them sat directly above its own
+        // contradicting evidence — "1 flagged" over five `breaking` rows.
+        note={flagged.length + changeSummary.changedVersions > 0
+          ? `${flagged.length + changeSummary.changedVersions} flagged`
+          : undefined}
         open={isOpen('topics')}
         onToggle={toggle}
       >

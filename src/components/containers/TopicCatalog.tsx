@@ -108,7 +108,19 @@ export function TopicCatalog() {
           {r.verdict && r.verdict !== 'compatible' && (
             <VerdictBadge verdict={r.verdict} attribute={false} />
           )}
-          {!r.status && !r.schemaMismatch && !r.verdict && <span className="bz-cat-none">ok</span>}
+          {/* `ok` is only ever printed for a row that was actually checked and passed. The previous
+              arrangement had it exactly backwards: a row with nothing to compare against printed
+              `ok`, while a row that WAS compared and found compatible printed nothing — the
+              never-checked state wearing the all-clear, on the one surface a reader scans
+              top-to-bottom. `notCompared` is never "ok", "none" or blank. */}
+          {!r.status && !r.schemaMismatch && r.verdict === 'compatible' && (
+            <span className="bz-cat-none">ok</span>
+          )}
+          {!r.status && !r.schemaMismatch && !r.verdict && (
+            <span className="bz-cat-none" title="No comparison was made for this row — see the topic page">
+              not compared
+            </span>
+          )}
         </>
       ),
     },
@@ -175,6 +187,15 @@ export function TopicCatalog() {
           )
         }
       />
+      {/* On the page, not in a title attribute. A marker whose only explanation is a hover is
+          invisible on a scan, in a screenshot, and to anyone reading without a mouse — which is how
+          a duplicated total gets quoted as a per-version figure. */}
+      {rows.some((r) => r.version && !r.trafficVersionAttributed) && (
+        <p className="bz-catalog-legend">
+          † the whole topic&rsquo;s traffic — the usage feed does not break it down by version, so it
+          is repeated on each version row rather than split between them.
+        </p>
+      )}
     </div>
   );
 }

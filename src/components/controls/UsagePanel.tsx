@@ -23,6 +23,18 @@ export function UsagePanel({ traffic, windowLabel, version = null }: UsagePanelP
     return <EmptyState message="No usage source is wired, so traffic for this topic is unknown." tone="unknown" />;
   }
 
+  // Wired, and it reported nothing for this topic. That is a measurement, not an absence of one, and
+  // it is the difference between "we cannot tell" and "nobody has called this" — which is the whole
+  // basis of a retirement argument.
+  if (!traffic.rowsForTopic) {
+    return (
+      <EmptyState
+        message="The usage feed is wired and reported no traffic for this topic."
+        tone="clear"
+      />
+    );
+  }
+
   const failureRate = traffic.total > 0 ? traffic.failure / traffic.total : 0;
   const pct = (n: number) => (traffic.total > 0 ? Math.round((n / traffic.total) * 100) : 0);
 

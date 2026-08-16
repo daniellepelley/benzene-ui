@@ -240,8 +240,17 @@ export interface TopicTraffic {
   success: number;
   failure: number;
   total: number;
-  /** null when no usage source is wired — distinct from zero traffic, which is a real finding. */
+  /**
+   * True when the usage feed is wired at all — NOT "there are rows for this topic".
+   *
+   * Conflating the two made a wired feed with no rows for one topic render as "no usage source is
+   * wired", so a reader debugged a healthy exporter while the Value page, using a different
+   * definition of the same word, turned the identical absence into retirement evidence. One fact,
+   * decided once.
+   */
   observed: boolean;
+  /** True when the feed is wired AND reported at least one row for this topic. */
+  rowsForTopic: boolean;
   /**
    * True when this figure covers EVERY version of the topic because the usage feed does not carry a
    * version, and the reader is looking at one version.
@@ -262,8 +271,9 @@ export interface TopicTraffic {
  * — it is a real fact about the topic — but flagged so the surface can say which question it answers.
  */
 export const selectTrafficForTopic = createSelector(
-  [selectUsageRaw, (_: RootState, topic: string) => topic, (s: RootState) => s.view.selectedVersion],
-  (entries, topic, version): TopicTraffic => {
+  [selectUsageRaw, (_: RootState, topic: string) => topic, (s: RootState) => s.view.selectedVersion,
+    (s: RootState) => s.catalog.usage != null],
+  (entries, topic, version, feedWired): TopicTraffic => {
     const all = (entries as UsageEntriesItem[]).filter((e) => e.topic === topic);
     // A feed that versions its rows can be trusted to attribute; one that does not, cannot.
     const feedHasVersions = all.some((e) => e.version != null && e.version !== '');
@@ -281,7 +291,8 @@ export const selectTrafficForTopic = createSelector(
       success,
       failure,
       total: success + failure,
-      observed: all.length > 0,
+      observed: feedWired,
+      rowsForTopic: all.length > 0,
       versionAttributed: feedHasVersions,
     };
   },
@@ -1118,9 +1129,18 @@ export interface TopicLive {
  */
 export const selectLiveForTopic = createSelector(
   [selectFleetTopics, selectFleetAvailable, selectRangeMs, (s: RootState) => s.fleet.window,
-    (_: RootState, topic: string) => topic],
-  (topics, available, ms, window, topic): TopicLive => {
-    const rows = topics.filter((t) => t.topic === topic);
+    (_: RootState, topic: string) => topic, (s: RootState) => s.view.selectedVersion],
+  (topics, available, ms, window, topic, version): TopicLive => {
+    // Scoped to the version on screen when the plane carries one. The collector DOES report per
+    // version; merging the rows put the previous version's traffic under the new version's heading —
+    // and named an observed handler on a version the same page had just said nobody consumes. That
+    // is the fabricated-attribution defect the usage feed had, on a newer surface, with the correct
+    // number sitting in the response and thrown away.
+    const forTopic = topics.filter((t) => t.topic === topic);
+    const planeHasVersions = forTopic.some((t) => t.version != null && t.version !== '');
+    const rows = planeHasVersions && version != null
+      ? forTopic.filter((t) => t.version === version)
+      : forTopic;
     const missingFeeds = [...new Set(rows.flatMap((r) => r.missingFeeds))];
     const statsAbsent = missingFeeds.includes('stats');
     const durationAbsent = missingFeeds.includes('duration');

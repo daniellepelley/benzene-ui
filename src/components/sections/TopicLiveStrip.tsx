@@ -73,11 +73,11 @@ export function TopicLiveStrip({ live, traffic, onShowFailingFlows }: TopicLiveS
               {live.avgDurationMs == null ? '—' : live.avgDurationMs.toFixed(1)}
             </span>
           </span>
-          {live.services.length > 0 && (
+          {live.registeredHandlers.length > 0 && (
             <span className="bz-live-item">
-              <span className="bz-live-k">observed handlers</span>
-              {live.services.map((s) => (
-                <Chip key={s} title="Seen handling this topic — observed, not declared">
+              <span className="bz-live-k">registered handlers</span>
+              {live.registeredHandlers.map((s) => (
+                <Chip key={s} title="Registered to handle this topic. Registration is not traffic — see the count beside it.">
                   {s}
                 </Chip>
               ))}

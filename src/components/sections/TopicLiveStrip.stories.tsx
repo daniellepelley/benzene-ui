@@ -20,7 +20,7 @@ const meta = {
       errors: 17,
       avgDurationMs: 14.2,
       statusCounts: { ok: 4803, 'internal-server-error': 17 },
-      services: ['orders-api'],
+      registeredHandlers: ['orders-api'],
       missingFeeds: [],
       rangeLabel: '15 minutes',
       countsSince: null,
@@ -37,7 +37,7 @@ export const NoFailures: Story = {
   args: {
     live: {
       available: true, observed: 4820, errors: 0, avgDurationMs: 11.8,
-      statusCounts: { ok: 4820 }, services: ['orders-api'], missingFeeds: [],
+      statusCounts: { ok: 4820 }, registeredHandlers: ['orders-api'], missingFeeds: [],
       rangeLabel: '15 minutes', countsSince: null,
     },
   },
@@ -48,7 +48,7 @@ export const QuietInWindow: Story = {
   args: {
     live: {
       available: true, observed: null, errors: 0, avgDurationMs: null, statusCounts: {},
-      services: [], missingFeeds: [], rangeLabel: '15 minutes', countsSince: null,
+      registeredHandlers: [], missingFeeds: [], rangeLabel: '15 minutes', countsSince: null,
     },
   },
 };
@@ -58,7 +58,7 @@ export const NotObservedAtAll: Story = {
   args: {
     live: {
       available: true, observed: null, errors: 0, avgDurationMs: null, statusCounts: {},
-      services: [], missingFeeds: [], rangeLabel: '24 hours', countsSince: null,
+      registeredHandlers: [], missingFeeds: [], rangeLabel: '24 hours', countsSince: null,
     },
     traffic: { success: 0, failure: 0, total: 0, observed: false, rowsForTopic: false, unrecognised: 0, versionAttributed: false },
   },
@@ -73,7 +73,7 @@ export const MultipleObservedHandlers: Story = {
       errors: 240,
       avgDurationMs: 88.4,
       statusCounts: { ok: 8860, 'dependency-failure': 240 },
-      services: ['orders-api', 'orders-worker'],
+      registeredHandlers: ['orders-api', 'orders-worker'],
       missingFeeds: [],
       rangeLabel: '1 hour',
       countsSince: null,
@@ -86,7 +86,7 @@ export const CountsAnswerAnotherWindow: Story = {
   args: {
     live: {
       available: true, observed: 148320, errors: 300, avgDurationMs: 14.2,
-      statusCounts: { ok: 148020 }, services: ['orders-api'], missingFeeds: [],
+      statusCounts: { ok: 148020 }, registeredHandlers: ['orders-api'], missingFeeds: [],
       rangeLabel: '15 minutes', countsSince: '2026-08-08T06:00:00Z',
     },
   },
@@ -97,7 +97,7 @@ export const DimensionAbsent: Story = {
   args: {
     live: {
       available: true, observed: 9100, errors: 240, avgDurationMs: null,
-      statusCounts: { ok: 8860 }, services: ['payments-api'], missingFeeds: ['duration'],
+      statusCounts: { ok: 8860 }, registeredHandlers: ['payments-api'], missingFeeds: ['duration'],
       rangeLabel: '1 hour', countsSince: null,
     },
   },
@@ -108,7 +108,7 @@ export const NoLivePlane: Story = {
   args: {
     live: {
       available: false, observed: null, errors: 0, avgDurationMs: null, statusCounts: {},
-      services: [], missingFeeds: [], rangeLabel: '15 minutes', countsSince: null,
+      registeredHandlers: [], missingFeeds: [], rangeLabel: '15 minutes', countsSince: null,
     },
   },
 };

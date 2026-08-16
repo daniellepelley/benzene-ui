@@ -1147,8 +1147,15 @@ export interface TopicLive {
   avgDurationMs: number | null;
   /** Per-status breakdown as observed. Empty on a plane that does not carry it. */
   statusCounts: Record<string, number>;
-  /** Services the collector actually saw handling this topic — observed, not declared. */
-  services: string[];
+  /**
+   * Services REGISTERED to handle this topic, per the live plane's own declaration.
+   *
+   * Not services seen handling it. The plane carries no per-handler invocation count, so there is no
+   * observation to report here — and calling it "observed handlers" put a registration under a
+   * heading claiming measurement, printed directly beneath `observed 0`. If nothing was observed,
+   * nothing was observed handling it.
+   */
+  registeredHandlers: string[];
   /** Dimensions the plane declares genuinely absent. Reduced is visible, never mistaken for empty. */
   missingFeeds: string[];
   rangeLabel: string;
@@ -1205,7 +1212,11 @@ export const selectLiveForTopic = createSelector(
         }
         return acc;
       }, {}),
-      services: [...new Set(rows.flatMap((r) => r.consumers))].sort(),
+      // The plane's DECLARED consumer list for these rows — who is registered to handle the topic.
+      // Not who was seen handling it: the plane carries no per-handler invocation count, so there is
+      // no observation here to report. Naming it `services` and labelling it "observed handlers" put
+      // a registration under a heading that claimed measurement, directly beneath `observed 0`.
+      registeredHandlers: [...new Set(rows.flatMap((r) => r.consumers))].sort(),
       missingFeeds,
       rangeLabel: rangeLabel(ms),
       countsSince: window && !window.countsWindowed ? (window.countsSince ?? null) : null,

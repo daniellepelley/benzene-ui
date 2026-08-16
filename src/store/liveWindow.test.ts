@@ -90,7 +90,7 @@ describe('the live plane for one topic', () => {
     const live = selectLiveForTopic(store.getState(), 'orders:create');
     expect(live.observed).toBe(155);
     expect(live.errors).toBe(5);
-    expect(live.services).toEqual(['orders-api', 'orders-worker']);
+    expect(live.registeredHandlers).toEqual(['orders-api', 'orders-worker']);
   });
 
   it('renders a dimension the plane cannot supply as unknown, never as zero', async () => {

@@ -1179,17 +1179,26 @@ import { exampleFromSchema, inboundSchema } from './exampleFromSchema';
 import { RAW_TRANSPORT } from './slices/composeSlice';
 
 /**
- * Every distinct service that produces a topic, across its versions — `ComposePage`'s way of
- * resolving *which* service to dispatch to when it's entered from a topic rather than a service (a
- * topic can have more than one producer, or none listed at all, so this is an answer to check, not
- * one to assume).
+ * Every distinct service that HANDLES a topic, across its versions — the set `ComposePage` dispatches
+ * to when it is entered from a topic rather than a service.
+ *
+ * Consumers, not producers, and the distinction is the whole point: a dispatch INVOKES a topic on a
+ * target service, so the target has to be the one with the handler. Resolving to the producer sent
+ * every composed message to the service that emits the topic, which of course declares no handler
+ * for it — so the in-product path from a working v1 topic returned a red `no-handler` naming the
+ * wrong service. Last round the product manufactured false passes; this manufactured a false
+ * failure, which is the same defect with the sign flipped and is worse, because a tester raises a
+ * bug that does not exist.
+ *
+ * A topic can have more than one consumer, or none listed at all, so this is an answer to check
+ * rather than one to assume — which is why the page asks when it is ambiguous.
  */
-export const selectProducerServicesForTopic = createSelector(
+export const selectHandlerServicesForTopic = createSelector(
   [selectTopicEntries],
   (entries): string[] => {
     const services = new Set<string>();
     for (const t of entries) {
-      for (const p of t.producers ?? []) services.add(p.service);
+      for (const c of t.consumers ?? []) services.add(c.service);
     }
     return [...services].sort();
   },

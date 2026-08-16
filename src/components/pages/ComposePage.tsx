@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   selectTopicVersions, selectTransportsForTopic, selectExampleBody, selectComposeValidity, selectCanInvoke,
-  selectProducerServicesForTopic,
+  selectHandlerServicesForTopic,
 } from '../../store/selectors';
 import {
   composeOpened, versionSelected, transportSelected, bodyEdited, headersEdited,
@@ -25,7 +25,9 @@ export function ComposePage({ topic, service }: ComposePageProps) {
   const dispatch = useAppDispatch();
   const versions = useAppSelector((s: RootState) => selectTopicVersions(s, topic));
   const transports = useAppSelector((s: RootState) => selectTransportsForTopic(s, topic));
-  const producers = useAppSelector((s: RootState) => selectProducerServicesForTopic(s, topic));
+  // The services that HANDLE this topic — a dispatch invokes it ON a target, so the target must
+  // be the one with the handler, not the one that emits it.
+  const handlers = useAppSelector((s: RootState) => selectHandlerServicesForTopic(s, topic));
   const compose = useAppSelector((s: RootState) => s.compose);
   const validity = useAppSelector(selectComposeValidity);
   // Bound to the store so the seeding effect can build a skeleton for any version, not just the one
@@ -39,10 +41,10 @@ export function ComposePage({ topic, service }: ComposePageProps) {
   // new version had deleted included.
   const arrivedAtVersion = useAppSelector((s: RootState) => s.view.selectedVersion);
 
-  // A topic can have more than one producer (or, for a purely-consumed event with no declared
-  // producer, none at all) — dispatch needs exactly one, so an unambiguous topic resolves itself and
-  // an ambiguous one asks, rather than the page silently guessing which service to target.
-  const resolvedService = producers.length === 1 ? producers[0]! : service;
+  // A topic can have more than one handler (or, for one whose consumers are outside the estate, none
+  // at all) — dispatch needs exactly one, so an unambiguous topic resolves itself and an ambiguous
+  // one asks, rather than the page silently guessing which service to target.
+  const resolvedService = handlers.length === 1 ? handlers[0]! : service;
 
   // Seeding the draft from the schema is a lifecycle, not state — and composeOpened guards against
   // overwriting a dirty draft, so re-entering the page never discards what someone typed.
@@ -80,21 +82,22 @@ export function ComposePage({ topic, service }: ComposePageProps) {
         </button>
       </header>
 
-      {producers.length !== 1 && (
+      {handlers.length !== 1 && (
         <div className="bz-compose-controls">
           <label>
             Service
             <select value={service ?? ''} onChange={(e) => pickService(e.target.value)}>
               <option value="">Choose a service…</option>
-              {producers.map((name) => (
+              {handlers.map((name) => (
                 <option key={name} value={name}>{name}</option>
               ))}
             </select>
           </label>
-          {producers.length === 0 && (
+          {handlers.length === 0 && (
             <p className="bz-page-note">
-              No service in the catalog declares itself a producer of {topic} — pick one it is
-              believed to come from, or use the Test Console to target any service directly.
+              No service in the catalogue declares handling {topic}, so there is nothing in this
+              estate to send it to. Its handlers may be outside the estate, or this version may not
+              be deployed yet.
             </p>
           )}
         </div>

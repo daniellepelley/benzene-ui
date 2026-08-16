@@ -9,6 +9,8 @@ import { loadAnnotations } from '../../store/slices/annotationsSlice';
 import { fleetObserved, clockTicked } from '../../store/slices/fleetSlice';
 import { fleetView, fleetService, meshIssue } from '../../test/fleetView';
 import { fakeMeshApi } from '../../test/fakeMeshApi';
+import topics from '../../../contracts/artifacts/topics.json';
+import type { Topics } from '../../contracts';
 import { FleetPage } from './FleetPage';
 import { ServicePage } from './ServicePage';
 import { TopicPage } from './TopicPage';
@@ -251,20 +253,36 @@ describe('ComposePage', () => {
     expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled();
   });
 
-  it('resolves the service silently when a topic has exactly one producer', async () => {
+  /**
+   * A dispatch INVOKES a topic on a target service, so the target has to be the one with the
+   * handler. Resolving to the producer sent every composed message to the service that emits the
+   * topic — which of course declares no handler for it — so the in-product path from a working v1
+   * topic returned a red `no-handler` naming the wrong service. A false failure is the same defect
+   * as a false pass with the sign flipped, and worse, because a tester raises a bug that isn't there.
+   */
+  it('dispatches to the service that HANDLES the topic, not the one that emits it', async () => {
     const store = await loaded();
-    // payment:capture is produced by orders-api alone in the fixture.
+    // payment:capture: produced by orders-api, handled by payments-api.
     show(store, <ComposePage topic="payment:capture" service={null} />);
 
-    // No service picker shown, and the composer renders straight away.
+    // Unambiguous, so no picker — and the target resolved is the handler.
     expect(screen.queryByLabelText('Service')).not.toBeInTheDocument();
     expect(screen.getByLabelText(/Body/)).toBeInTheDocument();
+    expect(store.getState().compose.service).toBe('payments-api');
   });
 
-  it('asks which service when a topic has more than one producer', async () => {
-    const store = await loaded();
-    // shipping:book is produced by both orders-api and payments-api in the fixture.
-    show(store, <ComposePage topic="shipping:book" service={null} />);
+  it('asks which service when a topic has more than one handler', async () => {
+    const twoHandlers = {
+      ...(topics as unknown as Topics),
+      topics: (topics as unknown as Topics).topics.map((t) =>
+        (t.topic === 'payment:capture'
+          ? { ...t, consumers: [{ service: 'payments-api' }, { service: 'ledger-api' }] }
+          : t)),
+    };
+    const store = createStore(fakeMeshApi({ getTopics: async () => twoHandlers as Topics }));
+    await store.dispatch(loadManifest());
+    await store.dispatch(loadCatalog());
+    show(store, <ComposePage topic="payment:capture" service={null} />);
 
     expect(screen.getByLabelText('Service')).toBeInTheDocument();
     // Nothing chosen yet, so the composer itself does not render.

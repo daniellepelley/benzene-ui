@@ -41,7 +41,7 @@ export function RolloutList({ rollouts, onOpenTopic, onOpenService }: RolloutLis
               {r.topic}
               <span className="bz-topic-version">{r.baselineVersion} → {r.version}</span>
             </button>
-            <VerdictBadge verdict={r.verdict} attribute={false} />
+            <VerdictBadge verdict={r.verdict} attribute={false} baseline={r.baselineVersion} />
           </div>
 
           {/* The constraint is the row's substance and it is a sentence, so it reads rather than

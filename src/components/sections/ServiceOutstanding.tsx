@@ -67,7 +67,7 @@ export function ServiceOutstanding({
                 bare word. An additive field on an event is genuinely compatible FOR A v1 READER and
                 still leaves this service a deploy to do — which is exactly why the obligation is not
                 derived from the verdict. */}
-            <VerdictBadge verdict={o.verdict} attribute />
+            <VerdictBadge verdict={o.verdict} attribute={false} baseline={o.baselineVersion} />
             <span className="bz-outstanding-other">
               {o.kind === 'catchUp'
                 ? 'the other side has already moved'

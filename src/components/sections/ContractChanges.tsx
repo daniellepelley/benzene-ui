@@ -23,13 +23,26 @@ const RAG: Record<string, 'red' | 'amber' | 'green' | undefined> = {
  * A verdict badge. The attribution is part of the badge rather than an optional extra, because
  * `SchemaCompatibilityRules` is configurable and ships a `Strict()` alternative — the verdict is a
  * function of a rule table, not a fact about the world. Saying so converts an argument into a setting.
+ *
+ * `baseline` names the verdict's SUBJECT, and a surface that knows it should pass it. The rule table
+ * answers exactly one question — *does this version break a reader still on the previous one?* — and
+ * a bare `compatible` reads as "nothing to do here", which is false often enough to matter: an
+ * additive required field on an event is genuinely compatible for a v1 reader AND still leaves the
+ * producer a deploy to make. Naming the reader is what keeps the verdict true and stops it being
+ * mistaken for a statement about whether any work is outstanding.
  */
-export function VerdictBadge({ verdict, attribute = true }: { verdict: string; attribute?: boolean }) {
+export function VerdictBadge(
+  { verdict, attribute = true, baseline }:
+  { verdict: string; attribute?: boolean; baseline?: string | null },
+) {
   const rag = RAG[verdict];
   return (
     <span className="bz-verdict" data-verdict={verdict}>
       {rag && rag !== 'green' && <StatusGlyph rag={rag} label={`${VERDICT_LABEL[verdict]}: attention`} />}
       {VERDICT_LABEL[verdict] ?? verdict}
+      {baseline && verdict !== 'notCompared' && (
+        <span className="bz-verdict-subject">for readers still on {baseline}</span>
+      )}
       {attribute && verdict !== 'notCompared' && (
         <span className="bz-verdict-attr">{VERDICT_ATTRIBUTION}</span>
       )}
@@ -98,7 +111,7 @@ export function ContractChanges({ compatibility, published, version }: ContractC
       <h3>Changed from {baselineVersion || 'the previous version'}</h3>
 
       <p className="bz-changes-summary">
-        <VerdictBadge verdict={overall} />
+        <VerdictBadge verdict={overall} baseline={baselineVersion} />
         {['breaking', 'warning', 'compatible'].map((verdict) =>
           counts[verdict] ? (
             <span key={verdict} className="bz-changes-count" data-verdict={verdict}>

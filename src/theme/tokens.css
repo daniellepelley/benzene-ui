@@ -688,6 +688,10 @@ input, select, textarea {
 .bz-verdict[data-verdict='notCompared'] { font-style: italic; font-weight: 500; }
 /* The attribution rides inside the badge so it cannot be dropped by a layout change. */
 .bz-verdict-attr { font-weight: 400; font-size: 10px; opacity: 0.75; }
+/* The subject sits between the verdict and the rule attribution, and is weighted slightly heavier
+   than the attribution: which reader a verdict is about changes what it means, while which rule
+   table produced it changes only how much to argue with it. */
+.bz-verdict-subject { font-weight: 400; font-size: 10px; opacity: 0.9; }
 
 .bz-changes-section { margin: 0 0 1.25rem; }
 .bz-changes-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0 0 0.6rem; }

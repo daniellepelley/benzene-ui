@@ -282,7 +282,7 @@ function LedgerRow({
 }) {
   return (
     <li className="bz-change bz-ledger-row" data-verdict={change.compatibility}>
-      <VerdictBadge verdict={change.compatibility} attribute={false} />
+      <VerdictBadge verdict={change.compatibility} attribute={false} baseline={change.baselineVersion} />
       <button type="button" className="bz-topic-name" onClick={() => onOpen(change.topic, change.version)}>
         {change.topic}
         <span className="bz-topic-version">

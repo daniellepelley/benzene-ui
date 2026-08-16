@@ -1,0 +1,10 @@
+import { chromium } from 'playwright';
+const browser = await chromium.launch();
+const p = await browser.newPage({ viewport:{width:1440,height:1800} });
+p.on('pageerror',e=>console.log('PAGE ERR '+e.message));
+await p.goto('http://localhost:8930/#topic/payment%3Acapture@v1', { waitUntil:'networkidle' }); await p.waitForTimeout(1500);
+await p.getByText('b2f5c8901ad34e77').first().click(); await p.waitForTimeout(2000);
+console.log('URL: '+p.url());
+const t=await p.locator('body').innerText(); console.log(t.split('◐')[1]);
+await p.screenshot({path:'/tmp/claude-0/-home-user-Benzene/77b3f3e3-e32a-52a7-bd95-4e3fccac2f7b/scratchpad/shots/flow.png', fullPage:true});
+await browser.close();

@@ -169,3 +169,45 @@ export const VERSIONED_OUT_COPY =
  * labelled apart rather than left to the sentence beneath.
  */
 export const ROLLOUT_BREACHED_LABEL = 'gap live now';
+
+/**
+ * Why the product does not draw a release train, said out loud on the screen where a release manager
+ * looks for one.
+ *
+ * A delivery owner spent real time hunting for the view before concluding it did not exist, and
+ * asked for exactly this: an unstated refusal reads as a missing feature, and the next round asks
+ * for it again. Stating it converts a perceived gap into a position that can be argued with.
+ */
+export const NO_RELEASE_TRAIN_COPY =
+  'Each constraint below is between the two ends of one topic. They are deliberately not combined '
+  + 'into a single set of services to release at once: on an estate where one service touches most '
+  + 'topics, that combination degenerates to the whole estate, which is true and useless.';
+
+/** What each rollout state MEANS, on hover, because the labels were being reverse-engineered. */
+export const ROLLOUT_STATE_HELP: Record<string, string> = {
+  complete: 'Both sides declare every version in play. Nothing is owed on this topic.',
+  awaitingAdapter:
+    'The side that owns the shape has moved to the new version and the side that has to adapt to it '
+    + 'has not. This is the gap that costs something.',
+  awaitingOwner:
+    'The side that has to adapt is already on the new version and the side that owns the shape has '
+    + 'not moved yet. Nothing is broken; the rollout is unfinished.',
+  unattributable:
+    'One side of this topic has no service in this estate at any version, so nobody here can be '
+    + 'named as owing the move.',
+  notCompared: 'The versions differ and the schemas could not be compared, so no verdict was earned.',
+};
+
+/**
+ * The honest limit on the per-service roll-up.
+ *
+ * Every obligation is startable by construction — one exists only once the other side has published
+ * the version — so the roll-up would happily imply every stream can begin today. A service owner
+ * found the counter-example in the same round: two of their own obligations were one field crossing
+ * their service, and the compatible one could not ship before the breaking one. That dependency is
+ * inside a service and mesh cannot see it, so the roll-up says what it counted and stops.
+ */
+export const BY_SERVICE_SCOPE =
+  'No move below is waiting on another service — an obligation only appears once the other side has '
+  + 'published the version. Whether one of a service’s own moves depends on another is inside that '
+  + 'service, and not visible here.';

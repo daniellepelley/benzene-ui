@@ -496,6 +496,39 @@ export const selectObligations = createSelector([selectRollouts], (rollouts) =>
   rollouts.flatMap((r) => r.obligations));
 
 /**
+ * Outstanding moves grouped by the service that owes them — how many independent workstreams a
+ * release actually is.
+ *
+ * Deliberately NOT the transitive coordination set. Closure over "must move together" collapses to
+ * the whole estate the moment one service is a hub, which is why it is refused. This is the other
+ * axis over the same data, and it does not degenerate: it is one row per service that owes
+ * something, so a hub that has already moved simply has no row, and a hub that owes one move has a
+ * row with a 1 in it. Bounded by the number of services, and it asserts no coupling that the
+ * catalogue cannot see.
+ *
+ * A release manager and an architect asked for this from opposite directions in the same round —
+ * "how many teams do I book" and "who is the bottleneck" — and both were assembling it by hand from
+ * one service page at a time.
+ */
+export const selectOutstandingByService = createSelector([selectObligations], (obligations) => {
+  const byService = new Map<string, typeof obligations>();
+  for (const o of obligations) {
+    const bucket = byService.get(o.service);
+    if (bucket) bucket.push(o);
+    else byService.set(o.service, [o]);
+  }
+  return [...byService.entries()]
+    .map(([service, moves]) => ({
+      service,
+      moves,
+      // A catch-up is a gap that exists now; a completion is a rollout merely unfinished. A service
+      // carrying both is on the critical path twice, for two different reasons.
+      catchUps: moves.filter((m) => m.kind === 'catchUp').length,
+    }))
+    .sort((a, b) => b.moves.length - a.moves.length || a.service.localeCompare(b.service));
+});
+
+/**
  * What this release requires of one service — the question a service owner's first click asks, and
  * the one the service page has never answered.
  *

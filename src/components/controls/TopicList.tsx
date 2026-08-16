@@ -3,7 +3,6 @@ import { Chip } from '../primitives/Chip';
 import { Badge } from '../primitives/Badge';
 import { versionLabel } from '../../store/selectors';
 import { EmptyState } from '../primitives/EmptyState';
-import { VerdictBadge } from '../sections/ContractChanges';
 
 export interface TopicListProps {
   topics: TopicsTopicsItem[];
@@ -52,12 +51,29 @@ export function TopicList({ topics, emptyMessage, onOpen }: TopicListProps) {
           {t.schemaMismatch && (
             <Badge rag="red" title="Producer and consumer schemas disagree">schema mismatch</Badge>
           )}
-          {/* Only ever shown for a verdict that was actually earned. `notCompared` is deliberately
-              absent here: on a dense list it would read as a warning about the topic rather than a
-              statement about the comparison, and the topic page states it properly. */}
+          {/* A CHIP HERE, NOT A SEVERITY BADGE — and the distinction is the whole point.
+              This list is always one service's own topics, and it only ever contains versions that
+              service DECLARES. An entry carrying a comparison is therefore the newer half of a pair
+              that this service is already on: it has done the work. A red badge here marks the
+              mover, which is exactly the defect the rollout surfaces were built to remove, sitting
+              four inches away from the block that now removes it and contradicting it.
+
+              The verdict is still worth stating — it is a real fact about the version pair — so it
+              keeps its words and its subject and loses its alarm.
+
+              `notCompared` stays absent: on a dense list it would read as a warning about the topic
+              rather than a statement about the comparison, and the topic page states it properly. */}
           {t.compatibility && t.compatibility.overall !== 'notCompared'
             && t.compatibility.changes.length > 0 && (
-              <VerdictBadge verdict={t.compatibility.overall} attribute={false} />
+              <Chip title={`This service declares ${versionLabel(t.version) || 'this version'}, so it has already made this move. `
+                + `The verdict describes the change from ${t.compatibility.baselineVersion ?? 'the previous version'}, `
+                + 'for a reader still on it.'}>
+                {t.compatibility.baselineVersion
+                  ? `${t.compatibility.baselineVersion} → ${versionLabel(t.version)}`
+                  : 'changed'}
+                {' · '}
+                {t.compatibility.overall}
+              </Chip>
             )}
         </li>
       ))}

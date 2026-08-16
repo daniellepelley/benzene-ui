@@ -217,7 +217,10 @@ describe('the rollouts grain', () => {
     const store = await rolloutEstate();
     show(store, <ChangesPage />);
 
-    const topics = screen.getAllByRole('listitem').map((li) => li.textContent ?? '');
+    // Scoped to the rollout cards: the per-service roll-up above them is also a list.
+    const topics = screen.getAllByRole('listitem')
+      .filter((li) => li.className.includes('bz-rollout'))
+      .map((li) => li.textContent ?? '');
     expect(topics[0]).toContain('inventory:reserve');
     // …and the versioned-out breaking change is last, not first.
     expect(topics[topics.length - 1]).toContain('shipping:book');
@@ -248,7 +251,9 @@ describe('the rollouts grain', () => {
     store.dispatch(changeServiceFiltered('billing-api'));
     show(store, <ChangesPage />);
 
-    const topics = screen.getAllByRole('listitem').map((li) => li.textContent ?? '');
+    const topics = screen.getAllByRole('listitem')
+      .filter((li) => li.className.includes('bz-rollout'))
+      .map((li) => li.textContent ?? '');
     expect(topics.some((t) => t.includes('order:placed'))).toBe(true);
     expect(topics.some((t) => t.includes('invoice:raise'))).toBe(true);
     expect(topics.some((t) => t.includes('notification:send'))).toBe(false);
@@ -318,5 +323,67 @@ describe('the estate tile re-bases on the join', () => {
     const section = screen.getByRole('heading', { name: 'Contract changes' }).closest('section')!;
     // The proven outage leads, and its constraint sentence is on the front door.
     expect(within(section).getByText(/shipping-api no longer handles inventory:reserve v1/)).toBeInTheDocument();
+  });
+});
+
+/**
+ * A release manager and an architect asked for this from opposite directions in the same round —
+ * "how many teams do I book, and which can start today" and "who is the bottleneck" — and both
+ * assembled it by hand from one service page at a time.
+ */
+describe('outstanding moves grouped by the service that owes them', () => {
+  const rolloutEstate = async () => {
+    const store = createStore(fakeMeshApi({ getTopics: async () => rollout as unknown as Topics }));
+    await store.dispatch(loadManifest());
+    await store.dispatch(loadCatalog());
+    return store;
+  };
+
+  it('puts the service on the critical path twice at the top', async () => {
+    const store = await rolloutEstate();
+    show(store, <ChangesPage />);
+
+    const section = screen.getByRole('heading', { name: 'Outstanding by service' }).closest('section')!;
+    const rows = within(section).getAllByRole('listitem').map((li) => li.textContent ?? '');
+    expect(rows[0]).toContain('billing-api');
+    expect(rows[0]).toContain('2 moves');
+    // Three services owe something; two owe nothing and get no row at all.
+    expect(rows).toHaveLength(3);
+    expect(rows.some((r) => r.includes('shipping-api'))).toBe(false);
+  });
+
+  it('does not degenerate when one service is a hub', async () => {
+    const store = await rolloutEstate();
+    show(store, <ChangesPage />);
+
+    // orders-api produces five of six topics and appears with the one move it actually owes, not
+    // with the whole estate attached — which is what a transitive closure would have produced.
+    const section = screen.getByRole('heading', { name: 'Outstanding by service' }).closest('section')!;
+    const orders = within(section).getAllByRole('listitem')
+      .find((li) => li.textContent?.includes('orders-api'))!;
+    expect(orders.textContent).toContain('1 move');
+    expect(orders.textContent).toContain('send v2 on inventory:reserve');
+  });
+
+  it('admits the dependency it cannot see', async () => {
+    const store = await rolloutEstate();
+    show(store, <ChangesPage />);
+    // Every obligation is startable by construction, so the roll-up would happily imply every
+    // stream can begin today. A service owner's two moves turned out to be one field crossing their
+    // service, with the compatible one gated on the breaking one — inside a service, invisible here.
+    expect(screen.getByText(/inside that service, and not visible here/)).toBeInTheDocument();
+  });
+
+  it('states the refusal to build a release train rather than leaving a hole', async () => {
+    const store = await rolloutEstate();
+    show(store, <ChangesPage />);
+    expect(screen.getByText(/degenerates to the whole estate/)).toBeInTheDocument();
+  });
+
+  it('hides the roll-up under a filter, so a subset never wears the whole estate’s label', async () => {
+    const store = await rolloutEstate();
+    store.dispatch(changeServiceFiltered('billing-api'));
+    show(store, <ChangesPage />);
+    expect(screen.queryByRole('heading', { name: 'Outstanding by service' })).toBeNull();
   });
 });

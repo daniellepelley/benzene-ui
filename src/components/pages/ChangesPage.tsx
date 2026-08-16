@@ -1,7 +1,7 @@
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   selectAllChanges, selectUnclassifiedChanges, selectChangeSummary, selectComparisonsPublished,
-  selectRollouts, VERDICT_ORDER, type LedgerChange,
+  selectRollouts, selectOutstandingByService, VERDICT_ORDER, type LedgerChange,
 } from '../../store/selectors';
 import {
   navigated, changeFilterChanged, changeServiceFiltered, changeVerdictFiltered, changeStateFiltered,
@@ -12,8 +12,9 @@ import { EmptyState } from '../primitives/EmptyState';
 import { VerdictBadge, shortPath } from '../sections/ContractChanges';
 import { RolloutList } from '../sections/RolloutList';
 import {
-  NOT_PUBLISHED_COPY, POLLED_INSTANCE_CAVEAT, ROLLOUT_SCOPE_CAVEAT, ROLLOUT_STATE_LABEL,
-  SCOPE_CAVEAT, UNCLASSIFIED_GROUP_COPY, VERDICT_LABEL,
+  BY_SERVICE_SCOPE, NOT_PUBLISHED_COPY, NO_RELEASE_TRAIN_COPY, POLLED_INSTANCE_CAVEAT,
+  ROLLOUT_SCOPE_CAVEAT, ROLLOUT_STATE_HELP, ROLLOUT_STATE_LABEL, SCOPE_CAVEAT,
+  UNCLASSIFIED_GROUP_COPY, VERDICT_LABEL,
 } from '../sections/compatibilityCopy';
 import type { RootState } from '../../store/store';
 
@@ -43,6 +44,7 @@ export function ChangesPage() {
   const mode = useAppSelector((s: RootState) => s.view.changeMode);
   const state = useAppSelector((s: RootState) => s.view.changeState);
   const rollouts = useAppSelector(selectRollouts);
+  const byService = useAppSelector(selectOutstandingByService);
 
   // The union of both sides, not just whoever is on the changed entry. Built from `services` alone,
   // this list silently omitted exactly the population a release review is trying to enumerate — the
@@ -165,7 +167,10 @@ export function ChangesPage() {
               >
                 <option value="">All states</option>
                 {Object.entries(ROLLOUT_STATE_LABEL).map(([key, label]) => (
-                  <option key={key} value={key}>{label}</option>
+                  // The labels were being reverse-engineered from which verdicts happened to carry
+                  // them — "move outstanding" and "completion outstanding" are a real distinction
+                  // and nothing on screen defined it.
+                  <option key={key} value={key} title={ROLLOUT_STATE_HELP[key]}>{label}</option>
                 ))}
               </select>
             ) : (
@@ -199,6 +204,46 @@ export function ChangesPage() {
               whose declaration moved.
             </p>
           )}
+
+          {/* GROUPED BY THE SERVICE THAT OWES, which is the axis the people planning a release
+              actually work on. Two roles asked for this from opposite directions in the same round
+              — "how many teams do I book" and "who is the bottleneck" — and both were assembling it
+              by hand, one service page at a time.
+
+              This is NOT the transitive coordination set, which stays refused: that closure
+              collapses to the whole estate once a service is a hub. This is bounded by the number of
+              services, a hub that has already moved simply has no row, and it asserts no coupling
+              the catalogue cannot see. */}
+          {mode === 'rollouts' && byService.length > 0 && !service && !state && (
+            <section className="bz-by-service">
+              <div className="bz-section-head">
+                <h3>Outstanding by service</h3>
+                <span className="bz-page-note">
+                  {byService.length} service{byService.length === 1 ? '' : 's'} owe
+                  {byService.length === 1 ? 's' : ''} a contract move
+                </span>
+              </div>
+              <ul className="bz-by-service-list">
+                {byService.map((row) => (
+                  <li key={row.service}>
+                    <button type="button" className="bz-cat-svc"
+                      onClick={() => dispatch(changeServiceFiltered(row.service))}>
+                      {row.service}
+                    </button>
+                    <span className="bz-by-service-count">
+                      {row.moves.length} move{row.moves.length === 1 ? '' : 's'}
+                    </span>
+                    <span className="bz-by-service-topics">
+                      {row.moves.map((m) => `${m.verb} on ${m.topic}`).join(' · ')}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="bz-muted bz-changes-caveat">{BY_SERVICE_SCOPE}</p>
+            </section>
+          )}
+
+          {mode === 'rollouts' && <p className="bz-page-note">{NO_RELEASE_TRAIN_COPY}</p>}
 
           {mode === 'rollouts' ? (
             /* Four empty states, because they lead to four different actions and only one of them

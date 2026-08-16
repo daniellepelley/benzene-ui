@@ -149,8 +149,16 @@ describe('the value view', () => {
     };
     const store = await ready({ getUsage: async () => usage });
 
+    // The point of this test is ATTRIBUTION — the versionless row must be counted against the
+    // version — so that is what it asserts. It is not a retirement candidate: 91 messages were
+    // handled successfully, which is real evidence of use.
     expect(rowFor(store, 'order:legacy-export')?.usageTotal).toBe(91);
-    expect(tierOf(store, 'order:legacy-export')).toBe('ok');
+    expect(tierOf(store, 'order:legacy-export')).not.toBe('candidate');
+    // It lands in `verify` rather than `ok` because two facts on the row contradict "actively used
+    // and nothing to see": the topic declares no consumer, and the aggregator itself flagged it a
+    // deprecation candidate. Traffic is being handled by somebody the catalogue cannot name, which
+    // is exactly what `verify` is for — confirm with the parties outside this fleet's declarations.
+    expect(tierOf(store, 'order:legacy-export')).toBe('verify');
   });
 });
 
@@ -191,5 +199,57 @@ describe('http mappings', () => {
   it('is empty for a topic with no HTTP binding, rather than inventing one', async () => {
     const store = await ready({ getTopics: async () => versioned as Topics });
     expect(selectHttpMappingsForTopic(store.getState(), 'shipping:book')).toEqual([]);
+  });
+});
+
+/**
+ * The Value page counted a failure as evidence of value. `usageTotal > 0` short-circuited to "no
+ * retirement signal — actively used", so a topic with one producer, zero consumers and 2,205
+ * messages of which 100% were `service-unavailable` sat under a green heading on the page named for
+ * the retirement decision — carrying the aggregator's own `deprecation-candidate` flag in a chip
+ * beside it.
+ *
+ * A topic every message of which fails is the strongest retirement signal in an estate.
+ */
+describe('usage means messages that were handled', () => {
+  const withUsage = (rows: { status: string; count: number }[]) => ({
+    generatedAtUtc: '2026-08-09T06:00:00Z',
+    windowStartUtc: '2026-08-08T06:00:00Z',
+    windowEndUtc: '2026-08-09T06:00:00Z',
+    entries: rows.map((r) => ({
+      topic: 'order:legacy-export', version: null, service: null, transport: null,
+      status: r.status, count: r.count, avgDurationMs: null, source: 'test',
+    })),
+  } as unknown as Usage);
+
+  it('does not call a topic actively used when every message failed', async () => {
+    const store = await ready({ getUsage: async () => withUsage([{ status: 'service-unavailable', count: 2205 }]) });
+
+    expect(tierOf(store, 'order:legacy-export')).toBe('candidate');
+    expect(rowFor(store, 'order:legacy-export')?.evidence.join(' '))
+      .toContain('every observed message failed (2,205)');
+  });
+
+  it('still counts successfully handled traffic as evidence of use', async () => {
+    const store = await ready({ getUsage: async () => withUsage([{ status: 'ok', count: 900 }]) });
+    expect(tierOf(store, 'order:legacy-export')).not.toBe('candidate');
+  });
+
+  it('keeps an unrecognised status apart from both, and says how much', async () => {
+    // Assuming the worst is right; presenting the assumption as a measurement is not.
+    const store = await ready({ getUsage: async () => withUsage([{ status: 'made-up', count: 40 }]) });
+
+    expect(tierOf(store, 'order:legacy-export')).toBe('candidate');
+    expect(rowFor(store, 'order:legacy-export')?.evidence.join(' '))
+      .toContain('40 in statuses this build does not recognise');
+  });
+
+  it('never sits a row under a heading its own chip contradicts', async () => {
+    // order:legacy-export is flagged `deprecation-candidate` by the aggregator and the row renders
+    // that flag. Whatever the traffic says, it may not land under "no retirement signal".
+    const store = await ready({ getUsage: async () => withUsage([{ status: 'ok', count: 900 }]) });
+    expect(tierOf(store, 'order:legacy-export')).toBe('verify');
+    expect(rowFor(store, 'order:legacy-export')?.evidence.join(' '))
+      .toContain('the aggregator flagged this a deprecation candidate');
   });
 });

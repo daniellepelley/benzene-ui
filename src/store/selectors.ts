@@ -140,6 +140,42 @@ export const selectLiveness = createSelector(
   },
 );
 
+/**
+ * Feeds the collector has DECLARED it cannot supply for one service.
+ *
+ * `services[].missingFeeds` is the plane saying "I have no health data for this service" — and it
+ * was read at topic grain and ignored at service grain, so a service whose collector declared
+ * `["health","usage"]` rendered "Heartbeat healthy", "9.8k messages observed" and "● No issues
+ * observed for this service". Three positive assertions built on feeds the collector had just said
+ * it does not have, which is the third-state rule broken at the grain a reader scans first.
+ */
+export const selectMissingFeedsForService = createSelector(
+  [selectFleetServices, selectFleetAvailable, (_: RootState, service: string) => service],
+  (services, available, service): string[] =>
+    (available ? services.find((s) => s.service === service)?.missingFeeds ?? [] : []),
+);
+
+/**
+ * What the LIVE plane says about a service's health, which is a different question from what the
+ * manifest declared and is answered by a fresher source.
+ *
+ * The field was on every fleet response and read by nothing: a service the collector reported as
+ * `unreachable` rendered HEALTHY from a manifest snapshot hours older than the contradiction.
+ *
+ * PRECEDENCE, stated once: the live plane wins when it has an opinion, because it is the fresher
+ * source and it is the one describing *now*. Where the two disagree the reader is told both, rather
+ * than being handed a merged verdict with the disagreement hidden — a service declaring healthy
+ * while the plane calls it unreachable is a finding, not a rendering conflict to resolve quietly.
+ */
+export const selectObservedHealth = createSelector(
+  [selectFleetServices, selectFleetAvailable, (_: RootState, service: string) => service],
+  (services, available, service): string | null => {
+    if (!available) return null;
+    const health = services.find((s) => s.service === service)?.health;
+    return typeof health === 'string' && health !== '' ? health : null;
+  },
+);
+
 /** The 24-hour inbox, for anything that renders the list itself. */
 export const selectInboxIssues = createSelector([selectIssues], (issues) =>
   issues.slice().sort((a, b) => Date.parse(b.lastSeen) - Date.parse(a.lastSeen)),
@@ -181,10 +217,47 @@ export const selectDivergences = createSelector(
       .filter((s) => s.status === 'healthy')
       .filter((s) => {
         const lastSeen = observed.find((o) => o.service === s.name)?.lastSeen;
-        // Never-reported is not a divergence — it is an unwired service, not a lying one.
+        // Never-reported is not a divergence — it is an unwired service, not a lying one. It is
+        // reported separately, by `selectNeverHeartbeated`, because "I cannot see you at all" and
+        // "you told me you were fine and then went quiet" are different problems with different
+        // fixes, and the banner used to say "silent" while meaning this one.
         return lastSeen !== undefined && now - Date.parse(lastSeen) > HEARTBEAT_STALE_MS;
       })
       .map((s) => s.name);
+  },
+);
+
+/**
+ * Services in the manifest that have NEVER reported to the collector.
+ *
+ * The failure mode a platform engineer named as the one they most need to catch on a rollout — the
+ * service is deployed and the mesh middleware was never wired — and it was visible only by opening
+ * each service page one at a time, because the estate list carries no liveness at all. Two
+ * never-heartbeated services rendered pixel-identical to one that reported thirty seconds ago.
+ */
+export const selectNeverHeartbeated = createSelector(
+  [(s: RootState) => s.estate.services, selectFleetServices, selectFleetAvailable],
+  (declared, observed, available) => {
+    if (!available) return [];
+    return declared
+      .filter((s) => observed.find((o) => o.service === s.name)?.lastSeen === undefined)
+      .map((s) => s.name);
+  },
+);
+
+/**
+ * Services the collector is reporting that the manifest does not contain.
+ *
+ * `mesh.md` §4.2's *undeclared* case at service grain: it is live, it is sending, and the aggregator
+ * never fetched its spec. Dropped silently until now — which made it the third distinct cause of
+ * "why isn't my service showing up" and the only one with no diagnosis anywhere in the product.
+ */
+export const selectUndeclaredServices = createSelector(
+  [(s: RootState) => s.estate.services, selectFleetServices, selectFleetAvailable],
+  (declared, observed, available) => {
+    if (!available) return [];
+    const known = new Set(declared.map((s) => s.name));
+    return observed.filter((o) => !known.has(o.service)).map((o) => o.service);
   },
 );
 
@@ -222,6 +295,26 @@ export const isKnownStatus = (status: string | null | undefined) =>
   status != null && (SUCCESS_STATUSES.has(status) || KNOWN_FAILURE_STATUSES.has(status));
 
 export const selectCatalogLoad = (s: RootState) => s.catalog.load;
+
+/**
+ * The window the usage feed's counts actually cover, as dates.
+ *
+ * `windowStartUtc` / `windowEndUtc` are on every usage artifact and had never been read, so every
+ * usage figure in the product was rendered under the phrase "over the usage feed's own window" —
+ * true, unfalsifiable, and useless. A delivery owner reverse-engineered the period from a call rate
+ * and concluded a headline "10.3k messages" was plausibly a two-hour figure they would have quoted
+ * as a daily volume: "out by a factor of twelve."
+ *
+ * Null when the feed does not state its window, which stays honestly unstated rather than guessed.
+ */
+export const selectUsageWindow = createSelector(
+  [(s: RootState) => s.catalog.usage],
+  (usage): { from: string; to: string } | null => {
+    const from = usage?.windowStartUtc;
+    const to = usage?.windowEndUtc;
+    return from && to ? { from, to } : null;
+  },
+);
 
 /**
  * Artifacts the UI could not READ, with the reason — never merged with artifacts that were read and
@@ -972,17 +1065,33 @@ export const selectFeedHealth = createSelector(
     (s: RootState) => s.fleet.lastActivityAt,
     selectNow,
     selectDomainTopicCount,
+    (s: RootState) => s.fleet.error,
   ],
-  (available, lastOk, lastFail, lastActivity, now, declaredTopics): FeedHealth | null => {
+  (available, lastOk, lastFail, lastActivity, now, declaredTopics, error): FeedHealth | null => {
     if (!available && lastOk == null && lastFail == null) return null; // no live plane wired
 
     if (lastOk == null) {
-      return lastFail == null
-        ? null
-        : {
-            kind: 'bad',
-            text: `live plane unreachable — no successful poll yet (last attempt ${formatAge(now - lastFail)} ago); retrying`,
-          };
+      /*
+       * NAME WHAT ANSWERED, because "unreachable" is a diagnosis and it is usually the wrong one.
+       *
+       * A collector that answers `not-found` — because `data-fleet-url` points at a Benzene service
+       * that never registered the mesh query handler — and a collector that answers a body this
+       * build cannot parse are the two most common wiring mistakes a platform engineer will actually
+       * make. Both used to render "unreachable", which sends them to security groups and DNS for an
+       * hour when the fix is one line of handler registration.
+       */
+      if (lastFail == null) return null;
+      // "Unreachable" was a DIAGNOSIS, and usually the wrong one — a collector answering `not-found`
+      // is entirely reachable. What is always true is that no poll has succeeded; what is always
+      // useful is the reason the last one didn't. So the sentence states the fact and quotes the
+      // cause, and asserts nothing about the network.
+      const attempt = `last attempt ${formatAge(now - lastFail)} ago`;
+      return {
+        kind: 'bad',
+        text: error
+          ? `live plane: no successful poll yet — ${error} (${attempt}); retrying`
+          : `live plane unreachable — no successful poll yet (${attempt}); retrying`,
+      };
     }
 
     if (lastFail != null && lastFail > lastOk && now - lastOk > 3 * FLEET_POLL_MS) {
@@ -1086,16 +1195,45 @@ export const selectRetirementView = createSelector(
     const entries = usageRows as UsageEntriesItem[];
     const isUtility = utilityTest(topics);
 
-    const totalFor = (topic: string, version: string | null) =>
-      entries
-        .filter((e) => e.topic === topic && (version == null || e.version == null || e.version === version))
-        .reduce((sum, e) => sum + e.count, 0);
+    /*
+     * Usage split by whether the message was HANDLED, because that is what "used" means here.
+     *
+     * The single total counted a failure as evidence of value, and `usageTotal > 0` short-circuited
+     * to "no retirement signal — actively used". So `inventory:reserve v1` — one producer, zero
+     * consumers, 2,205 messages of which 100% are `service-unavailable` — sat under a green heading
+     * on the page named for the retirement decision, carrying the aggregator's own
+     * `deprecation-candidate` flag in a chip beside it. A delivery owner: "if I had trusted the
+     * Value page and skipped the drill-down, I would have told a steering group there is nothing to
+     * retire in this estate. There is."
+     *
+     * A topic every message of which fails is the STRONGEST retirement signal in an estate, not the
+     * weakest. `unrecognised` is kept apart from both for the standing reason: a status this build
+     * does not know is not evidence of success or of failure.
+     */
+    const usageFor = (topic: string, version: string | null) => {
+      const rows = entries.filter((e) =>
+        e.topic === topic && (version == null || e.version == null || e.version === version));
+      let succeeded = 0;
+      let failed = 0;
+      let unrecognised = 0;
+      for (const row of rows) {
+        if (isSuccessStatus(row.status)) succeeded += row.count;
+        else {
+          failed += row.count;
+          if (!isKnownStatus(row.status)) unrecognised += row.count;
+        }
+      }
+      return { succeeded, failed, unrecognised, total: succeeded + failed };
+    };
 
     const removed = (removedRaw as RemovedTopicRow[]).filter((r) => showUtility || !isUtility(r.topic));
 
     const byTier: Record<RetirementTier, RetirementCandidate[]> = { candidate: [], verify: [], ok: [] };
     for (const entry of topics.filter((t) => !t.reserved)) {
-      const usageTotal = feedWired ? totalFor(entry.topic, entry.version || null) : null;
+      const usage = feedWired ? usageFor(entry.topic, entry.version || null) : null;
+      const usageTotal = usage?.total ?? null;
+      // What "used" means: messages that were handled. See `usageFor`.
+      const usageSucceeded = usage?.succeeded ?? null;
       // Whether the feed can attribute by version at all for this topic. `totalFor` already falls
       // back to the whole topic when rows carry no version — this records that it did, so the row can
       // say so instead of presenting a topic total as a version's.
@@ -1109,8 +1247,26 @@ export const selectRetirementView = createSelector(
         tier = 'verify';
         evidence.push('produced outside this fleet (gap)');
         if (usageTotal === 0) evidence.push('no traffic observed');
-      } else if (usageTotal != null && usageTotal > 0) {
+      } else if (usageSucceeded != null && usageSucceeded > 0) {
         tier = 'ok';
+        // Never contradict the chip beside you. A row carrying the aggregator's own
+        // `deprecation-candidate` flag must not sit under "no retirement signal" unexamined.
+        if (entry.status === 'deprecation-candidate') {
+          tier = 'verify';
+          evidence.push('the aggregator flagged this a deprecation candidate');
+        }
+        if (consumers === 0) {
+          tier = 'verify';
+          evidence.push('no declared consumers, but traffic is being handled — check who handles it');
+        }
+      } else if (usage != null && usage.failed > 0 && usage.succeeded === 0) {
+        // The case that produced the finding: traffic exists and none of it is getting through.
+        tier = 'candidate';
+        evidence.push(`every observed message failed (${usage.failed.toLocaleString()})`);
+        if (consumers === 0) evidence.push('no declared consumers');
+        if (usage.unrecognised > 0) {
+          evidence.push(`${usage.unrecognised.toLocaleString()} in statuses this build does not recognise`);
+        }
       } else if (consumers === 0 || usageTotal === 0) {
         tier = 'candidate';
         if (consumers === 0) evidence.push('no declared consumers');

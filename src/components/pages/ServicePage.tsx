@@ -5,7 +5,8 @@ import {
   selectServiceAbout, selectUsageForService, selectShowUtility, selectFeedHealth,
   selectFlowsForService, selectFailingFlowsOnly, selectServiceChangeSummary,
   selectObligationsForService, selectComparisonsPublished, selectServiceHasVersionPairs,
-  selectRolloutsAwaitedByService,
+  selectRolloutsAwaitedByService, selectUsageWindow, selectMissingFeedsForService,
+  selectObservedHealth,
 } from '../../store/selectors';
 import { navigated, utilityToggled, failingFlowsToggled, changeServiceFiltered,
 } from '../../store/slices/viewSlice';
@@ -50,6 +51,14 @@ export function ServicePage({ service }: ServicePageProps) {
   const writable = useAppSelector(selectCanAnnotate);
   const about = useAppSelector((s: RootState) => selectServiceAbout(s, service));
   const usage = useAppSelector((s: RootState) => selectUsageForService(s, service));
+  const usageWindow = useAppSelector(selectUsageWindow);
+  // Feeds the collector has DECLARED it cannot supply for this service. Read at topic grain and
+  // ignored here, so a service whose collector said `["health","usage"]` rendered "Heartbeat
+  // healthy", "9.8k messages observed" and "● No issues observed" — three positive assertions built
+  // on feeds the plane had just said it does not have.
+  const missingFeeds = useAppSelector((s: RootState) => selectMissingFeedsForService(s, service));
+  // What the LIVE plane says, which is a fresher source than the manifest and was read by nothing.
+  const observedHealth = useAppSelector((s: RootState) => selectObservedHealth(s, service));
   const showUtility = useAppSelector(selectShowUtility);
   const feedHealth = useAppSelector(selectFeedHealth);
   const flows = useAppSelector((s: RootState) => selectFlowsForService(s, service));
@@ -96,6 +105,27 @@ export function ServicePage({ service }: ServicePageProps) {
       />
 
       <FeedHealthLine health={feedHealth} />
+
+      {/* The plane's own admission, at the top, before anything it governs. */}
+      {missingFeeds.length > 0 && (
+        <p className="bz-feed-health" data-kind="degraded">
+          The collector reports no <strong>{missingFeeds.join(', ')}</strong>{' '}
+          {missingFeeds.length === 1 ? 'feed' : 'feeds'} for this service, so anything below that
+          would come from {missingFeeds.length === 1 ? 'it' : 'them'} is unknown rather than absent.
+        </p>
+      )}
+
+      {/* Two planes, one question, and they can disagree. The manifest is a snapshot and the plane is
+          now, so the reader is told BOTH rather than handed a merged verdict with the disagreement
+          hidden — a service declaring healthy while the collector calls it unreachable is a finding,
+          not a rendering conflict to resolve quietly. */}
+      {observedHealth && entry.status && observedHealth !== entry.status && (
+        <p className="bz-feed-health" data-kind="degraded">
+          The manifest declares this service <strong>{entry.status}</strong>; the live plane currently
+          reports it <strong>{observedHealth}</strong>. The manifest is a snapshot and the plane is
+          now.
+        </p>
+      )}
 
       {/* CONTRACT — what this service's shape is, and whether it moved. Grouped first and together
           because that is the question a reader opens a service page to answer; it used to be split
@@ -146,7 +176,7 @@ export function ServicePage({ service }: ServicePageProps) {
       </Card>
 
       <Card title="Traffic">
-        <ServiceUsage
+        <ServiceUsage window={usageWindow}
           usage={usage}
           showUtility={showUtility}
           onToggleUtility={() => dispatch(utilityToggled())}

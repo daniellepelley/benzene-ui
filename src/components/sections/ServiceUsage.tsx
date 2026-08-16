@@ -4,6 +4,8 @@ import { EmptyState } from '../primitives/EmptyState';
 import { Chip } from '../primitives/Chip';
 
 export interface ServiceUsageProps {
+  /** The period the counts cover, when the feed states it. See the legend below. */
+  window?: { from: string; to: string } | null;
   usage: ServiceUsageSummary;
   showUtility: boolean;
   onToggleUtility?: () => void;
@@ -23,7 +25,7 @@ const DIMENSIONS = [
  * and **feed wired, everything seen was benzene plumbing** (also a real observation, and one that
  * would read as "no traffic" if the utility rows were simply dropped).
  */
-export function ServiceUsage({ usage, showUtility, onToggleUtility }: ServiceUsageProps) {
+export function ServiceUsage({ usage, showUtility, onToggleUtility, window }: ServiceUsageProps) {
   if (usage.mode === 'none') {
     return <EmptyState message="No usage feed is wired, so traffic for this service is unknown." tone="unknown" />;
   }
@@ -75,6 +77,11 @@ export function ServiceUsage({ usage, showUtility, onToggleUtility }: ServiceUsa
           <p className="bz-usage-legend">
             <strong>{formatCount(total)}</strong> messages observed
             {failed > 0 && <> · {formatCount(failed)} failed</>}
+            {/* A count without a period is not a measurement anybody can use. The feed states its
+                own window and this is the first surface to read it. */}
+            <span className="bz-usage-window">
+              {window ? ` between ${window.from} and ${window.to}` : ' over a period this feed does not state'}
+            </span>
           </p>
           {/* The spec lets a receiver with no `isSuccessful` signal treat an application-defined
               status as a failure, and the usage feed carries no such signal — but permission to

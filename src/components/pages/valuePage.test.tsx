@@ -50,7 +50,9 @@ describe('ValuePage', () => {
     show(store, <ValuePage />);
 
     expect(screen.getByText(/Retirement candidates/)).toBeInTheDocument();
-    expect(screen.getByText(/no declared consumers/)).toBeInTheDocument();
+    // More than one row can carry this evidence line now that a topic whose traffic all fails is a
+    // candidate rather than "actively used".
+    expect(screen.getAllByText(/no declared consumers/).length).toBeGreaterThan(0);
   });
 
   it('reports removed topics separately from live candidates', async () => {

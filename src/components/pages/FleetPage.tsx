@@ -3,7 +3,8 @@ import {
   selectEstateSummary, selectDivergences, selectIssueSummary, selectFleetAvailable,
   selectFlaggedTopics, selectEdges, selectFlows, selectFailingFlowsOnly, selectInboxIssues,
   selectServiceRags, selectCollapsedSections, selectFilter, selectVisibleServices,
-  selectChangeSummary, selectRollouts, selectFeedErrors,
+  selectChangeSummary, selectRollouts, selectFeedErrors, selectNeverHeartbeated,
+  selectUndeclaredServices,
 } from '../../store/selectors';
 import { navigated, failingFlowsToggled, sectionToggled, filterChanged } from '../../store/slices/viewSlice';
 import { ServiceList } from '../containers/ServiceList';
@@ -54,6 +55,8 @@ export function FleetPage() {
   // five here are the same five at the top there.
   const rollouts = useAppSelector(selectRollouts);
   const feedErrors = useAppSelector(selectFeedErrors);
+  const neverHeartbeated = useAppSelector(selectNeverHeartbeated);
+  const undeclared = useAppSelector(selectUndeclaredServices);
   const topRollouts = rollouts.slice(0, CHANGES_PREVIEW);
   const outstandingRollouts = rollouts.filter((r) => r.outstanding.length > 0);
 
@@ -120,12 +123,39 @@ export function FleetPage() {
 
       <EstateStats stats={stats} />
 
+      {/* The failure a platform engineer named as the one they most need to catch on a rollout — the
+          service is deployed and the mesh middleware was never wired — and it was findable only by
+          opening each service page one at a time, because the estate list carries no liveness. */}
+      {liveAvailable && neverHeartbeated.length > 0 && (
+        <p className="bz-divergence" data-kind="silent">
+          <StatusGlyph rag="gone" label="never heartbeated" /> {neverHeartbeated.length} in the
+          manifest and never heard from — the reporting middleware may not be wired:{' '}
+          {neverHeartbeated.map((d) => <Chip key={d}>{d}</Chip>)}
+        </p>
+      )}
+
+      {/* `mesh.md` §4.2's *undeclared* case at service grain: live, sending, and never catalogued.
+          Dropped silently until now, which made it the third distinct cause of "why isn't my service
+          showing up" and the only one with no diagnosis anywhere in the product. */}
+      {undeclared.length > 0 && (
+        <p className="bz-divergence" data-kind="undeclared">
+          <StatusGlyph rag="amber" label="undeclared" /> {undeclared.length} reporting to the
+          collector and absent from the manifest — the aggregator has not fetched a spec for{' '}
+          {undeclared.length === 1 ? 'it' : 'them'}: {undeclared.map((d) => <Chip key={d} tone="warn">{d}</Chip>)}
+        </p>
+      )}
+
       {/* Only meaningful with a collector — without one, every service is "never observed", and
           reporting that as a divergence would make the feature useless the moment it is unwired. */}
+      {/* STALE, not "silent". The banner used the word `silent` while testing for `stale`, so an
+          estate with two never-heartbeated services named the one that had merely gone quiet. They
+          are different problems with different fixes: a stale service told you it was fine and then
+          stopped talking; a silent one has never spoken, which usually means the reporting
+          middleware was never wired. Both are now reported, separately, and by their right names. */}
       {liveAvailable && divergences.length > 0 && (
         <p className="bz-divergence">
-          <StatusGlyph rag="amber" label="divergence" /> {divergences.length} declaring healthy but
-          silent: {divergences.map((d) => <Chip key={d} tone="warn">{d}</Chip>)}
+          <StatusGlyph rag="amber" label="divergence" /> {divergences.length} declaring healthy and
+          then going quiet: {divergences.map((d) => <Chip key={d} tone="warn">{d}</Chip>)}
         </p>
       )}
 

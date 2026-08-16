@@ -2,7 +2,7 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   selectTopic, selectTrafficForTopic, selectThread, selectCanPost, selectCanAnnotate,
   selectVersionCompatibility, selectHttpMappingsForTopic, selectLiveForTopic, versionLabel,
-  selectRolloutForTopic,
+  selectRolloutForTopic, selectUsageWindow,
   selectFlowsForTopic, selectFailingFlowsOnly, selectTopicCompatibility, selectVersionSwitcher,
   selectComparisonsPublished, selectTopicEntries,
 } from '../../store/selectors';
@@ -35,6 +35,7 @@ export function TopicPage({ topic }: TopicPageProps) {
   const dispatch = useAppDispatch();
   const entry = useAppSelector((s: RootState) => selectTopic(s, topic));
   const traffic = useAppSelector((s: RootState) => selectTrafficForTopic(s, topic));
+  const usageWindow = useAppSelector(selectUsageWindow);
   const entity = `topic:${topic}`;
   const thread = useAppSelector((s: RootState) => selectThread(s, entity));
   const canPost = useAppSelector(selectCanPost);
@@ -181,7 +182,16 @@ export function TopicPage({ topic }: TopicPageProps) {
           traffic={traffic}
           onShowFailingFlows={() => dispatch(pivotedToFailingFlows(topic))}
         />
-        <UsagePanel traffic={traffic} windowLabel="over the usage feed's own window" version={entry.version} />
+        {/* The window as DATES when the feed states them. "Over the usage feed's own window" is
+            true and unfalsifiable, and a reader who cannot bound the period cannot quote the
+            number — one derived it from a call rate and was out by a factor of twelve. */}
+        <UsagePanel
+          traffic={traffic}
+          windowLabel={usageWindow
+            ? `between ${usageWindow.from} and ${usageWindow.to}`
+            : "over the usage feed's own window, which the feed does not state"}
+          version={entry.version}
+        />
       </section>
 
       {flows.available && (

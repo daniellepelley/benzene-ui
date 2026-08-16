@@ -137,3 +137,33 @@ describe('feed health', () => {
     expect(store.getState().fleet.lastFailAt).toBeNull();
   });
 });
+
+/**
+ * "Unreachable" was a diagnosis, and usually the wrong one. A collector answering `not-found` —
+ * because `data-fleet-url` points at a Benzene service that never registered the mesh query handler
+ * — is entirely reachable, and so is one answering a body this build cannot parse. Those are the two
+ * most common wiring mistakes a platform engineer will actually make, and both used to send them to
+ * security groups and DNS for an hour when the fix is one line of handler registration.
+ */
+describe('the feed names what answered, rather than diagnosing the network', () => {
+  it('quotes the collector’s own refusal instead of calling it unreachable', async () => {
+    const store = await withCatalog({
+      getFleet: async () => { throw new Error("collector answered 'not-found' for benzene:mesh:query:fleet"); },
+    });
+    await store.dispatch(probeFleet());
+    store.dispatch(clockTicked(T0 + 8_000));
+
+    const health = selectFeedHealth(store.getState());
+    expect(health?.text).toContain("collector answered 'not-found'");
+    expect(health?.text).not.toContain('unreachable');
+    // Still says the part that IS true regardless of cause.
+    expect(health?.text).toMatch(/no successful poll yet/);
+  });
+
+  it('still says unreachable when there is no reason to quote', async () => {
+    const store = await withCatalog({ getFleet: async () => { throw new Error(''); } });
+    await store.dispatch(probeFleet());
+    store.dispatch(clockTicked(T0 + 8_000));
+    expect(selectFeedHealth(store.getState())?.text).toContain('unreachable');
+  });
+});

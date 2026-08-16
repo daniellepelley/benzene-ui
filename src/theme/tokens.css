@@ -604,7 +604,11 @@ input, select, textarea {
 /* Section heads: one h2 per page earns full weight, the rest are eyebrows. Five equal headings
    compete with each other and with the content they label. */
 .bz-section-head { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
-.bz-section-head h2 { margin: 0; }
+.bz-section-head h2, .bz-section-head h3 { margin: 0; }
+/* The window control sits at the far end of the heading of the surface it governs — it is a
+   qualifier on that surface's numbers, not a page-level setting, and the chrome is where it used to
+   claim to be both. */
+.bz-section-head .bz-range { margin-left: auto; }
 .bz-section-more { margin-left: auto; font-size: 12px; padding: 0.15rem 0.5rem; }
 /* A filter inline with its heading holds the right-hand end, so the two lists on this page put
    their filter in the same place relative to the list rather than in the same place on screen. */

@@ -4,11 +4,11 @@ import {
   selectVersionCompatibility, selectHttpMappingsForTopic, selectLiveForTopic, versionLabel,
   selectRolloutForTopic, selectUsageWindow,
   selectFlowsForTopic, selectFailingFlowsOnly, selectTopicCompatibility, selectVersionSwitcher,
-  selectComparisonsPublished, selectTopicEntries, selectNow,
+  selectComparisonsPublished, selectTopicEntries, selectNow, selectRangeMs, RANGE_OPTIONS,
 } from '../../store/selectors';
 import { EdgeLivenessChip } from '../controls/EdgeLivenessChip';
 import {
-  navigated, failingFlowsToggled, pivotedToFailingFlows, topicVersionSelected,
+  navigated, failingFlowsToggled, pivotedToFailingFlows, topicVersionSelected, rangeChanged,
 } from '../../store/slices/viewSlice';
 import { draftChanged, draftAuthorChanged, postAnnotation } from '../../store/slices/annotationsSlice';
 import { SchemaTree, type SchemaAnnotation } from '../sections/SchemaTree';
@@ -26,6 +26,7 @@ import { Badge } from '../primitives/Badge';
 import { Chip } from '../primitives/Chip';
 import { EmptyState } from '../primitives/EmptyState';
 import { Stamp } from '../primitives/Stamp';
+import { RangePicker } from '../controls/RangePicker';
 import type { RootState } from '../../store/store';
 
 export interface TopicPageProps {
@@ -38,6 +39,7 @@ export function TopicPage({ topic }: TopicPageProps) {
   const traffic = useAppSelector((s: RootState) => selectTrafficForTopic(s, topic));
   const usageWindow = useAppSelector(selectUsageWindow);
   const now = useAppSelector(selectNow);
+  const rangeMs = useAppSelector(selectRangeMs);
   const entity = `topic:${topic}`;
   const thread = useAppSelector((s: RootState) => selectThread(s, entity));
   const canPost = useAppSelector(selectCanPost);
@@ -177,7 +179,20 @@ export function TopicPage({ topic }: TopicPageProps) {
       <VersionCompatibility compatibility={compatibility} rollout={rollout} />
 
       <section>
-        <h3>Traffic</h3>
+        <div className="bz-section-head">
+          <h3>Traffic</h3>
+          {/* THE PICKER LIVES HERE, on the surface whose data it governs, not in the chrome.
+              This strip is the one place in the product that already stated its own window
+              correctly — "counts cover from …" — and it was the page NOT carrying the control. A
+              global picker over a per-surface fact moved numbers it did not govern and left numbers
+              that looked like it did. */}
+          <RangePicker
+            rangeMs={rangeMs}
+            options={RANGE_OPTIONS}
+            available={live.available}
+            onChange={(ms) => dispatch(rangeChanged(ms))}
+          />
+        </div>
         {/* Two planes, two windows. The strip states its own; the panel states the feed's. */}
         <TopicLiveStrip
           live={live}

@@ -5,7 +5,7 @@ import { createStore } from './store';
 import { loadManifest } from './slices/estateSlice';
 import { loadCatalog } from './slices/catalogSlice';
 import { fleetObserved } from './slices/fleetSlice';
-import { fleetView, fleetService } from '../test/fleetView';
+import { fleetView, fleetService, fleetTrace } from '../test/fleetView';
 import { fakeMeshApi } from '../test/fakeMeshApi';
 import { selectLiveForService } from './selectors';
 import { ServiceUsage } from '../components/sections/ServiceUsage';
@@ -110,5 +110,45 @@ describe('an issue detail page states its headline once', () => {
     // What the row carried and the header did not, kept: the sentence and the occurrence count.
     expect(screen.getByText(/The handler threw/)).toBeInTheDocument();
     expect(screen.getByText('×2,205')).toBeInTheDocument();
+  });
+});
+
+/**
+ * A WINDOW CONTROL LIVES ON THE SURFACE WHOSE DATA IT GOVERNS, OR IT DOES NOT EXIST.
+ *
+ * Four readers reported the chrome picker independently across three rounds, and three of its four
+ * failures were failures of PLACEMENT: it sat above an inbox with a fixed 24-hour window, above
+ * usage figures that structurally cannot be re-windowed client-side, and above counts the live plane
+ * itself declares it does not window. Changing it moved numbers it did not govern and left numbers
+ * that looked like it did.
+ *
+ * The product ends this wave with fewer controls and more stated windows.
+ */
+describe('the live window is controlled where it applies', () => {
+  const renderApp = async () => {
+    const { App } = await import('../App');
+    const { act } = await import('@testing-library/react');
+    const store = await ready();
+    // The composition root starts five loads and a clock on mount; without `act` their resolutions
+    // land outside React's knowledge and the assertion races them.
+    await act(async () => { render(<Provider store={store}><App /></Provider>); });
+    return store;
+  };
+
+  it('is gone from the chrome', async () => {
+    await renderApp();
+    expect(screen.queryByLabelText('Live window')).toBeNull();
+  });
+
+  it('is offered on the estate’s flows, which it does govern', async () => {
+    const { FleetPage } = await import('../components/pages/FleetPage');
+    const store = await ready();
+    store.dispatch(fleetObserved(fleetView({
+      services: [fleetService({ service: 'orders-api' })],
+      traces: [fleetTrace({ traceId: 't1', topic: 'orders:create', startedAt: '2026-08-09T05:59:00Z' })],
+    })));
+
+    render(<Provider store={store}><FleetPage /></Provider>);
+    expect(screen.getByLabelText('Live window')).toBeInTheDocument();
   });
 });

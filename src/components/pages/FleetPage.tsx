@@ -4,14 +4,17 @@ import {
   selectFlaggedTopics, selectEdges, selectFlows, selectFailingFlowsOnly, selectInboxIssues,
   selectServiceRags, selectCollapsedSections, selectFilter, selectVisibleServices,
   selectChangeSummary, selectRollouts, selectFeedErrors, selectNeverHeartbeated, selectFeedHealth,
-  selectUndeclaredServices, selectMultiInstanceServices,
+  selectUndeclaredServices, selectMultiInstanceServices, selectRangeMs, RANGE_OPTIONS,
 } from '../../store/selectors';
-import { navigated, failingFlowsToggled, sectionToggled, filterChanged } from '../../store/slices/viewSlice';
+import {
+  navigated, failingFlowsToggled, sectionToggled, filterChanged, rangeChanged,
+} from '../../store/slices/viewSlice';
 import { ServiceList } from '../containers/ServiceList';
 import { TopicCatalog } from '../containers/TopicCatalog';
 import { CollapsibleSection } from '../controls/CollapsibleSection';
 import { TopologyGraph } from '../sections/TopologyGraph';
 import { FlowList } from '../controls/FlowList';
+import { RangePicker } from '../controls/RangePicker';
 import { EstateStats } from '../controls/EstateStats';
 import { IssueRow } from '../controls/IssueRow';
 import { StatusGlyph } from '../primitives/StatusGlyph';
@@ -46,6 +49,7 @@ export function FleetPage() {
   const rags = useAppSelector(selectServiceRags);
   const flows = useAppSelector(selectFlows);
   const failingOnly = useAppSelector(selectFailingFlowsOnly);
+  const rangeMs = useAppSelector(selectRangeMs);
   const collapsed = useAppSelector(selectCollapsedSections);
   const filter = useAppSelector(selectFilter);
   const visible = useAppSelector(selectVisibleServices);
@@ -266,7 +270,18 @@ export function FleetPage() {
 
       {flows.available && (
         <section>
-          <h2>Recent flows</h2>
+          <div className="bz-section-head">
+            <h2>Recent flows</h2>
+            {/* The window control belongs to the flows, which are the one thing on this page it
+                genuinely governs — the KPI tiles come from the manifest and the inbox answers a
+                fixed 24 hours whatever this says. In the chrome it appeared to govern all three. */}
+            <RangePicker
+              rangeMs={rangeMs}
+              options={RANGE_OPTIONS}
+              available={flows.available}
+              onChange={(ms) => dispatch(rangeChanged(ms))}
+            />
+          </div>
           <FlowList
             view={flows}
             failingOnly={failingOnly}

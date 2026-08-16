@@ -7,11 +7,11 @@ import { loadCatalog } from './store/slices/catalogSlice';
 import { loadAnnotations } from './store/slices/annotationsSlice';
 import { probeFleet, pollInbox, clockTicked, FLEET_POLL_MS, INBOX_POLL_MS } from './store/slices/fleetSlice';
 import { ErrorBoundary } from './components/primitives/ErrorBoundary';
-import { navigated, rangeChanged, themeCycled, themeRestored, type Theme } from './store/slices/viewSlice';
+import { navigated, themeCycled, themeRestored, type Theme } from './store/slices/viewSlice';
 import {
   selectLoad, selectError, selectPage, selectSelected, selectSelectedService, selectEstateSummary,
   selectFeedHealth, selectRefreshState, selectRefreshNote, selectCanRefresh, selectLogoutUrl,
-  selectNow, RANGE_OPTIONS,
+  selectNow,
 } from './store/selectors';
 import {
   FleetPage, ServicePage, TopicPage, IssuePage, ComposePage, ValuePage, TestConsolePage,
@@ -21,7 +21,6 @@ import { FeedHealthLine } from './components/controls/FeedHealthLine';
 import { EmptyState } from './components/primitives/EmptyState';
 import { StatusGlyph } from './components/primitives/StatusGlyph';
 import { Stamp } from './components/primitives/Stamp';
-import { RangePicker } from './components/controls/RangePicker';
 import { ThemeToggle } from './components/controls/ThemeToggle';
 import { RefreshButton } from './components/controls/RefreshButton';
 import { SignOut } from './components/controls/SignOut';
@@ -47,7 +46,6 @@ export function App() {
   const feedHealth = useAppSelector(selectFeedHealth);
   const generatedAtUtc = useAppSelector((s) => s.estate.generatedAtUtc);
   const now = useAppSelector(selectNow);
-  const liveAvailable = useAppSelector((s) => s.fleet.available);
   const theme = useAppSelector((s) => s.view.theme);
   const canRefresh = useAppSelector(selectCanRefresh);
   const refresh = useAppSelector(selectRefreshState);
@@ -197,14 +195,16 @@ export function App() {
             <StatusGlyph rag={summary.worst} label={`worst status: ${summary.worst}`} />
           </span>
         )}
-        {/* The window governs every live figure on every page, so it belongs in the one place that
-            is on every page — not inside the Estate panel, where it vanished on navigation. */}
-        <RangePicker
-          rangeMs={rangeMs}
-          options={RANGE_OPTIONS}
-          available={liveAvailable}
-          onChange={(ms) => dispatch(rangeChanged(ms))}
-        />
+        {/* THE PICKER IS NOT HERE ANY MORE, and that is the fix.
+            A window control in the chrome is a global control over a non-global fact. It sat above
+            two surfaces with their own fixed 24-hour window, above usage figures that structurally
+            cannot be re-windowed client-side, and above counts the live plane itself declares it does
+            not window — so changing it moved numbers that were not governed by it and left numbers
+            that looked like they were. Four readers reported it independently across three rounds,
+            and three of its four failures were failures of PLACEMENT.
+            A window control now lives on the surface whose data it governs, beside that surface's own
+            `countsWindowed`/`countsSince` disclosure, or it does not exist. The page ends up with
+            fewer controls and more stated windows, which is the right direction. */}
         {/* Appearance, freshness and session: the three things that are about this page rather than
             about the estate, held together at the right-hand end of the bar. Each is absent when the
             deployment has not wired it, so an unauthenticated local mesh gets only the toggle. */}

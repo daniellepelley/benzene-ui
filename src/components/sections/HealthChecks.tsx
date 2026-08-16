@@ -42,10 +42,33 @@ export function HealthChecks({ snapshot }: HealthChecksProps) {
     return <EmptyState message={`Could not reach this service: ${snapshot.error}`} tone="unknown" />;
   }
 
-  const checks = Object.entries(snapshot.health?.healthChecks ?? {}) as [
+  /*
+   * A payload this build cannot read is NOT the same as no payload, and the difference is a claim
+   * about the reader's service rather than about the tool. A snapshot carrying `health` in a shape
+   * without `healthChecks` — an older port, a newer field, or a broken serialiser — rendered as
+   * "This service published no health checks", which is an assertion the product had not earned and
+   * could not support. Same defect as an unreadable feed reported as an empty estate, one level
+   * down.
+   */
+  const health = snapshot.health as { healthChecks?: unknown } | null | undefined;
+  const raw = health?.healthChecks;
+  const unreadable = health != null
+    && (raw == null || typeof raw !== 'object' || Array.isArray(raw));
+
+  if (unreadable) {
+    return (
+      <EmptyState
+        tone="unknown"
+        message={'This service published a health payload this build could not read, so whether its '
+          + 'checks are passing is unknown. Expected `health.healthChecks` keyed by check name.'}
+      />
+    );
+  }
+
+  const checks = Object.entries((raw ?? {}) as Record<
     string,
-    { status?: string; type?: string; data?: Record<string, unknown>; dependencies?: { kind: string; name: string }[] },
-  ][];
+    { status?: string; type?: string; data?: Record<string, unknown>; dependencies?: { kind: string; name: string }[] }
+  >);
 
   if (checks.length === 0) {
     return <EmptyState message="This service published no health checks." />;

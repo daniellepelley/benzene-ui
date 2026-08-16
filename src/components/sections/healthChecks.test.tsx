@@ -64,3 +64,32 @@ describe('health checks', () => {
     expect(screen.getByText(/No further detail reported/)).toBeInTheDocument();
   });
 });
+
+/**
+ * A payload this build cannot read is not the same as no payload. A snapshot carrying `health` in a
+ * shape without `healthChecks` rendered as "This service published no health checks" — an assertion
+ * about the reader's service that the product had not earned. Same defect as an unreadable feed
+ * reported as an empty estate, one level down.
+ */
+describe('an unreadable health payload is not an absent one', () => {
+  it('says it could not read the payload rather than that none was published', () => {
+    render(<HealthChecks snapshot={{ name: 'x', health: 'fine' } as never} />);
+    expect(screen.getByText(/could not read/)).toBeInTheDocument();
+    expect(screen.queryByText(/published no health checks/)).toBeNull();
+  });
+
+  it('treats a list where a map is expected as unreadable, not as empty', () => {
+    render(<HealthChecks snapshot={{ name: 'x', health: { healthChecks: [] } } as never} />);
+    expect(screen.getByText(/could not read/)).toBeInTheDocument();
+  });
+
+  it('still says "none published" when the service genuinely published none', () => {
+    render(<HealthChecks snapshot={{ name: 'x', health: { healthChecks: {} } } as never} />);
+    expect(screen.getByText('This service published no health checks.')).toBeInTheDocument();
+  });
+
+  it('says nothing about health when there is no health payload at all', () => {
+    render(<HealthChecks snapshot={{ name: 'x' } as never} />);
+    expect(screen.getByText('This service published no health checks.')).toBeInTheDocument();
+  });
+});

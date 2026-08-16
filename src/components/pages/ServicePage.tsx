@@ -6,7 +6,7 @@ import {
   selectFlowsForService, selectFailingFlowsOnly, selectServiceChangeSummary,
   selectObligationsForService, selectComparisonsPublished, selectServiceHasVersionPairs,
   selectRolloutsAwaitedByService, selectUsageWindow, selectMissingFeedsForService,
-  selectObservedHealth, selectNow, selectFleetService, selectInstanceCount,
+  selectObservedHealth, selectNow, selectFleetService, selectInstanceCount, selectLiveForService,
 } from '../../store/selectors';
 import { navigated, utilityToggled, failingFlowsToggled, changeServiceFiltered,
 } from '../../store/slices/viewSlice';
@@ -18,6 +18,7 @@ import { IssueRow } from '../controls/IssueRow';
 import { FeedHealthLine } from '../controls/FeedHealthLine';
 import { FlowList } from '../controls/FlowList';
 import { ServiceAbout, ServiceLiveness } from '../sections/ServiceAbout';
+import { ServiceLiveStrip } from '../sections/ServiceLiveStrip';
 import { ServiceDrift } from '../sections/ServiceDrift';
 import { ServiceOutstanding } from '../sections/ServiceOutstanding';
 import { Card } from '../primitives/Card';
@@ -47,6 +48,7 @@ export function ServicePage({ service }: ServicePageProps) {
   const now = useAppSelector(selectNow);
   const observed = useAppSelector((s: RootState) => selectFleetService(s, service));
   const instances = useAppSelector((s: RootState) => selectInstanceCount(s, service));
+  const liveTraffic = useAppSelector((s: RootState) => selectLiveForService(s, service));
   const entity = `service:${service}`;
   const thread = useAppSelector((s: RootState) => selectThread(s, entity));
   const canPost = useAppSelector(selectCanPost);
@@ -185,7 +187,13 @@ export function ServicePage({ service }: ServicePageProps) {
       </Card>
 
       <Card title="Traffic">
-        <ServiceUsage window={usageWindow}
+        {/* BOTH PLANES, as the topic page has done since C1. The card read the usage feed alone, so
+            a service the collector was actively watching could say "observed nothing handled by this
+            service" with the live plane reporting thousands of invocations two selectors away. */}
+        <ServiceLiveStrip live={liveTraffic} now={now} />
+        <ServiceUsage
+          window={usageWindow}
+          now={now}
           usage={usage}
           showUtility={showUtility}
           onToggleUtility={() => dispatch(utilityToggled())}

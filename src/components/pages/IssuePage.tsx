@@ -3,7 +3,7 @@ import {
   selectIssueSummary, selectFleetAvailable, selectInboxIssues, selectNow,
 } from '../../store/selectors';
 import { navigated } from '../../store/slices/viewSlice';
-import { IssueRow, issueHeadline } from '../controls/IssueRow';
+import { IssueRow, issueHeadline, WHY } from '../controls/IssueRow';
 import { EmptyState } from '../primitives/EmptyState';
 import { Chip } from '../primitives/Chip';
 import { Stamp } from '../primitives/Stamp';
@@ -31,7 +31,26 @@ export function IssuePage({ selected }: IssuePageProps) {
     return (
       <div className="bz-page">
         <header className="bz-page-head"><h2>{issueHeadline(issue)}</h2><Chip>{issue.classification}</Chip></header>
-        <IssueRow issue={issue} />
+        {/* NOT `IssueRow`. This page used to render the row's whole card under a header that had
+            just printed the same headline and the same classification chip — so the one screen an
+            on-call engineer opens under time pressure led with its own title twice, inside a button
+            that navigates nowhere because it is already here. What the row carries and the header
+            does not is the sentence and the facts; those stay, once. */}
+        <p className="bz-issue-why">{WHY[issue.classification]}</p>
+        <p className="bz-issue-facts">
+          <Chip tone="accent">{issue.service}</Chip>
+          {issue.version && <Chip>{issue.version}</Chip>}
+          {/* Occurrences merged under one signature, not distinct issues — 400 of one thing
+              outranks four of four things. */}
+          <Chip tone="count" title="Occurrences merged under this signature">
+            ×{issue.count.toLocaleString()}
+          </Chip>
+          {issue.resolutionHint && (
+            <Chip tone="warn" title="A key into the remediation catalog — never prose">
+              {issue.resolutionHint}
+            </Chip>
+          )}
+        </p>
         <p className="bz-issue-seen">
           {/* First and last seen, not "when it happened": this is a merged signature, and how long
               it has been recurring is what decides whether it is a regression or background noise.

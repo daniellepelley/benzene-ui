@@ -36,7 +36,11 @@ describe('EdgeList — structural vs measured edges', () => {
       />,
     );
     expect(screen.getByText('86.4/min')).toBeInTheDocument();
-    expect(screen.getByText('18.0%')).toBeInTheDocument();
+    // THE NOUN AND THE SOURCE. A bare `18.0%` chip nearly went into a Sev1 justification as a claim
+    // about the whole service; it is the share of calls on this edge that the trace source saw fail,
+    // measured over a different window from the usage panel below it.
+    expect(screen.getByText('18.0% of calls failed')).toBeInTheDocument();
+    expect(screen.getByText('measured by tempo')).toBeInTheDocument();
     expect(screen.getByText('p95 420ms')).toBeInTheDocument();
     expect(screen.queryByText('structural — no traffic observed')).not.toBeInTheDocument();
   });
@@ -50,7 +54,7 @@ describe('EdgeList — structural vs measured edges', () => {
       />,
     );
     expect(screen.getByText('6.2/min')).toBeInTheDocument();
-    expect(screen.getByText('errors unknown')).toBeInTheDocument();
+    expect(screen.getByText('error rate not reported')).toBeInTheDocument();
   });
 });
 

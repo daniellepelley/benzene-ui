@@ -43,12 +43,26 @@ export function EdgeList({ edges, show, emptyMessage, onOpen, now }: EdgeListPro
             </button>
             {measured ? (
               <>
-                <Chip title="Requests per minute">{e.requestsPerMinute!.toFixed(1)}/min</Chip>
-                {/* A null error rate means the source did not report one — not zero errors. */}
-                <Chip title={errors ? 'Error rate' : 'The trace source did not report an error rate'}>
-                  {errors ?? 'errors unknown'}
+                <Chip title="Requests per minute, as measured on this edge">{e.requestsPerMinute!.toFixed(1)}/min</Chip>
+                {/* THE NOUN AND THE SOURCE, because a bare `100.0%` nearly went into a Sev1
+                    justification as "100% of orders→shipping is down". It is the share of calls on
+                    THIS EDGE that the TRACE SOURCE saw fail — a different measurement, over a
+                    different window, from the usage-feed panel three inches below, which is why the
+                    two can legitimately differ by 3× and why a reader had to fetch raw JSON to work
+                    that out. The product already disclosed provenance when the value was ABSENT
+                    ("structural — no traffic observed") and hid it when the value was present: the
+                    one case it explained was the harmless one.
+                    A null rate means the source reported none — never zero errors. */}
+                <Chip title={errors
+                  ? `Share of calls on this edge that ${e.source ?? 'the trace source'} saw fail. Per-edge, from the trace source — the traffic panel below counts the usage feed over its own window, so the two are different measurements and can differ.`
+                  : 'The trace source did not report an error rate'}
+                >
+                  {errors ? `${errors} of calls failed` : 'error rate not reported'}
                 </Chip>
-                {e.p95LatencyMs != null && <Chip title="p95 latency">p95 {e.p95LatencyMs}ms</Chip>}
+                <Chip title="Which source measured this edge">
+                  measured by {e.source ?? 'an unnamed source'}
+                </Chip>
+                {e.p95LatencyMs != null && <Chip title="p95 latency, as measured on this edge">p95 {e.p95LatencyMs}ms</Chip>}
               </>
             ) : liveness === 'unobserved' ? (
               <Chip

@@ -31,7 +31,7 @@ const SEVERITY: Record<IssueClassification, Rag> = {
  * into thousands of fingerprints — so the sentence has to come from the classification, which is a
  * closed vocabulary and therefore safe to explain.
  */
-const WHY: Record<IssueClassification, string> = {
+export const WHY: Record<IssueClassification, string> = {
   exception: 'The handler threw. The service has a bug, or is meeting input it does not expect.',
   'config-wiring': 'Nothing is registered to handle this. Usually a missing or misnamed registration.',
   dependency: 'Something this service calls is failing. The fault is likely downstream, not here.',

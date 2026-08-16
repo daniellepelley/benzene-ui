@@ -500,6 +500,9 @@ input, select, textarea {
 .bz-live-silent { font-size: 0.82rem; color: var(--bz-muted); }
 .bz-live-missing { font-size: 0.72rem; color: var(--bz-rag-amber); font-style: italic; }
 .bz-issue-seen, .bz-issue-exemplars { font-size: 0.82rem; color: var(--bz-muted); margin: 0.2rem 0; }
+/* The detail page's own facts row. The page used to reuse the list row here and printed its own
+   headline twice; these are the parts the header does not already carry. */
+.bz-issue-facts { display: flex; gap: 0.4rem; align-items: baseline; flex-wrap: wrap; margin: 0.35rem 0; }
 
 /* THE DATE/AGE RULE, rendered. The date is the evidence and the age is the decision, so the age is
    the half that has to survive a glance — it keeps the body colour while the date recedes. Both

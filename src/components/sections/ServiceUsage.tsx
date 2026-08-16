@@ -2,10 +2,14 @@ import type { ServiceUsageSummary } from '../../store/selectors';
 import { usageGroups, formatCount, isKnownStatus, isSuccessStatus } from '../../store/selectors';
 import { EmptyState } from '../primitives/EmptyState';
 import { Chip } from '../primitives/Chip';
+import { Stamp } from '../primitives/Stamp';
 
 export interface ServiceUsageProps {
   /** The period the counts cover, when the feed states it. See the legend below. */
   window?: { from: string; to: string } | null;
+  /** The ticked clock, so the window carries its age — a window that closed five weeks ago makes
+   *  every count beside it historical, and that is the fact a reader needs before quoting one. */
+  now: number;
   usage: ServiceUsageSummary;
   showUtility: boolean;
   onToggleUtility?: () => void;
@@ -25,7 +29,7 @@ const DIMENSIONS = [
  * and **feed wired, everything seen was benzene plumbing** (also a real observation, and one that
  * would read as "no traffic" if the utility rows were simply dropped).
  */
-export function ServiceUsage({ usage, showUtility, onToggleUtility, window }: ServiceUsageProps) {
+export function ServiceUsage({ usage, showUtility, onToggleUtility, window, now }: ServiceUsageProps) {
   if (usage.mode === 'none') {
     return <EmptyState message="No usage feed is wired, so traffic for this service is unknown." tone="unknown" />;
   }
@@ -68,7 +72,13 @@ export function ServiceUsage({ usage, showUtility, onToggleUtility, window }: Se
       {usage.entries.length === 0 ? (
         <>
           {!usage.allUtility && (
-            <EmptyState message="The usage feed is wired and reported nothing for this service." />
+            /* HANDLED BY, not "for". `MeshUsageEntry.service` is the HANDLING service, so this feed
+               structurally cannot say who produced anything — and the old wording invited exactly
+               the misreading it got: a delivery owner took "reported nothing for this service" as
+               evidence that a topic the service DECLARES IT PRODUCES had gone dormant, which is a
+               category error the copy encouraged. The question is right and important; this feed
+               cannot answer it, and the sentence now says which question it did answer. */
+            <EmptyState message="The usage feed is wired and observed nothing handled by this service. It counts handling, so it says nothing either way about what this service produces." />
           )}
           {hiddenNote}
         </>
@@ -80,7 +90,9 @@ export function ServiceUsage({ usage, showUtility, onToggleUtility, window }: Se
             {/* A count without a period is not a measurement anybody can use. The feed states its
                 own window and this is the first surface to read it. */}
             <span className="bz-usage-window">
-              {window ? ` between ${window.from} and ${window.to}` : ' over a period this feed does not state'}
+              {window
+                ? <> between <Stamp iso={window.from} now={now} /> and <Stamp iso={window.to} now={now} /></>
+                : ' over a period this feed does not state'}
             </span>
           </p>
           {/* The spec lets a receiver with no `isSuccessful` signal treat an application-defined

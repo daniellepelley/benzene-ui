@@ -1570,6 +1570,51 @@ export const RANGE_OPTIONS: { ms: number; label: string }[] = [
 export const rangeLabel = (ms: number): string =>
   RANGE_OPTIONS.find((o) => o.ms === ms)?.label ?? `${Math.round(ms / 60_000)} minutes`;
 
+/**
+ * The live plane's own traffic figure for ONE SERVICE, beside the usage feed's.
+ *
+ * The Traffic card on a service page read `usage.json` and nothing else, so a service the collector
+ * was actively watching could render "the usage feed observed nothing" with the live plane sitting
+ * two selectors away reporting thousands of invocations over a different window. The topic page has
+ * had both planes side by side since C1; the service page never got them.
+ *
+ * Two planes, two windows, never summed — the same tally rule the topic strip is built on.
+ */
+export interface ServiceLive {
+  /** False when no collector is wired. Every field below is then meaningless, not zero. */
+  available: boolean;
+  /** null when the plane has no row for this service, or declares its counts absent. Not zero. */
+  observed: number | null;
+  /** null for the same reasons as `observed` — a stats-less plane has no error count either. */
+  errors: number | null;
+  /** What the plane says it could not supply for this service. */
+  missingFeeds: string[];
+  /** The window the reader picked, which the counts answer unless `countsSince` says otherwise. */
+  rangeLabel: string;
+  /** Set when the plane's counts cover a different period from the picked window. */
+  countsSince: string | null;
+}
+
+export const selectLiveForService = createSelector(
+  [selectFleetServices, selectFleetAvailable, selectRangeMs, (s: RootState) => s.fleet.window,
+    (_: RootState, service: string) => service],
+  (services, available, ms, window, service): ServiceLive => {
+    const row = services.find((r) => r.service === service);
+    const missingFeeds = row?.missingFeeds ?? [];
+    // A plane that has declared it has no usage feed for this service is not reporting zero traffic
+    // — it is declining to report, which is the third state and must not render as a measurement.
+    const statsAbsent = missingFeeds.includes('usage') || missingFeeds.includes('stats');
+    return {
+      available,
+      observed: row == null || statsAbsent ? null : row.invocations,
+      errors: row == null || statsAbsent ? null : row.errors,
+      missingFeeds,
+      rangeLabel: rangeLabel(ms),
+      countsSince: window && !window.countsWindowed ? (window.countsSince ?? null) : null,
+    };
+  },
+);
+
 export interface TopicLive {
   /** False when no collector is wired — every field below is then meaningless, not zero. */
   available: boolean;

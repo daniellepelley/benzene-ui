@@ -28,6 +28,7 @@ const meta = {
   },
   args: {
     showUtility: false,
+    now: Date.parse('2026-08-09T06:00:00Z'),
     usage: {
       mode: 'own',
       entries: [

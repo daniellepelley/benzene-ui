@@ -7,6 +7,7 @@ import {
   selectObligationsForService, selectComparisonsPublished, selectServiceHasVersionPairs,
   selectRolloutsAwaitedByService, selectUsageWindow, selectMissingFeedsForService,
   selectObservedHealth, selectNow, selectFleetService, selectInstanceCount, selectLiveForService,
+  selectServiceDriftSummary,
 } from '../../store/selectors';
 import { navigated, utilityToggled, failingFlowsToggled, changeServiceFiltered,
 } from '../../store/slices/viewSlice';
@@ -69,6 +70,10 @@ export function ServicePage({ service }: ServicePageProps) {
   const flows = useAppSelector((s: RootState) => selectFlowsForService(s, service));
   const failingOnly = useAppSelector(selectFailingFlowsOnly);
   const contractChanges = useAppSelector((s: RootState) => selectServiceChangeSummary(s, service));
+  // The run-over-run axis: what moved on this service's topics since the previous catalogue.
+  // This is what the `drift` badge in the header has always pointed at, and until now the row
+  // beneath it could only offer a pair of truncated spec hashes.
+  const serviceDrift = useAppSelector((s: RootState) => selectServiceDriftSummary(s, service));
   // What this release requires of this service. The page answered "what do I declare?" and never
   // "what do I owe?", so the owner of the estate's one blocking service was told it had nothing to do.
   const obligations = useAppSelector((s: RootState) => selectObligationsForService(s, service));
@@ -84,11 +89,41 @@ export function ServicePage({ service }: ServicePageProps) {
     dispatch(changeServiceFiltered(service));
   };
 
+  const open = (name: string) => dispatch(navigated({ page: 'service', selected: name }));
+
+  // OBSERVED BUT NOT DECLARED. The estate manifest lists what the aggregator was able to discover
+  // and interrogate; the live plane lists whoever actually appeared in a trace. Those are different
+  // populations, and a service in the second but not the first is routine — the mesh's own Lambda
+  // traces itself but is not a discovered domain service, and any service the discovery tag missed
+  // lands here too.
+  //
+  // The page used to answer that with a flat "X is not in the estate manifest.", from a link the
+  // page one click back had just rendered. That is the tool contradicting itself: the flow list says
+  // this service exists and handled a message, and the page it links to says it does not exist. The
+  // reader concludes the mesh is broken, which is the correct conclusion about the old page.
+  //
+  // So: render what IS known. It is genuinely less than a declared service — no contract, no
+  // topics, no obligations — and the header says so rather than leaving a reader to infer it from
+  // empty cards. A service the estate is observing but has not catalogued is itself a finding.
   if (!entry) {
-    return <EmptyState message={`${service} is not in the estate manifest.`} />;
+    return (
+      <UndeclaredService
+        service={service}
+        observed={observed != null}
+        live={live}
+        liveTraffic={liveTraffic}
+        flows={flows}
+        failingOnly={failingOnly}
+        issues={issues}
+        now={now}
+        onBack={() => dispatch(navigated({ page: 'fleet' }))}
+        onOpenService={open}
+        onToggleFailing={() => dispatch(failingFlowsToggled())}
+        onOpenIssue={(fingerprint) => dispatch(navigated({ page: 'issue', selected: fingerprint }))}
+      />
+    );
   }
 
-  const open = (name: string) => dispatch(navigated({ page: 'service', selected: name }));
   const openTopic = (topic: string, version?: string) =>
     dispatch(navigated({ page: 'topic', selected: topic, selectedVersion: version ?? null }));
 
@@ -137,7 +172,12 @@ export function ServicePage({ service }: ServicePageProps) {
           across two sections with the health and usage panels in between. */}
       <Card title="Contract">
         <ServiceAbout about={about} />
-        <ServiceDrift drift={about?.drift ?? null} changes={contractChanges} onViewChanges={viewChanges} />
+        <ServiceDrift
+          drift={about?.drift ?? null}
+          changes={contractChanges}
+          since={serviceDrift}
+          onViewChanges={viewChanges}
+        />
         {/* Above Consumes/Produces deliberately: an owner's eye lands on the first card, and what
             this release requires of them outranks what they currently declare. */}
         <ServiceOutstanding
@@ -248,6 +288,99 @@ export function ServicePage({ service }: ServicePageProps) {
             : {})}
         />
       </Card>
+    </div>
+  );
+}
+
+interface UndeclaredServiceProps {
+  service: string;
+  /** Whether the live plane has a row for this service — the difference between the two cases below. */
+  observed: boolean;
+  live: boolean;
+  liveTraffic: ReturnType<typeof selectLiveForService>;
+  flows: ReturnType<typeof selectFlowsForService>;
+  failingOnly: boolean;
+  issues: ReturnType<typeof selectIssuesForService>;
+  now: number;
+  onBack: () => void;
+  onOpenService: (service: string) => void;
+  onToggleFailing: () => void;
+  onOpenIssue: (fingerprint: string) => void;
+}
+
+/**
+ * A service the live plane has seen but the estate manifest does not list.
+ *
+ * Deliberately NOT the full page with empty cards. Everything the main page leads with — contract,
+ * consumes/produces, obligations, drift — comes from the manifest, and rendering those sections
+ * empty would say "this service declares nothing", which is a claim about the service. The true
+ * statement is narrower: nobody catalogued it, so nothing is known about what it declares. Two very
+ * different findings, and only one of them is about the service.
+ *
+ * The two empty cases are kept apart for the same reason. A service with no manifest entry AND no
+ * live row is a bad link or a stale bookmark. One with no manifest entry but live traffic is an
+ * observability gap in the estate's own discovery, which is worth acting on.
+ */
+function UndeclaredService({
+  service, observed, live, liveTraffic, flows, failingOnly, issues, now,
+  onBack, onOpenService, onToggleFailing, onOpenIssue,
+}: UndeclaredServiceProps) {
+  return (
+    <div className="bz-page">
+      <PageHead
+        mono
+        breadcrumb={[{ label: 'Estate', onClick: onBack }]}
+        title={service}
+        lede={observed
+          ? 'Observed on the live plane, but absent from the estate manifest — so what it does is unknown, not empty.'
+          : 'Not in the estate manifest, and the live plane has no record of it either.'}
+        badges={observed ? <Badge rag="amber" title="Seen in traffic, but never catalogued">not catalogued</Badge> : undefined}
+      />
+
+      {observed ? (
+        <>
+          <p className="bz-feed-health" data-kind="degraded">
+            The live plane has seen <strong>{service}</strong>, but the aggregator never catalogued
+            it, so this page can show what it has <em>done</em> and nothing about what it{' '}
+            <em>declares</em> — no contract, no topics, no consumers or producers. That gap is
+            usually one of two things: the service is not tagged for discovery, or it is
+            infrastructure that traces itself without being a catalogued service (the mesh&rsquo;s own
+            host does exactly that).
+          </p>
+
+          <Card title="Traffic">
+            <ServiceLiveStrip live={liveTraffic} now={now} />
+            {live && (
+              <>
+                <h4>Flows</h4>
+                <FlowList
+                  view={flows}
+                  failingOnly={failingOnly}
+                  subject={service}
+                  onToggleFailing={onToggleFailing}
+                  onOpenService={onOpenService}
+                />
+              </>
+            )}
+          </Card>
+
+          {live && (
+            <Card title="Issues">
+              {issues.length === 0 ? (
+                <EmptyState message="No issues observed for this service." tone="clear" />
+              ) : (
+                issues.map((i) => (
+                  <IssueRow key={i.fingerprint} issue={i} onOpen={onOpenIssue} />
+                ))
+              )}
+            </Card>
+          )}
+        </>
+      ) : (
+        <EmptyState
+          message={`Nothing in this estate refers to ${service} — neither the manifest nor the live plane has a record of it. The link that brought you here may be from an older catalogue.`}
+        />
+      )}
     </div>
   );
 }

@@ -840,8 +840,74 @@ export const selectAllChanges = createSelector([selectRollouts, selectTopics], (
  */
 export const selectUnclassifiedChanges = createSelector([selectTopics], (topics) =>
   topics
-    .filter((t) => !t.reserved && !t.compatibility && (t.changes?.length ?? 0) > 0)
-    .flatMap((t) => (t.changes ?? []).map((c) => ({ ...c, topic: t.topic, version: t.version }))),
+    .filter((t) => !t.reserved)
+    // A run-over-run change is unclassified when IT carries no field-level breakdown — a property of
+    // the change, not of whether its topic happens to have a second version to compare against.
+    // Gating on `!t.compatibility` dropped the drift on every multi-version topic from every
+    // surface: the estate said the contract had moved, and the one page that lists changes showed
+    // nothing, because the drift was filtered out on the way in.
+    .flatMap((t) => (t.changes ?? [])
+      .filter((c) => c.schemaChanges == null)
+      .map((c) => ({ ...c, topic: t.topic, version: t.version }))),
+);
+
+/** One field-level change between the previous aggregator run and this one, ready to render. */
+export interface DriftChange {
+  topic: string;
+  version: string;
+  kind: string;
+  direction: string;
+  path: string;
+  description: string;
+  compatibility: string;
+  /** The services on either end of the topic — participation, never authorship. */
+  services: string[];
+}
+
+/**
+ * Every classified drift in the estate, worst first — what moved *since the previous run*.
+ *
+ * A different question from `selectAllChanges`, and the two must not be merged. That one asks "does
+ * v2 break a consumer still on v1?", comparing two versions inside one catalogue. This asks "did
+ * this contract change since we last looked?", comparing one version against its own past. A topic
+ * can be clean on one axis and alarming on the other — an in-place edit to an already-published
+ * version has no version pair to compare, and is exactly what the run-over-run axis catches.
+ *
+ * This exists because drift was reported and never explained. The estate badged a service `drift`,
+ * and following it led to `spec hash 5feaedb4… → b9b30797…` and, on the changes page, nothing at
+ * all — a detection with no finding underneath it, which is where a reader gives up and starts
+ * diffing spec documents by hand.
+ */
+export const selectDriftChanges = createSelector([selectTopics], (topics): DriftChange[] => {
+  const rows: DriftChange[] = [];
+  for (const entry of topics) {
+    if (entry.reserved) continue;
+    const services = [...new Set([
+      ...(entry.producers ?? []).map((p) => p.service),
+      ...(entry.consumers ?? []).map((c) => c.service),
+    ])].sort();
+    for (const change of entry.changes ?? []) {
+      for (const field of change.schemaChanges ?? []) {
+        rows.push({ ...field, topic: entry.topic, version: entry.version, services });
+      }
+    }
+  }
+  return rows.sort((a, b) =>
+    VERDICT_ORDER.indexOf(a.compatibility as Verdict) - VERDICT_ORDER.indexOf(b.compatibility as Verdict)
+    || a.topic.localeCompare(b.topic) || a.path.localeCompare(b.path));
+});
+
+/**
+ * Whether this catalogue classifies drift at all — true once any run-over-run change carries a
+ * field-level breakdown.
+ *
+ * Needed because "no drift" and "this aggregator does not classify drift" are different statements
+ * and only one of them is good news. An older build, or a port that detects change without a
+ * taxonomy, emits `changes` with no `schemaChanges`; rendering that as a quiet estate is the
+ * absence-as-good-news defect.
+ */
+export const selectDriftClassified = createSelector([selectTopics], (topics) =>
+  topics.some((t) => !t.reserved && (t.changes ?? []).some((c) => c.schemaChanges != null)),
 );
 
 /** Counts by verdict class, for the estate tile and the ledger head. */
@@ -899,6 +965,27 @@ export const selectServiceChangeSummary = createSelector(
       breaking: all.filter((c) => c.compatibility === 'breaking').length,
       warning: all.filter((c) => c.compatibility === 'warning').length,
       outstanding: obligations.filter((o) => o.service === service).length,
+    };
+  },
+);
+
+/**
+ * What moved since the previous run, on the topics this service is on either end of — the
+ * service-grain view of `selectDriftChanges`.
+ *
+ * Same participation-not-authorship caveat as above, and for a sharper reason here: run-over-run
+ * drift on a topic with two producers cannot say which of them re-published. The copy must say
+ * "reaches" and never "caused".
+ */
+export const selectServiceDriftSummary = createSelector(
+  [selectDriftChanges, (_: RootState, service: string) => service],
+  (drift, service) => {
+    const mine = drift.filter((d) => d.services.includes(service));
+    return {
+      changes: mine.length,
+      topics: new Set(mine.map((d) => `${d.topic}@${d.version}`)).size,
+      breaking: mine.filter((d) => d.compatibility === 'breaking').length,
+      warning: mine.filter((d) => d.compatibility === 'warning').length,
     };
   },
 );

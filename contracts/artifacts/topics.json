@@ -89,7 +89,17 @@
       "changes": [
         {
           "kind": "schema-changed",
-          "description": "Payload schema changed (request)"
+          "description": "Payload schema changed (request)",
+          "schemaChanges": [
+            {
+              "kind": "requiredPropertyAdded",
+              "direction": "request",
+              "path": "orders:create.request.channel",
+              "description": "Property 'channel' was added (required)",
+              "compatibility": "breaking"
+            }
+          ],
+          "compatibility": "breaking"
         }
       ],
       "requestSchema": {
@@ -253,7 +263,9 @@
       "changes": [
         {
           "kind": "schema-changed",
-          "description": "Payload schema changed (response)"
+          "description": "Payload schema changed (response)",
+          "schemaChanges": [],
+          "compatibility": null
         }
       ],
       "requestSchema": {

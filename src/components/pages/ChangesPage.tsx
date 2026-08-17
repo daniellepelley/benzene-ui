@@ -2,7 +2,8 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   selectAllChanges, selectUnclassifiedChanges, selectChangeSummary, selectComparisonsPublished,
   selectRollouts, selectOutstandingByService, selectNow, selectMultiInstanceServices,
-  VERDICT_ORDER, type LedgerChange,
+  selectDriftChanges, selectDriftClassified,
+  VERDICT_ORDER, type LedgerChange, type DriftChange,
 } from '../../store/selectors';
 import {
   navigated, changeFilterChanged, changeServiceFiltered, changeVerdictFiltered, changeStateFiltered,
@@ -49,6 +50,8 @@ export function ChangesPage() {
   const byService = useAppSelector(selectOutstandingByService);
   const now = useAppSelector(selectNow);
   const multiInstance = useAppSelector(selectMultiInstanceServices);
+  const drift = useAppSelector(selectDriftChanges);
+  const driftClassified = useAppSelector(selectDriftClassified);
 
   // The union of both sides, not just whoever is on the changed entry. Built from `services` alone,
   // this list silently omitted exactly the population a release review is trying to enumerate — the
@@ -285,6 +288,66 @@ export function ChangesPage() {
         </>
       )}
 
+      {/* SINCE THE LAST RUN — the other axis, and its own section rather than rows in the ledger
+          above. The ledger compares two versions inside one catalogue ("does v2 break a consumer
+          still on v1"); this compares one version against its own past ("did this move since we
+          last looked"). Merging them would put two different questions under one count, and the
+          in-place edit — a published version changed underneath its consumers, with no version pair
+          to compare — only ever shows up on this one.
+
+          This is what the estate's `drift` badge has been pointing at since it existed. Until now it
+          pointed at a pair of truncated hashes and nothing else. */}
+      {(drift.length > 0 || (driftClassified && service === null)) && (
+        <section className="bz-drift-section">
+          <div className="bz-section-head">
+            <h2>Since the last run ({driftDisplayed(drift, service, needle).length})</h2>
+          </div>
+          <p className="bz-page-note">
+            What moved in a topic&rsquo;s payload contract between the previous catalogue and this
+            one — including in-place edits to an already-published version, which have no version
+            pair and so appear nowhere above. Verdicts use the same rules as the ledger.
+          </p>
+          {driftDisplayed(drift, service, needle).length === 0 ? (
+            <EmptyState
+              tone="clear"
+              message={drift.length === 0
+                ? 'No payload contract moved between the previous catalogue and this one.'
+                : `No drift matches the current filter. ${drift.length} are hidden.`}
+            />
+          ) : (
+            <ul className="bz-ledger">
+              {driftDisplayed(drift, service, needle).map((change, i) => (
+                <li
+                  key={`${change.topic}@${change.version}:${change.path}:${change.kind}:${i}`}
+                  className="bz-change bz-ledger-row"
+                  data-verdict={change.compatibility}
+                >
+                  <VerdictBadge verdict={change.compatibility} attribute={false} />
+                  <button type="button" className="bz-topic-name"
+                    onClick={() => openTopic(change.topic, change.version)}>
+                    {change.topic}
+                    <span className="bz-topic-version">{change.version}</span>
+                  </button>
+                  <span className="bz-change-side">{change.direction}</span>
+                  <code className="bz-change-path" title={change.path}>{shortPath(change.path)}</code>
+                  <span className="bz-change-desc">{change.description}</span>
+                  {/* Participation, not authorship — the catalogue records who is on each end of a
+                      topic, never whose declaration moved. */}
+                  <span className="bz-change-services">
+                    {change.services.map((name) => (
+                      <button key={name} type="button" className="bz-cat-svc"
+                        onClick={() => openService(name)}>
+                        {name}
+                      </button>
+                    ))}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
       {/* Never sorted into the verdict buckets. An aggregator that reported "something changed" and
           could not say what has not earned a place in a ranking — filing it as compatible would be
           the absence-as-good-news defect one level up. */}
@@ -324,6 +387,23 @@ export function ChangesPage() {
 
 const rowKey = (change: LedgerChange) =>
   `${change.topic}@${change.version}:${change.path}:${change.kind}`;
+
+/**
+ * The drift rows surviving the page's own service and text filters.
+ *
+ * Deliberately the SAME two filters the ledger uses, because they mean the same thing at both
+ * grains — a reader who filters to `payments-api` and still sees unrelated drift below has been
+ * told the filter is decorative. The verdict and rollout-state pickers are not applied: they belong
+ * to the grain that owns them, and silently reusing a rollout state here would filter one list by a
+ * concept the other defines.
+ */
+const driftDisplayed = (drift: DriftChange[], service: string | null, needle: string) =>
+  drift.filter((d) =>
+    (!service || d.services.includes(service))
+    && (!needle
+      || d.topic.toLowerCase().includes(needle)
+      || d.path.toLowerCase().includes(needle)
+      || d.services.some((name) => name.toLowerCase().includes(needle))));
 
 function LedgerRow({
   change, onOpen, onOpenService,

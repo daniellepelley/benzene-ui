@@ -136,6 +136,16 @@ export interface TopicsTopicsItemProducersItem {
 export interface TopicsTopicsItemChangesItem {
   kind: string;
   description: string;
+  schemaChanges?: TopicsTopicsItemChangesItemSchemaChangesItem[];
+  compatibility?: string | null;
+}
+
+export interface TopicsTopicsItemChangesItemSchemaChangesItem {
+  kind: string;
+  direction: string;
+  path: string;
+  description: string;
+  compatibility: string;
 }
 
 export interface TopicsTopicsItemCompatibility {

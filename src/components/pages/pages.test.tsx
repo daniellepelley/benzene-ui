@@ -132,11 +132,40 @@ describe('ServicePage', () => {
     expect(screen.getByRole('heading', { name: 'Produces' })).toBeInTheDocument();
   });
 
-  it('says so plainly when a service is not in the manifest', async () => {
+  it('says so plainly when nothing in the estate refers to a service', async () => {
+    // Neither plane knows it: a bad link or a stale bookmark, and the copy has to say that rather
+    // than imply the service exists somewhere this page cannot reach.
     const store = await loaded();
     show(store, <ServicePage service="does-not-exist" />);
 
-    expect(screen.getByText(/is not in the estate manifest/)).toBeInTheDocument();
+    expect(screen.getByText(/Nothing in this estate refers to does-not-exist/)).toBeInTheDocument();
+  });
+
+  it('renders what is known about a service the live plane sees but the manifest never catalogued', async () => {
+    // The mesh's own host traces itself without being a discovered service, so the flow list links
+    // to a service the manifest has never heard of. Answering that link with "not in the manifest"
+    // is the tool contradicting the page one click back — those flows say it handled a message.
+    const store = await loaded();
+    act(() => {
+      store.dispatch(
+        fleetObserved(
+          fleetView({
+            generatedAt: '2026-07-16T09:15:00Z',
+            services: [fleetService({ service: 'benzene-mesh', health: 'unknown' })],
+          }),
+        ),
+      );
+      store.dispatch(clockTicked(Date.parse('2026-07-16T09:15:10Z')));
+    });
+    show(store, <ServicePage service="benzene-mesh" />);
+
+    expect(screen.getByText('not catalogued')).toBeInTheDocument();
+    // The distinction the page exists to draw: what it DID is knowable, what it DECLARES is not.
+    expect(screen.getByText(/never catalogued it/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Traffic' })).toBeInTheDocument();
+    // ...and it must not claim the service declares nothing, which is a claim about the service.
+    expect(screen.queryByRole('heading', { name: 'Consumes' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Nothing in this estate refers to/)).not.toBeInTheDocument();
   });
 
   it('explains an unreachable service instead of showing an empty health panel', async () => {
@@ -365,5 +394,19 @@ describe('the Test Console as a runbook step', () => {
     show(store, <TestConsolePage service="orders-api" topic="payment:capture" />);
 
     expect(screen.queryByText(/not in the estate manifest/)).toBeNull();
+  });
+});
+
+describe('ServicePage — drift', () => {
+  it('says what moved since the last run, not just that a hash changed', async () => {
+    // The user-visible defect: the header badges `drift` and the row beneath it offered
+    // `spec hash 5feaedb4… → b9b30797…` — a detection with no finding under it. The reader could not
+    // tell which field moved, which topics it reached, or whether it broke anybody.
+    const store = await loaded();
+    show(store, <ServicePage service="orders-api" />);
+
+    expect(screen.getByText(/Since the last run:/)).toBeInTheDocument();
+    expect(screen.getByText(/1 field moved across 1 topic this service is on, 1 breaking/))
+      .toBeInTheDocument();
   });
 });

@@ -387,3 +387,65 @@ describe('outstanding moves grouped by the service that owes them', () => {
     expect(screen.queryByRole('heading', { name: 'Outstanding by service' })).toBeNull();
   });
 });
+
+describe('drift — what moved since the previous run', () => {
+  it('shows the field that moved and its verdict, on a topic that also has a version comparison', async () => {
+    // The regression this section exists for. Run-over-run changes were filtered on
+    // `!t.compatibility`, so a topic with two published versions had its drift dropped on the way
+    // in: the estate badged the service `drift` and this page — the only place that lists changes —
+    // showed nothing about it.
+    const store = await loaded();
+    show(store, <ChangesPage />);
+
+    const section = screen.getByRole('heading', { name: /Since the last run/ }).closest('section')!;
+    const row = within(section).getAllByRole('listitem')
+      .find((li) => li.textContent?.includes('channel'))!;
+    expect(row).toBeDefined();
+    expect(row.getAttribute('data-verdict')).toBe('breaking');
+    expect(row.textContent).toContain('orders:create');
+  });
+
+  it('leads somewhere: the drifted topic and its participants are both reachable', async () => {
+    const store = await loaded();
+    show(store, <ChangesPage />);
+
+    const section = screen.getByRole('heading', { name: /Since the last run/ }).closest('section')!;
+    const row = within(section).getAllByRole('listitem')
+      .find((li) => li.textContent?.includes('channel'))!;
+    // A finding a reader cannot follow is where triage stops — the topic and every service on it
+    // must be buttons, not text.
+    expect(within(row).getByRole('button', { name: /orders:create/ })).toBeInTheDocument();
+    expect(within(row).getAllByRole('button').length).toBeGreaterThan(1);
+  });
+
+  it('honours the page’s service filter, so a filtered view never shows unrelated drift', async () => {
+    const store = await loaded();
+    store.dispatch(changeServiceFiltered('payments-api'));
+    show(store, <ChangesPage />);
+
+    const section = screen.getByRole('heading', { name: /Since the last run/ }).closest('section')!;
+    expect(within(section).queryByText(/orders:create/)).toBeNull();
+  });
+
+  it('says nothing at all when the aggregator does not classify drift', async () => {
+    // An older build emits `changes` with no field breakdown. Rendering "no payload contract moved"
+    // over that would be the absence-as-good-news defect: nothing looked, so nothing is known.
+    const unclassified: Topics = {
+      ...(topics as unknown as Topics),
+      topics: (topics as unknown as Topics).topics.map(({ ...t }) => ({
+        ...t,
+        changes: (t.changes ?? []).map(({ ...c }) => {
+          delete (c as { schemaChanges?: unknown }).schemaChanges;
+          delete (c as { compatibility?: unknown }).compatibility;
+          return c;
+        }),
+      })),
+    };
+    const store = await loaded({ getTopics: async () => unclassified });
+    show(store, <ChangesPage />);
+
+    expect(screen.queryByRole('heading', { name: /Since the last run/ })).toBeNull();
+    // ...and it still lands in the group that says so explicitly.
+    expect(screen.getByRole('heading', { name: /Changes without a verdict/ })).toBeInTheDocument();
+  });
+});

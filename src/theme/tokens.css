@@ -756,6 +756,10 @@ input, select, textarea {
 .bz-ledger { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35rem; }
 .bz-ledger-row { grid-template-columns: auto minmax(10rem, auto) auto minmax(6rem, auto) 1fr; }
 
+/* Run-over-run drift, below the version-over-version ledger and visibly its own section — the two
+   answer different questions, and a reader who reads them as one list gets a wrong total. */
+.bz-drift-section { margin-top: 1.5rem; }
+
 /* Two labelled groups, not one list. The LABEL carries the meaning and the tint only reinforces it,
    so the row still reads correctly in monochrome and to a reader who cannot separate the two hues.
    `owes` is the emphasised half deliberately: it is the side with work to do, and the entire point

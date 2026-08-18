@@ -1,5 +1,4 @@
 import type { JsonSchema } from '../../contracts';
-import { Chip } from '../primitives/Chip';
 import { EmptyState } from '../primitives/EmptyState';
 import { TRUNCATED_NODE_COPY } from './compatibilityCopy';
 
@@ -43,8 +42,48 @@ const childrenOf = (schema: JsonSchema): Record<string, JsonSchema> | undefined 
 const requiredOf = (schema: JsonSchema) =>
   new Set((schema.required ?? (isObject(schema.items) ? schema.items.required : undefined)) ?? []);
 
-const typeOf = (schema: JsonSchema) =>
-  Array.isArray(schema.type) ? schema.type.join(' | ') : (schema.type ?? 'any');
+const typeOf = (schema: JsonSchema): string => {
+  const base = Array.isArray(schema.type) ? schema.type.join(' | ') : (schema.type ?? 'any');
+  // `array` alone tells a reader nothing they cannot see from the indentation. Swagger and the
+  // AsyncAPI viewer both fold the item type into the type itself, so one glance answers "a list of
+  // what?" — which is the question the bare word raises and does not answer.
+  if (base === 'array' && isObject(schema.items)) return `array[${typeOf(schema.items)}]`;
+  return base;
+};
+
+/**
+ * The constraints a schema states about a value, as short verbal facets.
+ *
+ * These are all in `JsonSchema` and were all being dropped: `pattern`, `minimum`, `maximum`,
+ * `minLength` and `maxLength` never reached the screen, while the usage feed counted validation
+ * errors on exactly the topics that declare them. A reader debugging a rejected payload had to open
+ * the service's own spec to discover the field was capped at 12 characters.
+ *
+ * Rendered as text rather than as chips deliberately. The tree previously gave type, format,
+ * required and enum four identical chips, so four different kinds of fact competed at one weight —
+ * the "fifteen meanings, one look" failure. Facets are subordinate to the name and the type, and
+ * they now look subordinate.
+ */
+const facetsOf = (schema: JsonSchema): string[] => {
+  const facets: string[] = [];
+  if (schema.format) facets.push(schema.format);
+  if (typeof schema.minLength === 'number' && typeof schema.maxLength === 'number') {
+    facets.push(`${schema.minLength}\u2013${schema.maxLength} chars`);
+  } else if (typeof schema.maxLength === 'number') {
+    facets.push(`\u2264 ${schema.maxLength} chars`);
+  } else if (typeof schema.minLength === 'number') {
+    facets.push(`\u2265 ${schema.minLength} chars`);
+  }
+  if (typeof schema.minimum === 'number' && typeof schema.maximum === 'number') {
+    facets.push(`${schema.minimum}\u2013${schema.maximum}`);
+  } else if (typeof schema.minimum === 'number') {
+    facets.push(`\u2265 ${schema.minimum}`);
+  } else if (typeof schema.maximum === 'number') {
+    facets.push(`\u2264 ${schema.maximum}`);
+  }
+  if (typeof schema.pattern === 'string') facets.push(`matches /${schema.pattern}/`);
+  return facets;
+};
 
 const MARKER_LABEL: Record<string, string> = {
   propertyAdded: 'added',
@@ -110,10 +149,13 @@ function RemovedNodes({
         const was = baselineChildren?.[name];
         return (
           <li key={`removed:${name}`} className="bz-schema-node" data-removed="true">
-            <span className="bz-schema-name bz-schema-gone">{name}</span>
-            {was && <Chip title="Type at the previous version">{typeOf(was)}</Chip>}
-            {was?.format && <Chip title="Format at the previous version">{was.format}</Chip>}
-            <ChangeMarker annotation={annotation} />
+            <div className="bz-schema-row">
+              <span className="bz-schema-name bz-schema-gone">{name}</span>
+              {was && (
+                <span className="bz-schema-type" title="Type at the previous version">{typeOf(was)}</span>
+              )}
+              <ChangeMarker annotation={annotation} />
+            </div>
           </li>
         );
       })}
@@ -137,15 +179,39 @@ function SchemaNode({ name, schema, required, path, annotations, baseline }: Nod
   const childRequired = requiredOf(schema);
   const baselineChildren = baseline ? childrenOf(baseline) : undefined;
   const removed = removedAt(path, annotations, children);
+  const facets = facetsOf(schema);
 
   return (
     <li className="bz-schema-node" data-changed={annotation ? 'true' : undefined}>
-      <span className="bz-schema-name">{name}</span>
-      <Chip title="Type">{typeOf(schema)}</Chip>
-      {schema.format && <Chip title="Format">{schema.format}</Chip>}
-      {required && <Chip title="Required">required</Chip>}
-      {Array.isArray(schema.enum) && <Chip title="Allowed values">{schema.enum.join(' | ')}</Chip>}
-      {annotation && <ChangeMarker annotation={annotation} />}
+      <div className="bz-schema-row">
+        {/* Name, then type, then everything else — the Swagger/AsyncAPI reading order. Required is
+            attached to the NAME rather than sitting in the row as a fourth chip: it is a property of
+            this field being here at all, it is what a reader scans a request body for, and as a chip
+            it competed with the type for the same attention at the same weight. */}
+        <span className="bz-schema-name">
+          {name}
+          {required && (
+            <abbr className="bz-schema-req" title="Required">*</abbr>
+          )}
+        </span>
+        <span className="bz-schema-type">{typeOf(schema)}</span>
+        {facets.length > 0 && (
+          <span className="bz-schema-facets">{facets.join(' \u00b7 ')}</span>
+        )}
+        {annotation && <ChangeMarker annotation={annotation} />}
+      </div>
+      {/* Already in `JsonSchema` and never rendered — the highest-value readability win available,
+          because it is the only thing on the page that says what a field MEANS rather than what
+          shape it is. */}
+      {schema.description && <p className="bz-schema-desc">{schema.description}</p>}
+      {Array.isArray(schema.enum) && schema.enum.length > 0 && (
+        <p className="bz-schema-enum">
+          <span className="bz-schema-enum-label">one of</span>
+          {schema.enum.map((value, i) => (
+            <code key={i} className="bz-schema-enum-value">{String(value)}</code>
+          ))}
+        </p>
+      )}
       {annotation?.truncated && <p className="bz-schema-truncated">{TRUNCATED_NODE_COPY}</p>}
       {(children || removed.length > 0) && (
         <ul className="bz-schema-children">

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { act } from 'react';
 import type { ReactElement } from 'react';
@@ -44,8 +44,24 @@ describe('contract changes on the topic page', () => {
     const store = await loaded();
     show(store, <TopicPage topic="orders:create" />);
 
-    expect(screen.getByText("Property 'channel' was added (required)")).toBeInTheDocument();
-    expect(screen.getByText("Property 'customerId' was removed")).toBeInTheDocument();
+    // Scoped to the version-over-version section. The page now also carries a run-over-run section,
+    // and when a version is first published in the same run BOTH axes describe that edit — the same
+    // sentence, twice, honestly. Each section states which comparison it is; an unscoped query here
+    // would break every time the other axis has something true to say.
+    const section = screen.getByRole('heading', { name: /Changed from v1/ }).closest('section')!;
+    expect(within(section).getByText("Property 'channel' was added (required)")).toBeInTheDocument();
+    expect(within(section).getByText("Property 'customerId' was removed")).toBeInTheDocument();
+  });
+
+  it('shows the run-over-run drift as its own section, with the field and a verdict', async () => {
+    // The complaint that started this: "it tells me there is drift, but there's nowhere I can see
+    // where that drift is or whether it's a breaking change."
+    const store = await loaded();
+    show(store, <TopicPage topic="orders:create" />);
+
+    const section = screen.getByRole('heading', { name: /Since the previous run/ }).closest('section')!;
+    expect(within(section).getByText('orders:create.request.channel')).toBeInTheDocument();
+    expect(within(section).getAllByText('breaking').length).toBeGreaterThan(0);
   });
 
   it('attributes the verdict to the rule table rather than stating it as a fact', async () => {

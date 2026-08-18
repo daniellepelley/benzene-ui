@@ -336,7 +336,9 @@ input, select, textarea {
 
 .bz-topic-list, .bz-edge-list, .bz-health, .bz-thread, .bz-schema, .bz-schema-children { list-style: none; margin: 0; padding: 0; }
 .bz-schema-children { padding-left: 1.1rem; border-left: 1px solid var(--bz-border-soft); margin-left: 0.3rem; }
-.bz-topic-list li, .bz-edge-list li, .bz-health li, .bz-schema-node { display: flex; gap: 0.4rem; align-items: baseline; padding: 0.3rem 0; flex-wrap: wrap; }
+.bz-topic-list li, .bz-edge-list li, .bz-health li { display: flex; gap: 0.4rem; align-items: baseline; padding: 0.3rem 0; flex-wrap: wrap; }
+.bz-schema-node { padding: 0.3rem 0; }
+.bz-schema-row { display: flex; gap: 0.45rem; align-items: baseline; flex-wrap: wrap; }
 .bz-topic-name, .bz-edge-peer { background: none; border: none; padding: 0; font: inherit; font-weight: 600; color: var(--bz-fg); cursor: pointer; }
 .bz-topic-name:hover, .bz-edge-peer:hover { color: var(--bz-accent); text-decoration: underline; }
 .bz-schema-name { font-family: ui-monospace, monospace; font-size: 0.88rem; }
@@ -740,6 +742,32 @@ input, select, textarea {
 .bz-schema-gone { text-decoration: line-through; }
 .bz-schema-truncated { margin: 0.2rem 0 0; font-size: 11px; color: var(--bz-muted); }
 
+/* SCHEMA READABILITY — the Swagger / AsyncAPI reading order: name, type, constraints, meaning.
+   The tree used to give type, format, required and enum four identical chips, so four different
+   kinds of fact competed at one weight and the eye had nowhere to land. These four rules are the
+   whole fix: one thing bold and monospaced, one thing coloured, one thing small and grey, one thing
+   in prose. */
+.bz-schema-req {
+  color: var(--bz-rag-red); font-weight: 700; margin-left: 0.15rem;
+  text-decoration: none; cursor: help;
+}
+.bz-schema-type {
+  font-family: var(--bz-mono); font-size: 0.8rem; color: var(--bz-accent);
+}
+.bz-schema-facets { font-size: 11px; color: var(--bz-muted); }
+/* The one line on the page that says what a field MEANS rather than what shape it is, so it gets
+   prose treatment and the tree's indent, not a chip. */
+.bz-schema-desc {
+  margin: 0.15rem 0 0; font-size: 12px; color: var(--bz-fg);
+  max-width: 62ch; line-height: 1.45;
+}
+.bz-schema-enum { margin: 0.2rem 0 0; display: flex; gap: 0.3rem; align-items: baseline; flex-wrap: wrap; }
+.bz-schema-enum-label { font-size: 11px; color: var(--bz-muted); }
+.bz-schema-enum-value {
+  font-family: var(--bz-mono); font-size: 11px; padding: 0.05rem 0.3rem;
+  border: 1px solid var(--bz-border-soft); border-radius: 3px; color: var(--bz-fg);
+}
+
 .bz-version-switch { display: flex; align-items: center; gap: 0.4rem; margin: 0 0 1rem; }
 .bz-version-switch-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--bz-muted); }
 .bz-version-opt {
@@ -925,3 +953,8 @@ button.bz-stat:focus-visible { outline: 2px solid var(--bz-accent); outline-offs
 @media (max-width: 40rem) { .bz-by-service-list li { grid-template-columns: 1fr; gap: 0.1rem; } }
 .bz-outstanding-caveat { margin: 0.5rem 0 0; font-size: 11.5px; }
 .bz-usage-window { color: var(--bz-muted); font-size: 11.5px; }
+
+/* The field-level drift list nested inside a run-over-run change on the topic page. Indented under
+   its parent change so the relationship is structural rather than implied by proximity. */
+.bz-schema-drift { list-style: none; margin: 0.3rem 0 0; padding: 0 0 0 0.9rem; display: grid; gap: 0.2rem; border-left: 1px solid var(--bz-border-soft); }
+.bz-schema-drift li { display: flex; gap: 0.45rem; align-items: baseline; flex-wrap: wrap; }

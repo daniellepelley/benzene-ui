@@ -21,6 +21,7 @@ import { FlowList } from '../controls/FlowList';
 import { Thread } from '../sections/Thread';
 import { Composer } from '../sections/Composer';
 import { ValueRow } from '../controls/ValueRow';
+import { Card } from '../primitives/Card';
 import { PageHead } from '../controls/PageHead';
 import { Badge } from '../primitives/Badge';
 import { Chip } from '../primitives/Chip';
@@ -135,7 +136,7 @@ export function TopicPage({ topic }: TopicPageProps) {
         onSelect={(version) => dispatch(topicVersionSelected(version))}
       />
 
-      <section>
+      <Card title="Ends" note="Who handles this topic, who sends it, and how it is reached">
         <ValueRow label="Consumers">
           {entry.consumers.length === 0
             ? 'none'
@@ -170,7 +171,7 @@ export function TopicPage({ topic }: TopicPageProps) {
             ))}
           </ValueRow>
         )}
-      </section>
+      </Card>
 
       {/* Placed above Traffic: on a page a reader opens to decide whether to ship, what changed in
           the contract outranks how much traffic it carried. */}
@@ -178,21 +179,22 @@ export function TopicPage({ topic }: TopicPageProps) {
 
       <VersionCompatibility compatibility={compatibility} rollout={rollout} />
 
-      <section>
-        <div className="bz-section-head">
-          <h3>Traffic</h3>
-          {/* THE PICKER LIVES HERE, on the surface whose data it governs, not in the chrome.
-              This strip is the one place in the product that already stated its own window
-              correctly — "counts cover from …" — and it was the page NOT carrying the control. A
-              global picker over a per-surface fact moved numbers it did not govern and left numbers
-              that looked like it did. */}
+      {/* THE PICKER LIVES HERE, on the surface whose data it governs, not in the chrome. This strip
+          is the one place in the product that already stated its own window correctly — "counts
+          cover from …" — and it was the page NOT carrying the control. A global picker over a
+          per-surface fact moved numbers it did not govern and left numbers that looked like it did.
+          It now sits in the card's own actions slot, which is what that slot is for. */}
+      <Card
+        title="Traffic"
+        actions={(
           <RangePicker
             rangeMs={rangeMs}
             options={RANGE_OPTIONS}
             available={live.available}
             onChange={(ms) => dispatch(rangeChanged(ms))}
           />
-        </div>
+        )}
+      >
         {/* Two planes, two windows. The strip states its own; the panel states the feed's. */}
         <TopicLiveStrip
           live={live}
@@ -218,11 +220,10 @@ export function TopicPage({ topic }: TopicPageProps) {
             : "over the usage feed's own window, which the feed does not state"}
           version={entry.version}
         />
-      </section>
 
-      {flows.available && (
-        <section>
-          <h3>Flows</h3>
+        {flows.available && (
+          <>
+            <h4>Flows</h4>
           {/* The trace summaries carry a topic and no version, so these flows are the WHOLE topic's
               — which on a version-scoped page put a red "1 failing of 1" on the version that is
               clean, sourced from the failure on the version that is not. The panel cannot be
@@ -234,18 +235,18 @@ export function TopicPage({ topic }: TopicPageProps) {
               version, so none of them is attributed to {versionLabel(entry.version)}.
             </p>
           )}
-          <FlowList
-            view={flows}
-            failingOnly={failingOnly}
-            subject={topic}
-            onToggleFailing={() => dispatch(failingFlowsToggled())}
-            onOpenService={openService}
-          />
-        </section>
-      )}
+            <FlowList
+              view={flows}
+              failingOnly={failingOnly}
+              subject={topic}
+              onToggleFailing={() => dispatch(failingFlowsToggled())}
+              onOpenService={openService}
+            />
+          </>
+        )}
+      </Card>
 
-      <section>
-        <h3>Payload</h3>
+      <Card title="Contract" note="The payload this topic carries, with any drift marked on the field itself">
         {/* The contract, with the drift marked ON it rather than listed beside it. */}
         {entry.requestSchema && (
           <>
@@ -283,17 +284,47 @@ export function TopicPage({ topic }: TopicPageProps) {
         {!entry.requestSchema && !entry.responseSchema && !entry.messageSchema && (
           <EmptyState message="No schema published for this topic." />
         )}
-      </section>
+      </Card>
 
       {entry.changes && entry.changes.length > 0 && (
-        <section>
-          <h3>Since the previous snapshot</h3>
-          <ul>{entry.changes.map((c, i) => <li key={i}><Chip>{c.kind}</Chip> {c.description}</li>)}</ul>
-        </section>
+        <Card title="Since the previous run" note="What moved between the last published catalogue and this one">
+          <ul className="bz-ledger">
+            {entry.changes.map((c, i) => (
+              <li key={i} className="bz-change" data-verdict={c.compatibility ?? undefined}>
+                <Chip>{c.kind}</Chip>
+                <span className="bz-change-desc">{c.description}</span>
+                {/* The field-level breakdown, on the page that owns the topic. Before this shipped,
+                    the section said "Payload schema changed (request)" and stopped — a detection
+                    with no finding under it, which is the complaint that started this work. */}
+                {c.schemaChanges && c.schemaChanges.length > 0 && (
+                  <ul className="bz-schema-drift">
+                    {c.schemaChanges.map((f, j) => (
+                      <li key={j} data-verdict={f.compatibility}>
+                        <span className="bz-schema-mark" data-verdict={f.compatibility}>
+                          {f.compatibility}
+                        </span>
+                        <code className="bz-change-path">{f.path}</code>
+                        <span className="bz-change-desc">{f.description}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {/* An aggregator that reported a change and could not classify it has not earned an
+                    all-clear — absent is not the same as "nothing moved". */}
+                {c.schemaChanges == null && c.kind === 'schema-changed' && (
+                  <span className="bz-schema-facets">
+                    this catalogue does not classify drift, so which fields moved is unknown
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </Card>
       )}
 
-      <section>
-        <h3>Discussion</h3>
+      {/* NOTE: `mesh-ui-aims.md` §3 rules this section deleted — it serves no aim. Carded here only
+          so the page is consistent while it survives; removing it is its own change. */}
+      <Card title="Discussion">
         <Thread annotations={thread} />
         <Composer
           draft={annotations.draft}
@@ -312,7 +343,7 @@ export function TopicPage({ topic }: TopicPageProps) {
               }
             : {})}
         />
-      </section>
+      </Card>
     </div>
   );
 }

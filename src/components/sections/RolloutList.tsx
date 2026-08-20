@@ -41,7 +41,14 @@ export function RolloutList({ rollouts, onOpenTopic, onOpenService }: RolloutLis
               {r.topic}
               <span className="bz-topic-version">{r.baselineVersion} → {r.version}</span>
             </button>
-            <VerdictBadge verdict={r.verdict} attribute={false} baseline={r.baselineVersion} />
+            {/* SETTLED work loses the fill, keeps the verdict. A migration that has been versioned
+                out and needs nobody to do anything wore the same filled red as the one blocking a
+                release, so the page's loudness ranked by severity rather than by who must act —
+                five red pills above one actual obligation. The verdict text and glyph are unchanged
+                (R4: the verdict is never hidden); only its volume is. */}
+            <span data-settled={r.outstanding.length === 0 ? 'true' : undefined}>
+              <VerdictBadge verdict={r.verdict} attribute={false} baseline={r.baselineVersion} />
+            </span>
           </div>
 
           {/* The constraint is the row's substance and it is a sentence, so it reads rather than

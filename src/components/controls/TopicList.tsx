@@ -49,7 +49,7 @@ export function TopicList({ topics, emptyMessage, onOpen }: TopicListProps) {
             </Badge>
           )}
           {t.schemaMismatch && (
-            <Badge rag="red" title="Producer and consumer schemas disagree">schema mismatch</Badge>
+            <Badge rag="red">schema mismatch</Badge>
           )}
           {/* A CHIP HERE, NOT A SEVERITY BADGE — and the distinction is the whole point.
               This list is always one service's own topics, and it only ever contains versions that

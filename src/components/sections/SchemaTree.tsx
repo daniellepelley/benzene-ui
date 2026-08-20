@@ -98,7 +98,7 @@ const MARKER_LABEL: Record<string, string> = {
 function ChangeMarker({ annotation }: { annotation: SchemaAnnotation }) {
   return (
     <span
-      className="bz-schema-mark"
+      className="bz-verdict bz-verdict-inline"
       data-verdict={annotation.compatibility}
       title={annotation.description}
     >

@@ -150,7 +150,7 @@ export function FleetPage() {
           a topic. The live plane has said "unreachable — retrying" since round 2; this is the static
           half held to the same standard. */}
       {feedErrors.length > 0 && (
-        <p className="bz-feed-health" data-kind="degraded">
+        <p className="bz-feed-health" data-kind="bad">
           {feedErrors.map((e) => (
             <span key={e.feed}>
               <strong>{e.feed}</strong> could not be read ({e.message}) — anything derived from it is

@@ -117,3 +117,43 @@ describe('the token set', () => {
     expect(hexes).toEqual([]);
   });
 });
+
+/**
+ * CONTRAST, MEASURED.
+ *
+ * A design-system rule nobody can check is a preference. The light theme shipped with all three RAG
+ * text colours below WCAG AA on their own tinted backgrounds — red 3.63:1, amber 2.95:1, green
+ * 3.18:1 — on the badges that carry this product's verdicts, at 10.5px. Nobody noticed because
+ * nothing measured it.
+ */
+describe('RAG colours clear WCAG AA on their own backgrounds', () => {
+  const css = readFileSync(join(import.meta.dirname, 'tokens.css'), 'utf8');
+
+  /** First definition wins here: `:root` is the light theme, and the dark overrides come later. */
+  const token = (name: string) => {
+    const match = new RegExp(`${name}:\\s*(#[0-9a-fA-F]{6})`).exec(css);
+    if (!match) throw new Error(`token ${name} not found`);
+    return match[1]!;
+  };
+
+  const relativeLuminance = (hex: string) => {
+    const parts = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+    const [r, g, b] = parts.map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+  };
+
+  const contrast = (a: string, b: string) => {
+    const [hi, lo] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x);
+    return (hi! + 0.05) / (lo! + 0.05);
+  };
+
+  it.each(['red', 'amber', 'green'])('%s text on its own tint clears 4.5:1', (rag) => {
+    expect(contrast(token(`--bz-rag-${rag}`), token(`--bz-rag-${rag}-bg`))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each(['red', 'amber', 'green'])('%s text on the page and on a card clears 4.5:1', (rag) => {
+    for (const surface of ['--bz-bg', '--bz-surface']) {
+      expect(contrast(token(`--bz-rag-${rag}`), token(surface))).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+});

@@ -10,6 +10,7 @@ import {
   changeModeSelected,
 } from '../../store/slices/viewSlice';
 import { PageHead } from '../controls/PageHead';
+import { Keyline } from '../primitives/Keyline';
 import { EmptyState } from '../primitives/EmptyState';
 import { Stamp } from '../primitives/Stamp';
 import { VerdictBadge, shortPath } from '../sections/ContractChanges';
@@ -249,11 +250,14 @@ export function ChangesPage() {
                   </li>
                 ))}
               </ul>
-              <p className="bz-muted bz-changes-caveat">{BY_SERVICE_SCOPE}</p>
+              <Keyline>{BY_SERVICE_SCOPE}</Keyline>
             </section>
           )}
 
-          {mode === 'rollouts' && <p className="bz-page-note">{NO_RELEASE_TRAIN_COPY}</p>}
+          {/* DEMOTED to the key line. This is ~50 words of the product's own design rationale, and
+              it sat at full body size between a reader's verdict and their evidence, on every visit.
+              It is a derivation, and derivations are read once (mesh-ui-aims.md R8) — it belongs at
+              the foot with the other things a reader consults rather than reads. */}
 
           {mode === 'rollouts' ? (
             /* Four empty states, because they lead to four different actions and only one of them
@@ -377,10 +381,11 @@ export function ChangesPage() {
         </section>
       )}
 
-      <p className="bz-muted bz-changes-caveat">
+      <Keyline>
         {mode === 'rollouts' ? ROLLOUT_SCOPE_CAVEAT : SCOPE_CAVEAT}
-      </p>
-      {mode === 'rollouts' && <p className="bz-muted bz-changes-caveat">{estateInstanceCaveat(multiInstance)}</p>}
+        {mode === 'rollouts' && <> {NO_RELEASE_TRAIN_COPY}</>}
+      </Keyline>
+      {mode === 'rollouts' && <Keyline>{estateInstanceCaveat(multiInstance)}</Keyline>}
     </div>
   );
 }

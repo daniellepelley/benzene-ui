@@ -69,16 +69,12 @@ export function IssueRow({ issue, onOpen }: IssueRowProps) {
       </span>
       <span className="bz-issue-meta">
         <Chip>{issue.classification}</Chip>
-        <Chip tone="accent">{issue.service}</Chip>
+        <Chip>{issue.service}</Chip>
         {issue.version && <Chip>{issue.version}</Chip>}
         {/* Occurrences, not distinct issues — 400 of one thing outranks four of four things. */}
-        <Chip tone="count" title={`${issue.count} occurrences`}>
-          ×{issue.count.toLocaleString()}
-        </Chip>
+        <Chip tone="count">{issue.count.toLocaleString()} occurrences</Chip>
         {issue.resolutionHint && (
-          <Chip tone="warn" title="A key into the remediation catalog — never prose">
-            {issue.resolutionHint}
-          </Chip>
+          <Chip tone="warn">runbook: {issue.resolutionHint}</Chip>
         )}
       </span>
       <span className="bz-issue-arrow" aria-hidden="true">

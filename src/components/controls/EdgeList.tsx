@@ -2,7 +2,9 @@ import { edgeLivenessFromField } from '../../contracts/mesh';
 import type { TopologyEdgesItem } from '../../contracts';
 import { EmptyState } from '../primitives/EmptyState';
 import { Chip } from '../primitives/Chip';
+import { Alarm, Absent, Provenance } from '../primitives/Qualifier';
 import { Stamp } from '../primitives/Stamp';
+import { Keyline } from '../primitives/Keyline';
 
 export interface EdgeListProps {
   edges: TopologyEdgesItem[];
@@ -20,8 +22,11 @@ const rate = (v: number | null | undefined) =>
 export function EdgeList({ edges, show, emptyMessage, onOpen, now }: EdgeListProps) {
   if (edges.length === 0) return <EmptyState message={emptyMessage} />;
 
+  const anyMeasured = edges.some((e) => e.requestsPerMinute != null);
+
   return (
-    <ul className="bz-edge-list">
+    <>
+      <ul className="bz-edge-list">
       {edges.map((e) => {
         const other = show === 'client' ? e.client : e.server;
         const errors = rate(e.errorRate);
@@ -43,7 +48,7 @@ export function EdgeList({ edges, show, emptyMessage, onOpen, now }: EdgeListPro
             </button>
             {measured ? (
               <>
-                <Chip title="Requests per minute, as measured on this edge">{e.requestsPerMinute!.toFixed(1)}/min</Chip>
+                <Chip>{e.requestsPerMinute!.toFixed(1)}/min</Chip>
                 {/* THE NOUN AND THE SOURCE, because a bare `100.0%` nearly went into a Sev1
                     justification as "100% of orders→shipping is down". It is the share of calls on
                     THIS EDGE that the TRACE SOURCE saw fail — a different measurement, over a
@@ -53,37 +58,46 @@ export function EdgeList({ edges, show, emptyMessage, onOpen, now }: EdgeListPro
                     ("structural — no traffic observed") and hid it when the value was present: the
                     one case it explained was the harmless one.
                     A null rate means the source reported none — never zero errors. */}
-                <Chip title={errors
-                  ? `Share of calls on this edge that ${e.source ?? 'the trace source'} saw fail. Per-edge, from the trace source — the traffic panel below counts the usage feed over its own window, so the two are different measurements and can differ.`
-                  : 'The trace source did not report an error rate'}
-                >
-                  {errors ? `${errors} of calls failed` : 'error rate not reported'}
-                </Chip>
-                <Chip title="Which source measured this edge">
-                  measured by {e.source ?? 'an unnamed source'}
-                </Chip>
-                {e.p95LatencyMs != null && <Chip title="p95 latency, as measured on this edge">p95 {e.p95LatencyMs}ms</Chip>}
+                {/* AN ALARM AND AN ABSENCE ARE NOT THE SAME ELEMENT. These were one neutral chip
+                    whose text flipped between "18.0% of calls failed" and "error rate not
+                    reported" — a measured failure and an admission that nothing was measured,
+                    rendered identically. No red threshold is invented: the product has no rule
+                    saying which share is an emergency, so a non-zero share is a warning and the
+                    reader judges the number. */}
+                {errors
+                  ? <Alarm>{errors} of calls failed</Alarm>
+                  : <Absent>error rate not reported</Absent>}
+                {e.p95LatencyMs != null && <Chip>p95 {e.p95LatencyMs}ms</Chip>}
+                {/* The footnote, not the equal of the numbers it annotates. */}
+                <Provenance>via {e.source ?? 'an unnamed source'}</Provenance>
               </>
             ) : liveness === 'unobserved' ? (
-              <Chip
-                tone="warn"
-                title="Declared by the services' contracts; no trace has ever exercised this call — a decommission candidate, not a fact (mesh.md §4.2)"
-              >
-                declared — never observed
-              </Chip>
+              <Absent>declared, never observed</Absent>
             ) : liveness === 'observed' ? (
-              <Chip title="Declared by the services' contracts, and traced at least once">
-                declared — last observed{' '}
+              <Provenance>
+                declared, last observed{' '}
                 <Stamp iso={e.lastObservedAt} now={now} absent="at an unstated time" />
-              </Chip>
+              </Provenance>
             ) : (
-              <Chip title="Declared by the services' contracts; no trace source has observed this call">
-                structural — no traffic observed
-              </Chip>
+              <Absent>structural — no traffic observed</Absent>
             )}
           </li>
         );
       })}
-    </ul>
+      </ul>
+      {/* The two clauses that used to live in a tooltip on the error-rate chip. One of them stopped a
+          bare "100.0%" going into a Sev1 justification as "100% of orders→shipping is down": these
+          are per-EDGE, from the trace source, over ITS window — a different measurement from the
+          traffic panel below, which is why the two can legitimately differ by 3×. Text that prevents
+          a misreading that severe cannot be reachable only by hovering. */}
+      {anyMeasured && (
+        <Keyline>
+          Rates and error shares are per-edge, as the trace source saw them over its own window — the
+          traffic panel counts the usage feed over a different one, so the two can differ.
+          <strong> declared, never observed</strong> means no trace has exercised the call: a
+          decommission candidate, not a fact.
+        </Keyline>
+      )}
+    </>
   );
 }

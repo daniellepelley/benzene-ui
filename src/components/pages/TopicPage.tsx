@@ -98,7 +98,7 @@ export function TopicPage({ topic }: TopicPageProps) {
             {versionLabel(entry.version) && <Chip title="Payload schema version">{versionLabel(entry.version)}</Chip>}
             {entry.reserved && <Chip title="A topic Benzene itself owns">reserved</Chip>}
             {entry.status && <Badge rag={entry.status === 'gap' ? 'amber' : 'red'} title="Flagged by the aggregator">{entry.status}</Badge>}
-            {entry.schemaMismatch && <Badge rag="red" title="Producer and consumer disagree on the payload shape">schema mismatch</Badge>}
+            {entry.schemaMismatch && <Badge rag="red">schema mismatch</Badge>}
           </>
         }
         actions={
@@ -127,6 +127,20 @@ export function TopicPage({ topic }: TopicPageProps) {
         collapsed={!comparisonsPublished && allEntries.length === 1}
         onSelect={(version) => dispatch(topicVersionSelected(version))}
       />
+
+      {/* THE BADGE GETS A BODY. `schemaMismatch` shipped as a bare red badge with a tooltip and
+          nothing else — the same "a detection is not a finding" defect as the drift hash, on the one
+          flag that says two services will fail to talk to each other. The aggregator holds both
+          schemas when it sets this, so which fields differ is publishable and is a named follow-up
+          (product vision §5.5). Until it is, the page says what IS known and what is not, rather
+          than a red word a reader cannot act on. */}
+      {entry.schemaMismatch && (
+        <p className="bz-feed-health" data-kind="degraded">
+          The services handling <strong>{topic}</strong> do not all declare the same payload shape,
+          so at least one of them will reject messages another treats as valid. Which fields differ is
+          not published yet — compare the Contract below against each consumer&rsquo;s own spec.
+        </p>
+      )}
 
       <Card title="Ends" note="Who handles this topic, who sends it, and how it is reached">
         <ValueRow label="Consumers">
@@ -292,7 +306,7 @@ export function TopicPage({ topic }: TopicPageProps) {
                   <ul className="bz-schema-drift">
                     {c.schemaChanges.map((f, j) => (
                       <li key={j} data-verdict={f.compatibility}>
-                        <span className="bz-schema-mark" data-verdict={f.compatibility}>
+                        <span className="bz-verdict bz-verdict-inline" data-verdict={f.compatibility}>
                           {f.compatibility}
                         </span>
                         <code className="bz-change-path">{f.path}</code>

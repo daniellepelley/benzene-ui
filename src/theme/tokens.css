@@ -39,11 +39,15 @@
 
   /* Status. Each has a tint, because a filled pill carries far more signal than an outlined one and
      never competes with a real control. */
-  --bz-rag-red: #d6453f;
+  /* LIGHT-THEME RAG TEXT, darkened to clear WCAG AA on their own tinted backgrounds. Measured, not
+     eyeballed: red was 3.63:1, amber 2.95:1 and green 3.18:1 against their `-bg` pairs at 10.5px —
+     all three below 4.5:1, on the badges that carry the product's verdicts. They are now 4.96, 5.07
+     and 5.20. The dark theme already passed and is unchanged. */
+  --bz-rag-red: #b8302b;
   --bz-rag-red-bg: #fce4e3;
-  --bz-rag-amber: #c47d10;
+  --bz-rag-amber: #8f5b07;
   --bz-rag-amber-bg: #fbf0da;
-  --bz-rag-green: #159a6b;
+  --bz-rag-green: #0d7350;
   --bz-rag-green-bg: #e2f6ee;
   --bz-rag-gone: #767b93;
   --bz-rag-gone-bg: #eceef8;
@@ -259,6 +263,28 @@ input, select, textarea {
   border-radius: var(--bz-radius);
   font-style: italic;
 }
+/* Not yet, and it resolves on its own. Same dashed family as `unknown` — both mean "no answer here"
+   — but it pulses, because the difference a reader needs is "wait" versus "this will never fill in". */
+.bz-empty[data-tone='pending'] {
+  padding: 10px 13px;
+  border: 1px dashed var(--bz-border-soft);
+  border-radius: var(--bz-radius);
+  font-style: italic;
+  color: var(--bz-muted);
+  animation: bz-pending 1.6s ease-in-out infinite;
+}
+@keyframes bz-pending { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .bz-empty[data-tone='pending'] { animation: none; } }
+/* A broken pipe, not an empty estate — the only tone that means somebody has to go and fix
+   something, and the only empty that may wear a status colour. */
+.bz-empty[data-tone='error'] {
+  padding: 10px 13px;
+  background: var(--bz-rag-red-bg);
+  border: 1px solid var(--bz-rag-red);
+  border-radius: var(--bz-radius);
+  color: var(--bz-rag-red);
+  display: flex; align-items: baseline; gap: 0.35rem; flex-wrap: wrap;
+}
 
 .bz-svc {
   border: 1px solid var(--bz-border);
@@ -443,6 +469,13 @@ input, select, textarea {
 .bz-feed-health[data-kind='ok']   { color: var(--bz-muted); border-color: var(--bz-border); }
 .bz-feed-health[data-kind='warn'] { color: var(--bz-rag-amber); border-color: var(--bz-rag-amber); }
 .bz-feed-health[data-kind='bad']  { color: var(--bz-rag-red);   border-color: var(--bz-rag-red); }
+/* `degraded` was emitted by four surfaces and styled by NONE of them, so it fell through to the
+   quiet default: the one "this feed could not be read" admission on the front door wore a neutral
+   remark's clothes. Dashed, because it is the same family as an `unknown` empty — something the
+   product cannot currently tell you. */
+.bz-feed-health[data-kind='degraded'] {
+  color: var(--bz-rag-amber); border-color: var(--bz-rag-amber); border-style: dashed;
+}
 
 /* ── Version compatibility ─────────────────────────────────────────────────────────────────── */
 .bz-vc { border: 1px solid var(--bz-border); border-radius: var(--bz-radius); padding: 0.75rem 1rem; }
@@ -726,16 +759,9 @@ input, select, textarea {
 .bz-change-path { font-family: var(--bz-mono); font-size: 11.5px; color: var(--bz-fg); }
 .bz-change-desc { font-size: 12px; color: var(--bz-muted); }
 
-/* The marker ON the schema tree. This is the surface the whole design routes readers to: the drift
-   shown at the field rather than in a list beside it. */
-.bz-schema-mark {
-  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
-  padding: 1px 6px; border-radius: var(--bz-radius-sm);
-  background: var(--bz-surface-2); color: var(--bz-muted);
-}
-.bz-schema-mark[data-verdict='breaking']   { color: var(--bz-rag-red);   background: var(--bz-rag-red-bg); }
-.bz-schema-mark[data-verdict='warning']    { color: var(--bz-rag-amber); background: var(--bz-rag-amber-bg); }
-.bz-schema-mark[data-verdict='compatible'] { color: var(--bz-rag-green); background: var(--bz-rag-green-bg); }
+/* The marker ON the schema tree is a VERDICT, so it wears the verdict look — `.bz-schema-mark` was a
+   second, near-identical family styling the same three values, which is one meaning with two looks
+   and the exact thing the visual system exists to prevent. */
 .bz-schema-node[data-removed='true'] { opacity: 0.75; }
 .bz-schema-gone { text-decoration: line-through; }
 .bz-schema-truncated { margin: 0.2rem 0 0; font-size: 11px; color: var(--bz-muted); }
@@ -987,3 +1013,49 @@ button.bz-stat:focus-visible { outline: 2px solid var(--bz-accent); outline-offs
    name wore the same hue as a real signal directly beside it. */
 .bz-divergence-services { display: inline-flex; gap: 0.3rem; flex-wrap: wrap; align-items: baseline; }
 .bz-divergence-diagnosis { grid-column: 2 / -1; font-size: 12px; color: var(--bz-muted); }
+
+/* A verdict on work that is DONE: outlined, not filled. The verdict still reads — the word and the
+   glyph are untouched — but a finished migration stops shouting as loudly as a blocking one. */
+[data-settled='true'] .bz-verdict {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px currentColor;
+  opacity: 0.8;
+}
+
+/* THE KEY LINE — one muted line at the foot of a surface, defining its coded terms and how to read
+   its numbers. This is where text that used to hide in `title` attributes goes: visible in a
+   screenshot, in print, and to a reader who never hovers. */
+.bz-keyline {
+  margin: 0.6rem 0 0;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--bz-border-soft);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--bz-muted);
+  max-width: 90ch;
+}
+.bz-keyline strong { font-weight: 600; color: var(--bz-fg); }
+
+/* THE THREE QUALIFIERS beside a measurement — an alarm, an absence, and provenance. They used to be
+   one neutral chip apiece, which is how "18.0% of calls failed" and "error rate not reported" came
+   to look identical. */
+.bz-qualifier {
+  font-size: 11px; padding: 1px 6px; border-radius: var(--bz-radius-sm);
+}
+.bz-qualifier[data-kind='alarm'] { color: var(--bz-rag-amber); background: var(--bz-rag-amber-bg); font-weight: 600; }
+.bz-qualifier[data-kind='alarm'][data-severe='true'] { color: var(--bz-rag-red); background: var(--bz-rag-red-bg); }
+/* Never a colour, never a pill: the third state is not a small bad number. */
+.bz-qualifier[data-kind='absent'] {
+  color: var(--bz-muted); background: none; font-style: italic; padding: 0;
+}
+/* The footnote. Subordinate to everything it annotates, and never pilled. */
+.bz-provenance { font-size: 11px; color: var(--bz-muted); }
+
+/* An operation's classification — a verb, an event, a message. NOT the status palette: nothing is
+   wrong with a DELETE, and painting it red put a classification in the verdict vocabulary. */
+.bz-op-kind {
+  font-family: var(--bz-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em;
+  padding: 1px 6px; border-radius: var(--bz-radius-sm);
+  background: var(--bz-surface-2); color: var(--bz-fg); border: 1px solid var(--bz-border-soft);
+}
+.bz-op-kind[data-kind='event'], .bz-op-kind[data-kind='msg'] { color: var(--bz-muted); font-style: italic; }

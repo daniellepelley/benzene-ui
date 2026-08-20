@@ -40,7 +40,8 @@ describe('EdgeList — structural vs measured edges', () => {
     // about the whole service; it is the share of calls on this edge that the trace source saw fail,
     // measured over a different window from the usage panel below it.
     expect(screen.getByText('18.0% of calls failed')).toBeInTheDocument();
-    expect(screen.getByText('measured by tempo')).toBeInTheDocument();
+    // Provenance is now the footnote it always was, not a pill the equal of the numbers it annotates.
+    expect(screen.getByText('via tempo')).toBeInTheDocument();
     expect(screen.getByText('p95 420ms')).toBeInTheDocument();
     expect(screen.queryByText('structural — no traffic observed')).not.toBeInTheDocument();
   });
@@ -71,7 +72,7 @@ describe('EdgeList — declared vs. observed (mesh.md §4.2)', () => {
 
   it('flags a declared edge no trace has ever exercised as a decommission candidate', () => {
     render(<EdgeList edges={[edge({ lastObservedAt: null })]} show="server" emptyMessage="none" now={NOW} />);
-    expect(screen.getByText('declared — never observed')).toBeInTheDocument();
+    expect(screen.getByText('declared, never observed')).toBeInTheDocument();
     expect(screen.queryByText('structural — no traffic observed')).not.toBeInTheDocument();
   });
 
@@ -86,7 +87,7 @@ describe('EdgeList — declared vs. observed (mesh.md §4.2)', () => {
     // The DATE AND THE AGE, per the rule. A raw ISO string made the reader subtract, and this row is
     // the one place `mesh.md` §4.2's "last observed at" reaches the screen — the age is the half that
     // decides whether an edge is a decommission candidate.
-    expect(screen.getByText(/declared — last observed/)).toBeInTheDocument();
+    expect(screen.getByText(/declared, last observed/)).toBeInTheDocument();
     expect(screen.getByText('2026-08-15 08:50 UTC')).toBeInTheDocument();
     expect(screen.getByText('(24h ago)')).toBeInTheDocument();
   });

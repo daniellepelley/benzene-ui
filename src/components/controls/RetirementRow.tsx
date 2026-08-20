@@ -3,6 +3,7 @@ import type { RetirementCandidate } from '../../store/selectors';
 import { formatCount } from '../../store/selectors';
 import { StatusGlyph } from '../primitives/StatusGlyph';
 import { Chip } from '../primitives/Chip';
+import { Badge } from '../primitives/Badge';
 import { VerdictBadge } from '../sections/ContractChanges';
 
 export interface RetirementRowProps {
@@ -33,7 +34,10 @@ export function RetirementRow({ row, rag, onOpen }: RetirementRowProps) {
       <span className="bz-vd-shape">
         {producers} producer{producers === 1 ? '' : 's'} · {consumers} consumer{consumers === 1 ? '' : 's'}
       </span>
-      {entry.status && <Chip title="Flagged by the aggregator">{entry.status}</Chip>}
+      {/* A lifecycle flag is a FINDING — "this is a deprecation candidate" is the point of the row,
+          not a qualifier on it — so it is a Badge here as it is everywhere else. As a neutral chip it
+          sat at the same weight as the version beside it. */}
+      {entry.status && <Badge rag="amber">{entry.status}</Badge>}
       {/* The description used to live only in this chip's `title`, i.e. hover-only: invisible in a
           screenshot, in a printout, to a keyboard user, on a projector, and in anything pasted into
           a ticket. Six readers independently named that hidden string the most useful sentence in

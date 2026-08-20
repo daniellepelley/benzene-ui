@@ -130,7 +130,9 @@ export function ServicePage({ service }: ServicePageProps) {
           <>
             <Badge rag={ragForStatus(entry.status)}>{entry.status}</Badge>
             {entry.contractDrift && <Badge rag="amber" title="The published spec changed since the last snapshot">drift</Badge>}
-            {entry.owningTeam && <Chip tone="accent">{entry.owningTeam}</Chip>}
+            {/* Identity, not status: an accent-green team chip beside a red UNHEALTHY badge read as a third
+                status at pill size. */}
+            {entry.owningTeam && <Chip>{entry.owningTeam}</Chip>}
           </>
         }
         actions={live ? <LiveStrip liveness={liveness} issueCount={issues.reduce((n, i) => n + i.count, 0)} diverged={entry.status === 'healthy' && liveness === 'stale'} /> : undefined}

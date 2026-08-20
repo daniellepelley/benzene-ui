@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { render, screen, within } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import type { ReactElement } from 'react';
@@ -165,5 +167,67 @@ describe('the test console no longer contradicts the product', () => {
     show(store, <TestConsolePage service={null} topic={null} />);
 
     expect(screen.queryByText(/production runbook/)).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Wave 2: the clarity sweep. Each of these was a case of one meaning wearing several looks, or
+ * several meanings wearing one.
+ */
+describe('a measurement, an alarm, an absence and a provenance note look different', () => {
+  it('does not render a failure share and a missing one as the same element', async () => {
+    const { EdgeList } = await import('../controls/EdgeList');
+    const measured = [{
+      client: 'orders-api', server: 'payments-api', source: 'tempo',
+      requestsPerMinute: 18, errorRate: 0.18,
+    }] as never;
+    const { container, unmount } = render(<EdgeList edges={measured} show="server" emptyMessage="none" now={0} />);
+    expect(container.querySelector('[data-kind="alarm"]')?.textContent).toMatch(/of calls failed/);
+    // Provenance is not a pill and never competes with the number it annotates.
+    expect(container.querySelector('.bz-provenance')?.textContent).toContain('via tempo');
+    unmount();
+
+    const unmeasured = [{
+      client: 'orders-api', server: 'payments-api', source: 'tempo',
+      requestsPerMinute: 18, errorRate: null,
+    }] as never;
+    const second = render(<EdgeList edges={unmeasured} show="server" emptyMessage="none" now={0} />);
+    // The SAME slot, and it must not look like a small bad number.
+    expect(second.container.querySelector('[data-kind="absent"]')?.textContent)
+      .toMatch(/error rate not reported/);
+    expect(second.container.querySelector('[data-kind="alarm"]')).toBeNull();
+  });
+
+  it('puts the text that prevented a Sev1 misreading in the visible plane, not a tooltip', async () => {
+    const { EdgeList } = await import('../controls/EdgeList');
+    const edges = [{
+      client: 'orders-api', server: 'payments-api', source: 'tempo',
+      requestsPerMinute: 18, errorRate: 0.18,
+    }] as never;
+    const { container } = render(<EdgeList edges={edges} show="server" emptyMessage="none" now={0} />);
+
+    expect(container.querySelector('.bz-keyline')?.textContent).toMatch(/per-edge/);
+    // ...and nothing on this surface hides text in a hover any more.
+    expect(container.querySelector('[title]')).toBeNull();
+  });
+});
+
+describe('colour means status, and nothing else', () => {
+  it('does not paint HTTP verbs with the status palette', async () => {
+    // GET green / DELETE red put a classification into the verdict vocabulary: nothing is wrong
+    // with a DELETE, and it rendered in the same red the estate uses for "unhealthy".
+    const source = readFileSync(
+      join(import.meta.dirname, '..', 'sections', 'SpecOperation.tsx'), 'utf8',
+    );
+    expect(source).not.toMatch(/METHOD_RAG/);
+    expect(source).toMatch(/bz-op-kind/);
+  });
+
+  it('does not paint an identity with a status colour', async () => {
+    const store = await loaded();
+    show(store, <ServicePage service="orders-api" />);
+    const team = [...document.querySelectorAll('.bz-chip')]
+      .find((c) => c.textContent === 'Fulfilment');
+    if (team) expect(team.getAttribute('data-tone')).toBeNull();
   });
 });

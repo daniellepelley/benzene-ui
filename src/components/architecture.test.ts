@@ -112,3 +112,39 @@ describe('every moment is rendered through Stamp', () => {
     expect(carried.length).toBeGreaterThan(3);
   });
 });
+
+/**
+ * THE HOVER RATCHET.
+ *
+ * 87 `title` attributes shipped, carrying text a reader genuinely needed: which source measured a
+ * number, that two panels count different windows, what "unobserved" asserts and what it does not.
+ * A tooltip is invisible in a screenshot, in print, on a touch device, and to anyone who does not
+ * hover the right four words — so load-bearing text cannot live there (mesh-ui-aims.md R6).
+ *
+ * Ruling on 51 remaining cases one at a time would take a wave on its own, and the class would
+ * regrow while we did it — which is what happened after the last two rounds flagged it. So the class
+ * is frozen here instead: the budget may only ever go DOWN, and files already cleared may not
+ * regress. Lowering the number is the work; this stops it being undone.
+ */
+describe('load-bearing text is not hidden in a hover', () => {
+  const titles = (f: string) => (readFileSync(f, 'utf8').match(/\stitle="/g) ?? []).length;
+  const total = files.reduce((n, f) => n + titles(f), 0);
+
+  /** Ratchet. Lower it when you remove some; never raise it. */
+  const BUDGET = 45;
+
+  it(`has no more than ${BUDGET} hover-only titles left`, () => {
+    expect(total).toBeLessThanOrEqual(BUDGET);
+  });
+
+  it('keeps the cleared surfaces clear', () => {
+    // Each of these had its hover text promoted into the visible plane — into the row itself, or
+    // into the surface's own Keyline. Re-adding a tooltip here is a regression, not a shortcut.
+    const cleared = ['controls/EdgeList.tsx', 'sections/SpecOperation.tsx'];
+    for (const name of cleared) {
+      const file = files.find((f) => relative(f).replace(/\\/g, '/') === name);
+      expect(file, `${name} should exist`).toBeTruthy();
+      expect(titles(file!), `${name} must stay free of hover-only text`).toBe(0);
+    }
+  });
+});

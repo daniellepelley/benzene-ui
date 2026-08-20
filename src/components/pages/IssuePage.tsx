@@ -38,17 +38,18 @@ export function IssuePage({ selected }: IssuePageProps) {
             does not is the sentence and the facts; those stay, once. */}
         <p className="bz-issue-why">{WHY[issue.classification]}</p>
         <p className="bz-issue-facts">
-          <Chip tone="accent">{issue.service}</Chip>
+          <Chip>{issue.service}</Chip>
           {issue.version && <Chip>{issue.version}</Chip>}
           {/* Occurrences merged under one signature, not distinct issues — 400 of one thing
               outranks four of four things. */}
-          <Chip tone="count" title="Occurrences merged under this signature">
-            ×{issue.count.toLocaleString()}
-          </Chip>
+          {/* The noun is IN the chip. "×400" alone was read as four hundred distinct issues; the
+              word that said otherwise was in a tooltip. */}
+          <Chip tone="count">{issue.count.toLocaleString()} occurrences</Chip>
+          {/* A key into the operator's own remediation catalogue, not prose — said in the chip
+              rather than in a hover, because a bare `dependency` reads as a word the product chose
+              and nobody could tell it was a lookup key (R7). */}
           {issue.resolutionHint && (
-            <Chip tone="warn" title="A key into the remediation catalog — never prose">
-              {issue.resolutionHint}
-            </Chip>
+            <Chip tone="warn">runbook: {issue.resolutionHint}</Chip>
           )}
         </p>
         <p className="bz-issue-seen">

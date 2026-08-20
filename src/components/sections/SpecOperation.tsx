@@ -1,7 +1,6 @@
 import type { SpecOperationModel } from '../../store/selectors';
 import { schemaLabel } from '../../store/selectors';
 import { SchemaTree } from './SchemaTree';
-import { Badge } from '../primitives/Badge';
 import { Chip } from '../primitives/Chip';
 
 export interface SpecOperationProps {
@@ -10,14 +9,14 @@ export interface SpecOperationProps {
   onToggle: (id: string) => void;
 }
 
-/** HTTP verbs carry their own conventional weight; a reader scans for them before reading anything. */
-const METHOD_RAG = {
-  GET: 'green',
-  POST: 'amber',
-  PUT: 'amber',
-  PATCH: 'amber',
-  DELETE: 'red',
-} as const;
+/*
+ * HTTP verbs used to be painted with the STATUS palette — GET green, POST amber, DELETE red — so a
+ * perfectly healthy delete operation rendered in the same red the estate uses for "unhealthy", three
+ * inches from real status badges. A verb is a classification, not a verdict: nothing is wrong with a
+ * DELETE. Red, amber and green mean status in this product and nothing else (mesh-ui-aims.md R9), so
+ * verbs are now a neutral monospace chip and scan by their own shape, as they do in every API tool a
+ * reader has already used.
+ */
 
 /**
  * One thing a service can do.
@@ -42,20 +41,20 @@ export function SpecOperation({ operation, expanded, onToggle }: SpecOperationPr
       >
         <span className="bz-op-badges">
           {isEvent ? (
-            <Badge rag="green">event</Badge>
+            <span className="bz-op-kind" data-kind="event">event</span>
           ) : httpMappings.length > 0 ? (
             httpMappings.map((h) => (
-              <Badge key={`${h.method} ${h.path}`} rag={METHOD_RAG[h.method.toUpperCase() as keyof typeof METHOD_RAG] ?? 'gone'}>
+              <span key={`${h.method} ${h.path}`} className="bz-op-kind" data-kind="verb">
                 {h.method.toUpperCase()}
-              </Badge>
+              </span>
             ))
           ) : (
             // Reachable by message only. Said plainly, because "no HTTP verb" is not "unreachable".
-            <Badge rag="gone">msg</Badge>
+            <span className="bz-op-kind" data-kind="msg">msg</span>
           )}
         </span>
         <span className="bz-op-topic">{topic}</span>
-        {version && <Chip title="Handler version">{version}</Chip>}
+        {version && <Chip>handler {version}</Chip>}
         <span className="bz-op-io">
           {isEvent ? (
             schemaLabel(input)
@@ -76,9 +75,7 @@ export function SpecOperation({ operation, expanded, onToggle }: SpecOperationPr
             <ul className="bz-op-http">
               {httpMappings.map((h) => (
                 <li key={`${h.method} ${h.path}`}>
-                  <Badge rag={METHOD_RAG[h.method.toUpperCase() as keyof typeof METHOD_RAG] ?? 'gone'}>
-                    {h.method.toUpperCase()}
-                  </Badge>
+                  <span className="bz-op-kind" data-kind="verb">{h.method.toUpperCase()}</span>
                   <code>{h.path}</code>
                 </li>
               ))}

@@ -93,7 +93,18 @@ async function meshQuery<T>(endpoint: string, topic: string, body: unknown): Pro
     headers: {},
     body: JSON.stringify(body ?? {}),
   });
-  if (envelope.statusCode !== 'ok') throw new Error(`${topic} answered ${envelope.statusCode}`);
+  if (envelope.statusCode !== 'ok') {
+    // READER-FACING. This string reaches the chrome, so it must not be a wire topic and a raw status
+    // token: "benzene:mesh:query:fleet answered undefined" is a stack trace wearing a sentence's
+    // clothes, and it was the first thing a reader saw when the live plane faltered (R7). The topic
+    // stays out of it entirely — it names an internal contract the reader has no use for — and an
+    // absent status is reported as absent rather than as the word "undefined".
+    throw new Error(
+      envelope.statusCode
+        ? `the live plane refused the request (${envelope.statusCode})`
+        : 'the live plane answered without a status',
+    );
+  }
   return JSON.parse(envelope.body ?? '{}') as T;
 }
 

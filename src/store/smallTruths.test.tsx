@@ -109,7 +109,7 @@ describe('an issue detail page states its headline once', () => {
     expect(screen.getAllByText('exception')).toHaveLength(1);
     // What the row carried and the header did not, kept: the sentence and the occurrence count.
     expect(screen.getByText(/The handler threw/)).toBeInTheDocument();
-    expect(screen.getByText('×2,205')).toBeInTheDocument();
+    expect(screen.getByText('2,205 occurrences')).toBeInTheDocument();
   });
 });
 

@@ -92,6 +92,20 @@
           "description": "Payload schema changed (request)",
           "schemaChanges": [
             {
+              "kind": "propertyRemoved",
+              "direction": "request",
+              "path": "orders:create.request.customerId",
+              "description": "Property 'customerId' was removed",
+              "compatibility": "warning"
+            },
+            {
+              "kind": "requiredPropertyAdded",
+              "direction": "request",
+              "path": "orders:create.request.customerRef",
+              "description": "Property 'customerRef' was added (required)",
+              "compatibility": "breaking"
+            },
+            {
               "kind": "requiredPropertyAdded",
               "direction": "request",
               "path": "orders:create.request.channel",
@@ -264,8 +278,16 @@
         {
           "kind": "schema-changed",
           "description": "Payload schema changed (response)",
-          "schemaChanges": [],
-          "compatibility": null
+          "schemaChanges": [
+            {
+              "kind": "propertyRemoved",
+              "direction": "response",
+              "path": "orders:get-all.response.total",
+              "description": "Property 'total' was removed",
+              "compatibility": "breaking"
+            }
+          ],
+          "compatibility": "breaking"
         }
       ],
       "requestSchema": {
@@ -368,7 +390,31 @@
       "changes": [
         {
           "kind": "schema-changed",
-          "description": "Payload schema changed (message)"
+          "description": "Payload schema changed (message)",
+          "schemaChanges": [
+            {
+              "kind": "propertyAdded",
+              "direction": "event",
+              "path": "payment:capture.message.currency",
+              "description": "Property 'currency' was added",
+              "compatibility": "compatible"
+            },
+            {
+              "kind": "propertyBecameRequired",
+              "direction": "event",
+              "path": "payment:capture.message.orderId",
+              "description": "Property 'orderId' became required",
+              "compatibility": "compatible"
+            },
+            {
+              "kind": "typeChanged",
+              "direction": "event",
+              "path": "payment:capture.message.amount",
+              "description": "Type changed from 'integer' to 'number'",
+              "compatibility": "breaking"
+            }
+          ],
+          "compatibility": "breaking"
         }
       ],
       "messageSchema": {
@@ -505,7 +551,17 @@
       "changes": [
         {
           "kind": "schema-changed",
-          "description": "Payload schema changed (message)"
+          "description": "Payload schema changed (message)",
+          "schemaChanges": [
+            {
+              "kind": "propertyRemoved",
+              "direction": "event",
+              "path": "shipping:book.message.address.line2",
+              "description": "Property 'line2' was removed",
+              "compatibility": "breaking"
+            }
+          ],
+          "compatibility": "breaking"
         }
       ],
       "messageSchema": {
@@ -623,7 +679,17 @@
       "changes": [
         {
           "kind": "schema-changed",
-          "description": "Payload schema changed (request)"
+          "description": "Payload schema changed (request)",
+          "schemaChanges": [
+            {
+              "kind": "propertyRemoved",
+              "direction": "request",
+              "path": "inventory:reserve.request.warehouseHint",
+              "description": "Property 'warehouseHint' was removed",
+              "compatibility": "warning"
+            }
+          ],
+          "compatibility": "warning"
         }
       ],
       "requestSchema": {
@@ -712,7 +778,17 @@
       "changes": [
         {
           "kind": "schema-changed",
-          "description": "Payload schema changed (request)"
+          "description": "Payload schema changed (request)",
+          "schemaChanges": [
+            {
+              "kind": "propertyAdded",
+              "direction": "request",
+              "path": "notification:send.request.locale",
+              "description": "Property 'locale' was added",
+              "compatibility": "compatible"
+            }
+          ],
+          "compatibility": "compatible"
         }
       ],
       "requestSchema": {
@@ -780,6 +856,122 @@
           "orderId"
         ]
       },
+      "compatibility": {
+        "baselineVersion": null,
+        "overall": "notCompared",
+        "changes": [],
+        "notComparedReason": "onlyOneVersion",
+        "truncatedPaths": [],
+        "notComparedSides": []
+      }
+    },
+    {
+      "topic": "inventory:adjust",
+      "version": "v1",
+      "reserved": false,
+      "consumers": [
+        {
+          "service": "shipping-api"
+        },
+        {
+          "service": "payments-api"
+        }
+      ],
+      "producers": [
+        {
+          "service": "orders-api"
+        }
+      ],
+      "status": null,
+      "schemaMismatch": true,
+      "changes": [],
+      "requestSchema": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string"
+          },
+          "warehouse": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "integer"
+          },
+          "reference": {
+            "type": "string",
+            "maxLength": 12
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sku",
+          "warehouse",
+          "note"
+        ]
+      },
+      "declaredSchemas": [
+        {
+          "service": "shipping-api",
+          "role": "consumer",
+          "requestSchema": {
+            "type": "object",
+            "properties": {
+              "sku": {
+                "type": "string"
+              },
+              "warehouse": {
+                "type": "string"
+              },
+              "quantity": {
+                "type": "integer"
+              },
+              "reference": {
+                "type": "string",
+                "maxLength": 12
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sku",
+              "warehouse",
+              "note"
+            ]
+          },
+          "responseSchema": null,
+          "messageSchema": null
+        },
+        {
+          "service": "payments-api",
+          "role": "consumer",
+          "requestSchema": {
+            "type": "object",
+            "properties": {
+              "sku": {
+                "type": "string"
+              },
+              "quantity": {
+                "type": "string"
+              },
+              "reference": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sku"
+            ]
+          },
+          "responseSchema": null,
+          "messageSchema": null
+        }
+      ],
       "compatibility": {
         "baselineVersion": null,
         "overall": "notCompared",

@@ -287,6 +287,53 @@ const topics = [
 
   // Reserved utility topic: never carries a compatibility verdict — every service has the same ones
   // and their churn is noise.
+  // SCHEMA MISMATCH: two services handle one topic and declare different inbound shapes, which is
+  // the state the `schema mismatch` badge exists for. Deliberately covering all four kinds of
+  // disagreement the union view has to render, because a fixture that only shows one teaches the UI
+  // half a job:
+  //   - `warehouse` declared by one consumer and not the other (presence)
+  //   - `quantity` declared as different types             (kind conflict, which stops the walk)
+  //   - `reference` differing only in maxLength            (outside the .NET comparer's taxonomy —
+  //                                                         the case that argued for raw declarations)
+  //   - `note` optional on one side, required on the other (requiredness)
+  {
+    topic: 'inventory:adjust', version: 'v1', reserved: false,
+    consumers: [shippingApi, paymentsApi], producers: [ordersApi], status: null,
+    schemaMismatch: true, changes: [],
+    // The representative schema is one declaration, not a synthesis — the aggregator picks the first
+    // consumer that declared one, and the UI must never present it as everyone's contract.
+    requestSchema: obj({
+      sku: str(),
+      warehouse: str(),
+      quantity: int(),
+      reference: str({ maxLength: 12 }),
+      note: str(),
+    }, ['sku', 'warehouse', 'note']),
+    declaredSchemas: [
+      {
+        service: 'shipping-api', role: 'consumer',
+        requestSchema: obj({
+          sku: str(),
+          warehouse: str(),
+          quantity: int(),
+          reference: str({ maxLength: 12 }),
+          note: str(),
+        }, ['sku', 'warehouse', 'note']),
+        responseSchema: null, messageSchema: null,
+      },
+      {
+        service: 'payments-api', role: 'consumer',
+        requestSchema: obj({
+          sku: str(),
+          quantity: str(),
+          reference: str({ maxLength: 64 }),
+          note: str(),
+        }, ['sku']),
+        responseSchema: null, messageSchema: null,
+      },
+    ],
+  },
+
   { topic: 'spec', version: '', reserved: true, consumers: [ordersApi, paymentsApi], producers: [], status: null, schemaMismatch: false, changes: [] },
 ];
 
@@ -310,6 +357,19 @@ for (const [topic, versions] of byTopic) {
       return;
     }
     entry.compatibility = compare(topic, versions[index - 1], entry);
+
+    // The RUN-OVER-RUN axis, derived from the same walk. The aggregator classifies drift down to the
+    // field (MeshTopicChange.SchemaChanges), so the fixture must too — a `schema-changed` entry with
+    // no breakdown is what the UI renders as "this catalogue does not classify drift", and a sample
+    // that shows only that teaches the UI the unclassified path is normal.
+    const schemaChanged = (entry.changes ?? []).find((c) => c.kind === 'schema-changed');
+    if (schemaChanged && entry.compatibility?.changes?.length) {
+      schemaChanged.schemaChanges = entry.compatibility.changes.map((c) => ({
+        kind: c.kind, direction: c.direction, path: c.path,
+        description: c.description, compatibility: c.compatibility,
+      }));
+      schemaChanged.compatibility = entry.compatibility.overall;
+    }
   });
 }
 

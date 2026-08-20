@@ -115,6 +115,7 @@ export interface TopicsTopicsItem {
   responseSchema?: JsonSchema | null;
   compatibility?: TopicsTopicsItemCompatibility | null;
   messageSchema?: JsonSchema | null;
+  declaredSchemas?: TopicsTopicsItemDeclaredSchemasItem[];
   consumerActivity?: Record<string, EdgeActivity>;
   providerActivity?: Record<string, EdgeActivity>;
 }
@@ -137,7 +138,7 @@ export interface TopicsTopicsItemChangesItem {
   kind: string;
   description: string;
   schemaChanges?: TopicsTopicsItemChangesItemSchemaChangesItem[];
-  compatibility?: string | null;
+  compatibility?: string;
 }
 
 export interface TopicsTopicsItemChangesItemSchemaChangesItem {
@@ -163,6 +164,14 @@ export interface TopicsTopicsItemCompatibilityChangesItem {
   path: string;
   description: string;
   compatibility: string;
+}
+
+export interface TopicsTopicsItemDeclaredSchemasItem {
+  service: string;
+  role: string;
+  requestSchema: JsonSchema;
+  responseSchema: JsonSchema | null;
+  messageSchema: JsonSchema | null;
 }
 
 export interface TopicsRemovedTopicsItem {

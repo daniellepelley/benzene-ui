@@ -38,10 +38,13 @@ async function getJson<T>(path: string, manifestUrl?: string): Promise<T> {
   return (await response.json()) as T;
 }
 
-async function postJson<T>(path: string, body: unknown): Promise<T> {
+async function postJson<T>(
+  path: string, body: unknown, extraHeaders: Record<string, string> = {},
+): Promise<T> {
   const response = await fetch(resolveUrl(path), {
     method: 'POST',
-    headers: { 'content-type': 'application/json', accept: 'application/json' },
+    headers: { 'content-type': 'application/json', accept: 'application/json', ...extraHeaders },
+    credentials: 'same-origin',
     body: JSON.stringify(body),
   });
   if (!response.ok) throw failed(response, path);
@@ -125,11 +128,15 @@ async function dispatchMessage(
   endpoint: string,
   request: { service: string; topic: string; headers: Record<string, string>; body: string },
 ): Promise<ComposeResult> {
+  // `X-Benzene-Dispatch: 1` is the same CSRF defence the refresh endpoint uses, on the one surface
+  // that fires a payload into a real handler. A cross-site form cannot set a custom header, and a
+  // cross-origin fetch that sets one is preflighted. Hardcoded for the same reason: a configurable
+  // CSRF token is a CSRF token somebody configures wrongly.
   const envelope = await postJson<{ statusCode: string; body?: string }>(endpoint, {
     topic: 'benzene:mesh:dispatch',
     headers: {},
     body: JSON.stringify(request),
-  });
+  }, { 'X-Benzene-Dispatch': '1' });
 
   if (envelope.statusCode !== 'ok') {
     throw new MeshDispatchBlockedError(describeBlockedDispatch(envelope), envelope.statusCode);

@@ -2310,3 +2310,189 @@ export const selectRolloutForTopic = createSelector(
       ? rollouts.find((r) => r.topic === entry.topic && r.version === entry.version)
       : undefined) ?? null,
 );
+
+// ── Schema agreement ────────────────────────────────────────────────────────────────────────────
+
+import { childrenOf, requiredOf, typeOf, facetsOf, isObject as isSchemaObject }
+  from '../components/sections/schemaShape';
+import type { TopicsTopicsItemDeclaredSchemasItem } from '../contracts';
+
+/** One distinct declaration of a field, and every service that made it. */
+export interface AgreementVariant {
+  /** What was declared, in the reader's words: `string`, `string, optional`, `not declared`. */
+  label: string;
+  services: string[];
+}
+
+/** One field in the union of every service's declaration. */
+export interface AgreementNode {
+  name: string;
+  /** True when every service that declared this level declared this field identically. */
+  agrees: boolean;
+  /** The single declaration, when they agree. */
+  consensus?: { type: string; required: boolean; facets: string[]; description?: string };
+  /** Every distinct declaration, when they do not. Largest group first — a sort, never a ruling. */
+  variants?: AgreementVariant[];
+  /** A descendant disagrees, so the parent is worth opening even though it agrees itself. */
+  differsInside: boolean;
+  /** The declared kinds differ, so nothing beneath was compared. */
+  truncated: boolean;
+  children: AgreementNode[];
+}
+
+/** One side of the message — request, response or event — across every service that declared it. */
+export interface AgreementPlane {
+  plane: 'request' | 'response' | 'message';
+  declaredBy: { service: string; role: string }[];
+  /** Services that declared nothing at all for this plane. Absence, stated — never silence. */
+  absent: string[];
+  differCount: number;
+  root: AgreementNode[];
+}
+
+export interface SchemaAgreementView {
+  /** False when the catalogue does not publish per-service declarations — unknown, not agreement. */
+  published: boolean;
+  planes: AgreementPlane[];
+}
+
+const PLANE_KEY = {
+  request: 'requestSchema',
+  response: 'responseSchema',
+  message: 'messageSchema',
+} as const;
+
+/** `string, optional` / `integer` / `array[string], required` — one phrase for one declaration. */
+const describe = (schema: JsonSchema, required: boolean): string => {
+  const facets = facetsOf(schema);
+  const parts = [typeOf(schema), ...(facets.length > 0 ? [facets.join(' · ')] : [])];
+  return `${parts.join(' ')}${required ? ', required' : ''}`;
+};
+
+/**
+ * The union of several services' declarations at one level, with disagreement marked on the field.
+ *
+ * The absence rule is the one that keeps a five-consumer estate readable: a service that did not
+ * declare a parent object is excluded from every variant beneath it. Repeating "not declared —
+ * payments-api" on each of an object's twelve children says the same fact twelve times and buries
+ * the fields that actually differ.
+ */
+function unionLevel(
+  declarations: { service: string; schema: JsonSchema }[],
+  depth = 0,
+): { nodes: AgreementNode[]; differCount: number } {
+  if (depth > 32) return { nodes: [], differCount: 0 };
+
+  const names: string[] = [];
+  for (const declaration of declarations) {
+    for (const name of Object.keys(childrenOf(declaration.schema) ?? {})) {
+      if (!names.includes(name)) names.push(name);
+    }
+  }
+
+  let differCount = 0;
+  const nodes = names.map((name) => {
+    // Group by what was declared. `not declared` is a variant like any other — it is a fact about a
+    // service, not a verdict about it, and it must never read as "missing".
+    const byLabel = new Map<string, string[]>();
+    const present: { service: string; schema: JsonSchema }[] = [];
+    for (const declaration of declarations) {
+      const child = (childrenOf(declaration.schema) ?? {})[name];
+      const label = child == null
+        ? 'not declared'
+        : describe(child, requiredOf(declaration.schema).has(name));
+      byLabel.set(label, [...(byLabel.get(label) ?? []), declaration.service]);
+      if (child != null) present.push({ service: declaration.service, schema: child });
+    }
+
+    // A kind conflict stops the walk: comparing an object's fields against a string's has no meaning,
+    // and reporting "every field removed" beneath one would bury the actual finding.
+    const kinds = new Set(present.map((p) => typeOf(p.schema).replace(/\[.*\]$/, '')));
+    const truncated = kinds.size > 1;
+    const below = truncated ? { nodes: [], differCount: 0 } : unionLevel(present, depth + 1);
+
+    const agrees = byLabel.size === 1;
+    if (!agrees) differCount += 1;
+    differCount += below.differCount;
+
+    const first = present[0];
+    return {
+      name,
+      agrees,
+      ...(agrees && first
+        ? {
+          consensus: {
+            type: typeOf(first.schema),
+            required: requiredOf(declarations[0]!.schema).has(name),
+            facets: facetsOf(first.schema),
+            ...(first.schema.description ? { description: first.schema.description } : {}),
+          },
+        }
+        : {
+          variants: [...byLabel.entries()]
+            .map(([label, services]) => ({ label, services }))
+            // Largest group first, ties alphabetical. A sort, so the reader meets the common shape
+            // first — never an ordering that says which declaration is correct.
+            .sort((a, b) => b.services.length - a.services.length || a.label.localeCompare(b.label)),
+        }),
+      differsInside: below.differCount > 0,
+      truncated,
+      children: below.nodes,
+    } as AgreementNode;
+  });
+
+  return { nodes, differCount };
+}
+
+/**
+ * Where the services on one topic disagree about its payload, field by field.
+ *
+ * This is the substance behind the `schema mismatch` badge. The badge said two services will fail to
+ * talk to each other and then declined to say where, leaving a reader to open each service's own spec
+ * by hand — a detection with no finding under it, and the same defect the contract-drift work fixed
+ * one axis over.
+ *
+ * It walks the UNION of what each service declared rather than diffing against a chosen reference,
+ * because choosing a reference says that service is the correct one. Which declaration is right —
+ * and whether the fix is to add a field, drop one, rename, or version the topic — is a judgement the
+ * reader has context for and the mesh does not.
+ */
+export const selectSchemaAgreement = createSelector(
+  [selectTopics, (_: RootState, topic: string) => topic,
+    (s: RootState, topic: string) => selectDisplayedVersion(s, topic)],
+  (topics, topic, version): SchemaAgreementView => {
+    const entry = topics.find((t) => t.topic === topic && (version == null || t.version === version))
+      ?? topics.find((t) => t.topic === topic);
+    const declared = (entry?.declaredSchemas ?? []) as TopicsTopicsItemDeclaredSchemasItem[];
+    if (declared.length === 0) return { published: false, planes: [] };
+
+    const planes: AgreementPlane[] = [];
+    for (const plane of ['request', 'response', 'message'] as const) {
+      const key = PLANE_KEY[plane];
+      const withSchema = declared
+        .map((d) => ({ service: d.service, role: d.role, schema: d[key] as JsonSchema | null }))
+        .filter((d) => d.schema != null && isSchemaObject(d.schema));
+      if (withSchema.length === 0) continue;
+
+      // Services that declared SOMETHING on this topic but nothing on this plane. Stated as absent
+      // rather than dropped: "shipping-api declares no response" is a real asymmetry and is exactly
+      // the kind of thing the mismatch flag is trying to surface.
+      const absent = declared
+        .filter((d) => d[key] == null && d.role === withSchema[0]!.role)
+        .map((d) => d.service);
+
+      const { nodes, differCount } = unionLevel(
+        withSchema.map((d) => ({ service: d.service, schema: d.schema as JsonSchema })));
+
+      planes.push({
+        plane,
+        declaredBy: withSchema.map((d) => ({ service: d.service, role: d.role })),
+        absent,
+        differCount,
+        root: nodes,
+      });
+    }
+
+    return { published: true, planes };
+  },
+);

@@ -4,7 +4,7 @@ import {
   selectVersionCompatibility, selectHttpMappingsForTopic, selectLiveForTopic, versionLabel,
   selectRolloutForTopic, selectUsageWindow,
   selectFlowsForTopic, selectFailingFlowsOnly, selectTopicCompatibility, selectVersionSwitcher,
-  selectUsageRowsForTopic,
+  selectUsageRowsForTopic, selectSchemaAgreement,
   selectComparisonsPublished, selectTopicEntries, selectNow, selectRangeMs, RANGE_OPTIONS,
 } from '../../store/selectors';
 import { EdgeLivenessChip } from '../controls/EdgeLivenessChip';
@@ -12,6 +12,7 @@ import {
   navigated, failingFlowsToggled, pivotedToFailingFlows, topicVersionSelected, rangeChanged,
 } from '../../store/slices/viewSlice';
 import { SchemaTree, type SchemaAnnotation } from '../sections/SchemaTree';
+import { SchemaAgreement } from '../sections/SchemaAgreement';
 import { ContractChanges } from '../sections/ContractChanges';
 import { VersionSwitcher } from '../controls/VersionSwitcher';
 import { VersionCompatibility } from '../sections/VersionCompatibility';
@@ -38,6 +39,7 @@ export function TopicPage({ topic }: TopicPageProps) {
   const entry = useAppSelector((s: RootState) => selectTopic(s, topic));
   const traffic = useAppSelector((s: RootState) => selectTrafficForTopic(s, topic));
   const usageRows = useAppSelector((s: RootState) => selectUsageRowsForTopic(s, topic));
+  const agreement = useAppSelector((s: RootState) => selectSchemaAgreement(s, topic));
   const usageWindow = useAppSelector(selectUsageWindow);
   const now = useAppSelector(selectNow);
   const rangeMs = useAppSelector(selectRangeMs);
@@ -131,19 +133,6 @@ export function TopicPage({ topic }: TopicPageProps) {
         onSelect={(version) => dispatch(topicVersionSelected(version))}
       />
 
-      {/* THE BADGE GETS A BODY. `schemaMismatch` shipped as a bare red badge with a tooltip and
-          nothing else — the same "a detection is not a finding" defect as the drift hash, on the one
-          flag that says two services will fail to talk to each other. The aggregator holds both
-          schemas when it sets this, so which fields differ is publishable and is a named follow-up
-          (product vision §5.5). Until it is, the page says what IS known and what is not, rather
-          than a red word a reader cannot act on. */}
-      {entry.schemaMismatch && (
-        <p className="bz-feed-health" data-kind="degraded">
-          The services handling <strong>{topic}</strong> do not all declare the same payload shape,
-          so at least one of them will reject messages another treats as valid. Which fields differ is
-          not published yet — compare the Contract below against each consumer&rsquo;s own spec.
-        </p>
-      )}
 
       <Card title="Ends" note="Who handles this topic, who sends it, and how it is reached">
         <ValueRow label="Consumers">
@@ -308,9 +297,18 @@ export function TopicPage({ topic }: TopicPageProps) {
         )}
       </Card>
 
-      <Card title="Contract" note="The payload this topic carries, with any drift marked on the field itself">
+      <Card
+        title="Contract"
+        note={entry.schemaMismatch
+          ? 'The services on this topic do not declare one shape — each field below shows who declares what'
+          : 'The payload this topic carries, with any drift marked on the field itself'}
+      >
+        {/* WHEN THEY DISAGREE, there is no single contract to render. Showing one service's schema
+            under the heading "Contract" would assert a shape the estate does not have — so the
+            agreement view replaces the tree rather than sitting beside it. */}
+        {entry.schemaMismatch && <SchemaAgreement view={agreement} />}
         {/* The contract, with the drift marked ON it rather than listed beside it. */}
-        {entry.requestSchema && (
+        {!entry.schemaMismatch && entry.requestSchema && (
           <>
             <h4>Request</h4>
             <SchemaTree
@@ -321,7 +319,7 @@ export function TopicPage({ topic }: TopicPageProps) {
             />
           </>
         )}
-        {entry.responseSchema && (
+        {!entry.schemaMismatch && entry.responseSchema && (
           <>
             <h4>Response</h4>
             <SchemaTree
@@ -332,7 +330,7 @@ export function TopicPage({ topic }: TopicPageProps) {
             />
           </>
         )}
-        {entry.messageSchema && (
+        {!entry.schemaMismatch && entry.messageSchema && (
           <>
             <h4>Message</h4>
             <SchemaTree
@@ -343,7 +341,7 @@ export function TopicPage({ topic }: TopicPageProps) {
             />
           </>
         )}
-        {!entry.requestSchema && !entry.responseSchema && !entry.messageSchema && (
+        {!entry.schemaMismatch && !entry.requestSchema && !entry.responseSchema && !entry.messageSchema && (
           <EmptyState message="No schema published for this topic." />
         )}
       </Card>

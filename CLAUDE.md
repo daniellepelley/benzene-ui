@@ -25,7 +25,7 @@ actions and assert on output, never simulate clicks to drive state.
 `dist/index.html` inlines all JS and CSS and makes **zero external requests**. `Benzene.Mesh.Ui`
 embeds it and serves it from inside a running service — no CDN, no static hosting. CI asserts this.
 Consequences: no code splitting, no dynamic import, no runtime CDN anything, and bundle size is a
-budget (currently 279 KB for the mesh UI, up from 250 KB with the Test Console's addition, and
+budget (currently ~349 KB for the mesh UI — grown stepwise from 250 KB as the Test Console, schema agreement and dispatch landed — and
 218 KB for the spec viewer, against the 274 KB and 955-line hand-written pages they replace).
 
 ## The collector is a Benzene service, not a REST API

@@ -42,7 +42,7 @@ from; XState is a better fit for one complex workflow than for a whole applicati
 ```
 src/
   contracts/    generated.ts (do not edit) + mesh.ts, the semantic layer over it
-  store/        seven slices, selectors, routing, typed hooks — the application
+  store/        eight slices, selectors, routing, typed hooks — the application
   components/
     primitives/ Badge · Chip · EmptyState · StatusGlyph
     controls/   ServiceCard · LiveStrip · IssueRow · ValueRow · UsagePanel · TopicList · EdgeList
@@ -80,7 +80,7 @@ healthy that have stopped reporting. That is the single most useful thing the li
 |---|---|
 | `npm test` | Vitest — store tests plus container tests |
 | `npm run storybook` | Storybook on :6006 |
-| `npm run build` | The single self-contained `dist/index.html` |
+| `npm run build` | Both self-contained pages: `dist/index.html` (estate) and `dist/spec/spec.html` (spec viewer) |
 | `npm run build:storybook` | Static Storybook, publishable to benzene.app |
 
 ## The build targets are two files
@@ -90,9 +90,10 @@ healthy that have stopped reporting. That is the single most useful thing the li
 as a resource and serves it from inside the running service: no CDN, no static hosting, no network
 egress. That rules out code splitting and makes bundle size a budget.
 
-Current: **250 KB** and **218 KB**, against the 274 KB and 955-line hand-written pages they replace. React and Redux Toolkit
-included, the whole application is *smaller* than what it replaces, because a minifier beats
-hand-maintained source. CI asserts there are no external requests.
+Current: **349 KB** and **253 KB**. The estate view started below the 274 KB hand-written page it
+replaced and has since outgrown it as capability landed (Test Console, schema agreement, dispatch);
+the budget discipline is that every growth step is a deliberate trade, not drift. CI asserts there
+are no external requests.
 
 ## Contracts
 

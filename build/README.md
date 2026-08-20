@@ -1,7 +1,7 @@
 # build
 
-The published artifact: **`mesh-ui.html`**, one self-contained page with every script, style and
-asset inlined.
+The published artifacts: **`mesh-ui.html`** (the estate view) and **`mesh-spec-ui.html`** (the
+spec viewer) — each one self-contained page with every script, style and asset inlined.
 
 It is committed rather than built by each consumer because the consumers are not JavaScript
 projects. `Benzene.Mesh.Ui` embeds this file as a .NET resource and serves it from inside a running

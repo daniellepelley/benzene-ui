@@ -1,7 +1,6 @@
 import type { FleetView, Manifest, ServiceSnapshot, Topics, Topology, Usage } from '../contracts';
 import type { MeshApi } from '../store/slices/estateSlice';
 import { MeshFetchError } from '../store/slices/estateSlice';
-import type { Annotation } from '../store/slices/annotationsSlice';
 import type { ComposeResult } from '../store/slices/composeSlice';
 import { MeshDispatchBlockedError } from '../store/slices/composeSlice';
 
@@ -154,8 +153,6 @@ export interface MeshApiOptions {
   manifestUrl?: string;
   /** Set when a live collector is reachable; absent means the dashboard shows the declared plane only. */
   fleetEndpoint?: string;
-  /** Set when annotations are writable. Absent means a read-only mesh. */
-  annotationsEndpoint?: string;
   /**
    * Set when the mesh also wires `Benzene.Mesh.Dispatch`'s `UseMeshDispatch()`. Absent means the Test
    * Console renders read-only (compose and copy a payload, no send button) — a deliberate, separate
@@ -183,7 +180,7 @@ export interface MeshApiOptions {
  * Query parameters win, so a link can point one page at another estate. Behind them sit attributes
  * on the document root, which is how a host that serves this page from inside a running service
  * bakes its own endpoints in — `Benzene.Mesh.Ui` injects these, and without reading them an embedded
- * dashboard would come up with no live plane and no writable annotations at all.
+ * dashboard would come up with no live plane at all.
  *
  * Every entry is the same shape on purpose: one attribute, one query override, one capability that
  * exists only when its URL does. A deployment that says nothing gets a page with nothing it cannot
@@ -197,7 +194,6 @@ export function optionsFromDocument(location: Location, root: HTMLElement): Mesh
   return {
     manifestUrl: pick('url', 'data-manifest-url'),
     fleetEndpoint: pick('fleet', 'data-fleet-url'),
-    annotationsEndpoint: pick('annotations', 'data-annotations-url'),
     dispatchEndpoint: pick('dispatch', 'data-dispatch-url'),
     refreshEndpoint: pick('refresh', 'data-refresh-url'),
     logoutUrl: pick('logout', 'data-logout-url'),
@@ -211,21 +207,8 @@ export const createMeshApi = (options: MeshApiOptions = {}): MeshApi => ({
   getTopics: () => getJson<Topics>('topics.json', options.manifestUrl),
   getTopology: () => getJson<Topology>('topology.json', options.manifestUrl),
   getUsage: () => getJson<Usage>('usage.json', options.manifestUrl),
-  getAnnotations: () =>
-    // Coerced at the boundary. An artifact that parses but does not carry the expected array — an
-    // older aggregator, a different port, a hand-edited file — used to reach the store as `undefined`
-    // and take the whole application down on the first selector that filtered it. A missing list is
-    // an empty list; it is not a reason for the product to stop existing.
-    getJson<{ annotations?: Annotation[] }>('annotations.json', options.manifestUrl)
-      .then((d) => (Array.isArray(d.annotations) ? d.annotations : [])),
   ...(options.fleetEndpoint
     ? { getFleet: (query) => meshQuery<FleetView>(options.fleetEndpoint!, 'benzene:mesh:query:fleet', query) }
-    : {}),
-  ...(options.annotationsEndpoint
-    ? {
-        postAnnotation: (request) =>
-          postJson<Annotation>(options.annotationsEndpoint!, request),
-      }
     : {}),
   ...(options.dispatchEndpoint
     ? { sendMessage: (message) => dispatchMessage(options.dispatchEndpoint!, message) }

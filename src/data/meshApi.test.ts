@@ -20,7 +20,6 @@ describe('deployment configuration', () => {
       doc({
         'data-manifest-url': '/artifacts/manifest.json',
         'data-fleet-url': '/benzene/mesh',
-        'data-annotations-url': '/benzene/annotations',
         'data-dispatch-url': '/benzene/invoke',
         'data-refresh-url': '/benzene/mesh/refresh',
         'data-logout-url': '/benzene/auth/logout',
@@ -30,7 +29,6 @@ describe('deployment configuration', () => {
     expect(options).toEqual({
       manifestUrl: '/artifacts/manifest.json',
       fleetEndpoint: '/benzene/mesh',
-      annotationsEndpoint: '/benzene/annotations',
       dispatchEndpoint: '/benzene/invoke',
       refreshEndpoint: '/benzene/mesh/refresh',
       logoutUrl: '/benzene/auth/logout',

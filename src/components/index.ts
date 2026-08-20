@@ -26,8 +26,6 @@ export * from './controls/CatalogEmpty';
 
 export * from './sections/SchemaTree';
 export * from './sections/HealthChecks';
-export * from './sections/Thread';
-export * from './sections/Composer';
 export * from './sections/TopologyGraph';
 export * from './sections/MessageComposer';
 export * from './sections/VersionCompatibility';

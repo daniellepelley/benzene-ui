@@ -1,7 +1,7 @@
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   selectTopicsForService, selectEdgesForService, selectLiveness, selectIssuesForService,
-  selectFleetAvailable, ragForStatus, selectThread, selectCanPost, selectCanAnnotate,
+  selectFleetAvailable, ragForStatus,
   selectServiceAbout, selectUsageForService, selectShowUtility, selectFeedHealth,
   selectFlowsForService, selectFailingFlowsOnly, selectServiceChangeSummary,
   selectObligationsForService, selectComparisonsPublished, selectServiceHasVersionPairs,
@@ -11,7 +11,6 @@ import {
 } from '../../store/selectors';
 import { navigated, utilityToggled, failingFlowsToggled, changeServiceFiltered,
 } from '../../store/slices/viewSlice';
-import { draftChanged, draftAuthorChanged, postAnnotation } from '../../store/slices/annotationsSlice';
 import { TopicList } from '../controls/TopicList';
 import { EdgeList } from '../controls/EdgeList';
 import { LiveStrip } from '../controls/LiveStrip';
@@ -25,8 +24,6 @@ import { ServiceOutstanding } from '../sections/ServiceOutstanding';
 import { Card } from '../primitives/Card';
 import { ServiceUsage } from '../sections/ServiceUsage';
 import { HealthChecks } from '../sections/HealthChecks';
-import { Thread } from '../sections/Thread';
-import { Composer } from '../sections/Composer';
 import { PageHead } from '../controls/PageHead';
 import { Badge } from '../primitives/Badge';
 import { EmptyState } from '../primitives/EmptyState';
@@ -50,11 +47,6 @@ export function ServicePage({ service }: ServicePageProps) {
   const observed = useAppSelector((s: RootState) => selectFleetService(s, service));
   const instances = useAppSelector((s: RootState) => selectInstanceCount(s, service));
   const liveTraffic = useAppSelector((s: RootState) => selectLiveForService(s, service));
-  const entity = `service:${service}`;
-  const thread = useAppSelector((s: RootState) => selectThread(s, entity));
-  const canPost = useAppSelector(selectCanPost);
-  const annotations = useAppSelector((s: RootState) => s.annotations);
-  const writable = useAppSelector(selectCanAnnotate);
   const about = useAppSelector((s: RootState) => selectServiceAbout(s, service));
   const usage = useAppSelector((s: RootState) => selectUsageForService(s, service));
   const usageWindow = useAppSelector(selectUsageWindow);
@@ -268,26 +260,6 @@ export function ServicePage({ service }: ServicePageProps) {
         </Card>
       )}
 
-      <Card title="Discussion">
-        <Thread annotations={thread} />
-        <Composer
-          draft={annotations.draft}
-          author={annotations.draftAuthor}
-          canPost={canPost}
-          posting={annotations.post === 'posting'}
-          error={annotations.postError}
-          onDraftChange={(t) => dispatch(draftChanged(t))}
-          onAuthorChange={(a) => dispatch(draftAuthorChanged(a))}
-          {...(writable
-            ? {
-                onPost: () =>
-                  void dispatch(
-                    postAnnotation({ entity, author: annotations.draftAuthor, text: annotations.draft }),
-                  ),
-              }
-            : {})}
-        />
-      </Card>
     </div>
   );
 }

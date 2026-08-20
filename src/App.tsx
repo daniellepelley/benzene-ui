@@ -4,7 +4,6 @@ import {
   loadManifest, loadService, refreshManifest, refreshEstate, ARTIFACT_POLL_MS,
 } from './store/slices/estateSlice';
 import { loadCatalog } from './store/slices/catalogSlice';
-import { loadAnnotations } from './store/slices/annotationsSlice';
 import { probeFleet, pollInbox, clockTicked, FLEET_POLL_MS, INBOX_POLL_MS } from './store/slices/fleetSlice';
 import { ErrorBoundary } from './components/primitives/ErrorBoundary';
 import { navigated, themeCycled, themeRestored, type Theme } from './store/slices/viewSlice';
@@ -14,9 +13,10 @@ import {
   selectNow,
 } from './store/selectors';
 import {
-  FleetPage, ServicePage, TopicPage, IssuePage, ComposePage, ValuePage, TestConsolePage,
-  ChangesPage,
+  FleetPage, ServicePage, TopicPage, IssuePage, ValuePage, TestConsolePage,
+  ChangesPage, TopicsPage,
 } from './components/pages';
+import type { Page } from './store/slices/viewSlice';
 import { FeedHealthLine } from './components/controls/FeedHealthLine';
 import { EmptyState } from './components/primitives/EmptyState';
 import { StatusGlyph } from './components/primitives/StatusGlyph';
@@ -25,6 +25,24 @@ import { ThemeToggle } from './components/controls/ThemeToggle';
 import { RefreshButton } from './components/controls/RefreshButton';
 import { SignOut } from './components/controls/SignOut';
 import { CatalogEmpty } from './components/controls/CatalogEmpty';
+
+/**
+ * The navigation, as data — one entry per destination, in the order a reader works through them:
+ * the estate, then what it does, then what changed, then what is wrong, then what could go, then
+ * the tool. Every screen in the product is reachable from here, which was the point.
+ *
+ * `Retire` is deliberately not `Value`: "value" is the product's own word for the question, and the
+ * question a reader actually arrives with is "what could we retire?".
+ */
+const NAV: { page: Page; label: string; selected?: string }[] = [
+  { page: 'fleet', label: 'Estate' },
+  { page: 'topics', label: 'Topics' },
+  { page: 'changes', label: 'Changes' },
+  // IssuePage treats 'all' as the queue rather than one signature, so the nav opens the queue.
+  { page: 'issue', label: 'Issues', selected: 'all' },
+  { page: 'retire', label: 'Retire' },
+  { page: 'test', label: 'Test' },
+];
 
 /** Where a reader's theme choice is remembered between visits. */
 const THEME_KEY = 'benzene.mesh.theme';
@@ -56,7 +74,6 @@ export function App() {
   useEffect(() => {
     void dispatch(loadManifest());
     void dispatch(loadCatalog());
-    void dispatch(loadAnnotations());
     void dispatch(probeFleet());
     void dispatch(pollInbox());
   }, [dispatch]);
@@ -158,35 +175,24 @@ export function App() {
             absent="the aggregator published no timestamp with these artifacts"
           />
         </span>
+        {/* SIX destinations for six screens. Four entries for eight screens is why readers reported
+            they could not get back: Issues — the strongest surface in the product — was reachable
+            only through a conditional "see all" on the estate, and Topics, the estate's functional
+            map, had no route at all. */}
         <nav className="bz-nav">
-          <button
-            type="button"
-            aria-current={page === 'fleet' ? 'page' : undefined}
-            onClick={() => dispatch(navigated({ page: 'fleet' }))}
-          >
-            Estate
-          </button>
-          <button
-            type="button"
-            aria-current={page === 'changes' ? 'page' : undefined}
-            onClick={() => dispatch(navigated({ page: 'changes' }))}
-          >
-            Changes
-          </button>
-          <button
-            type="button"
-            aria-current={page === 'value' ? 'page' : undefined}
-            onClick={() => dispatch(navigated({ page: 'value' }))}
-          >
-            Value
-          </button>
-          <button
-            type="button"
-            aria-current={page === 'test' ? 'page' : undefined}
-            onClick={() => dispatch(navigated({ page: 'test' }))}
-          >
-            Test
-          </button>
+          {NAV.map((item) => (
+            <button
+              key={item.page}
+              type="button"
+              aria-current={page === item.page ? 'page' : undefined}
+              onClick={() => dispatch(navigated({
+                page: item.page,
+                ...(item.selected !== undefined ? { selected: item.selected } : {}),
+              }))}
+            >
+              {item.label}
+            </button>
+          ))}
         </nav>
         {/* The worst status in the estate, always in the same place — a reader who checks one thing
             on arrival checks this, and it must not move about as the page changes. */}
@@ -251,9 +257,9 @@ export function App() {
             {page === 'service' && selected && <ServicePage service={selected} />}
             {page === 'topic' && selected && <TopicPage topic={selected} />}
             {page === 'issue' && <IssuePage selected={selected ?? 'all'} />}
-            {page === 'compose' && selected && <ComposePage topic={selected} service={selectedService} />}
+            {page === 'topics' && <TopicsPage />}
             {page === 'changes' && <ChangesPage />}
-            {page === 'value' && <ValuePage />}
+            {page === 'retire' && <ValuePage />}
             {page === 'test' && <TestConsolePage service={selectedService} topic={selected} />}
           </ErrorBoundary>
         )}

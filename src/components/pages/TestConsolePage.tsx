@@ -2,7 +2,8 @@ import { useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   selectVisibleServices, selectComposableTopicsForService, selectTopicVersions,
-  selectTransportsForTopic, selectExampleBody, selectComposeValidity, selectCanInvoke, NONE,
+  selectTransportsForTopic, selectExampleBody, selectComposeValidity, selectCanInvoke,
+  selectHandlerServicesForTopic, NONE,
 } from '../../store/selectors';
 import {
   composeOpened, versionSelected, transportSelected, bodyEdited, headersEdited,
@@ -27,10 +28,11 @@ export interface TestConsolePageProps {
  * hash (`#test/<service>/<topic>`) is deep-linkable, so a documented procedure can link straight to a
  * pre-filled, ready-to-send console instead of describing the clicks.
  *
- * Deliberately a top-level page, not nested under a topic — `ComposePage` already serves that flow
- * for a reader who is already looking at one topic. This is the front door for a reader who is not:
- * they know the service (or are debugging one), and are looking for the topic, not the other way
- * round.
+ * ONE console, two doors (mesh-ui-aims.md §3). A reader who knows the service arrives at `#test` and
+ * picks a topic; a reader already looking at a topic arrives with the topic chosen and no service,
+ * and the console resolves the service from that topic's declared handlers — the flow the separate
+ * compose page used to serve. Merging them was a deliberate act: same job, and two pages meant two
+ * composers, two seeding rules, and one of them quietly seeding the wrong version.
  */
 export function TestConsolePage({ service, topic }: TestConsolePageProps) {
   const dispatch = useAppDispatch();
@@ -40,19 +42,39 @@ export function TestConsolePage({ service, topic }: TestConsolePageProps) {
   // "did this selector return something new" check on every render where nothing is picked yet.
   const topics = useAppSelector((s: RootState) =>
     (service ? selectComposableTopicsForService(s, service) : NONE) as TopicsTopicsItem[]);
+  // The services that HANDLE this topic. A dispatch invokes a topic ON a target, so the target must
+  // be the one with the handler, never the one that emits it.
+  const handlers = useAppSelector((s: RootState) =>
+    (topic ? selectHandlerServicesForTopic(s, topic) : NONE) as string[]);
   const versions = useAppSelector((s: RootState) =>
     (topic ? selectTopicVersions(s, topic) : NONE) as TopicsTopicsItem[]);
   const transports = useAppSelector((s: RootState) =>
     (topic ? selectTransportsForTopic(s, topic) : NONE) as string[]);
   const compose = useAppSelector((s: RootState) => s.compose);
-  const exampleBody = useAppSelector((s: RootState) =>
-    topic ? selectExampleBody(s, topic, compose.versionIndex) : '{}');
+  // The skeleton for the version about to be SELECTED, which is not necessarily the one the store
+  // currently holds — seeding index N with version 0's body is the bug this separates out.
+  const bodyForIndex = useAppSelector(
+    (s: RootState) => (index: number) => (topic ? selectExampleBody(s, topic, index) : '{}'),
+  );
   const validity = useAppSelector(selectComposeValidity);
   const canSendMessages = useAppSelector(selectCanInvoke);
+  // Arriving topic-first: one handler resolves itself, several ask, none says so. Without this the
+  // merged console would answer a topic-only link with an empty service picker and no explanation.
+  const resolvedService = service ?? (handlers.length === 1 ? handlers[0]! : null);
   // Only assert that a service is absent once there is a manifest to assert it against. An empty
   // list means the estate has not loaded, not that the service does not exist — the same third-state
-  // rule the rest of the product follows, applied to a route parameter.
-  const known = services.length === 0 || services.some((s) => s.name === service);
+  // rule the rest of the product follows, applied to a route parameter. Checked against the RESOLVED
+  // service: on a topic-first arrival the raw prop is null, which is not the same as unknown.
+  const known = services.length === 0
+    || resolvedService == null
+    || services.some((s) => s.name === resolvedService);
+  // Which version the reader was looking at when they pressed through. Seeding index 0 regardless is
+  // how a console shows a v2 label above a v1 payload, with fields v2 had deleted included.
+  const arrivedAtVersion = useAppSelector((s: RootState) => s.view.selectedVersion);
+  const seedIndex = (() => {
+    const at = versions.findIndex((v) => v.version === arrivedAtVersion);
+    return at >= 0 ? at : 0;
+  })();
 
   // Seeding the draft from the schema is a lifecycle, not state — and composeOpened guards against
   // overwriting a dirty draft, so re-entering the page never discards what someone typed.
@@ -65,19 +87,27 @@ export function TestConsolePage({ service, topic }: TestConsolePageProps) {
   // header invites a reader to bookmark this URL as a runbook step, so the surface that promises
   // repeatability was the one that could not deliver it.
   useEffect(() => {
-    if (service && topic) {
-      // `composeOpened` resets the picker to index 0, so index 0's version is the one being seeded.
+    if (resolvedService && topic) {
       dispatch(composeOpened({
-        service, topic, exampleBody, transports, version: versions[0]?.version ?? null,
+        service: resolvedService,
+        topic,
+        exampleBody: bodyForIndex(seedIndex),
+        transports,
+        versionIndex: seedIndex,
+        // The version travels with the message, not just its skeleton — see `seedHeaders`.
+        version: versions[seedIndex]?.version ?? null,
       }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, service, topic, versions.length]);
+  }, [dispatch, resolvedService, topic, arrivedAtVersion, versions.length]);
 
+  // Choosing a service KEEPS the topic when the reader arrived topic-first. Clearing it
+  // unconditionally would throw away the half they had already chosen — the same defect the route
+  // parser was fixed for.
   const pickService = (name: string) =>
-    dispatch(navigated({ page: 'test', selectedService: name || null, selected: null }));
+    dispatch(navigated({ page: 'test', selectedService: name || null, selected: topic }));
   const pickTopic = (t: string) =>
-    dispatch(navigated({ page: 'test', selectedService: service, selected: t || null }));
+    dispatch(navigated({ page: 'test', selectedService: resolvedService, selected: t || null }));
 
   return (
     <div className="bz-page">
@@ -85,16 +115,19 @@ export function TestConsolePage({ service, topic }: TestConsolePageProps) {
         <h2>Test Console</h2>
       </header>
 
+      {/* The withdrawn runbook copy is gone. It invited a reader to bookmark this as a production
+          runbook step while `MeshDispatchGate` in the same product refuses to dispatch in
+          production by default — the product contradicting itself, in an instruction. */}
       <p className="bz-page-note">
-        Compose a message and send it through a service's real message pipeline — the same routing,
-        validation, and handler a real transport would use. Bookmark or link a filled-in console
-        (service and topic are both in the URL) as a step in a production runbook.
+        Compose a message and send it through a service&rsquo;s real message pipeline — the same
+        routing, validation, and handler a real transport would use. The service and topic are both
+        in the URL, so a filled-in console can be linked or shared.
       </p>
 
       <div className="bz-compose-controls">
         <label>
           Service
-          <select value={service ?? ''} onChange={(e) => pickService(e.target.value)}>
+          <select value={resolvedService ?? ''} onChange={(e) => pickService(e.target.value)}>
             <option value="">Choose a service…</option>
             {services.map((s) => (
               <option key={s.name} value={s.name}>{s.name}</option>
@@ -102,7 +135,7 @@ export function TestConsolePage({ service, topic }: TestConsolePageProps) {
           </select>
         </label>
 
-        {service && (
+        {resolvedService && (
           <label>
             Topic
             <select value={topic ?? ''} onChange={(e) => pickTopic(e.target.value)}>
@@ -115,7 +148,21 @@ export function TestConsolePage({ service, topic }: TestConsolePageProps) {
         )}
       </div>
 
-      {!service && services.length === 0 && (
+      {/* Arriving topic-first with an ambiguous or absent handler. The console cannot guess which
+          service to invoke, and guessing would fire a real handler on a service nobody chose. */}
+      {topic && !resolvedService && handlers.length > 1 && (
+        <p className="bz-page-note">
+          {handlers.length} services declare handling {topic} ({handlers.join(', ')}). A dispatch
+          invokes it on one of them, so pick which above.
+        </p>
+      )}
+      {topic && !resolvedService && handlers.length === 0 && (
+        <EmptyState
+          message={`No service in the catalogue declares handling ${topic}, so there is nothing in this estate to send it to. Its handlers may be outside the estate, or this version may not be deployed yet.`}
+        />
+      )}
+
+      {!resolvedService && !topic && services.length === 0 && (
         <EmptyState message="No services are in the catalog yet." />
       )}
 
@@ -125,19 +172,19 @@ export function TestConsolePage({ service, topic }: TestConsolePageProps) {
           instead of an honest empty state. The message it fell through to was also wrong: it said
           the service carried only reserved traffic, which asserts something about a service that
           does not exist. */}
-      {service && !known && (
-        <EmptyState message={`${service} is not in the estate manifest, so there is nothing to send it.`} />
+      {resolvedService && !known && (
+        <EmptyState message={`${resolvedService} is not in the estate manifest, so there is nothing to send it.`} />
       )}
 
-      {service && known && topics.length === 0 && (
+      {resolvedService && known && topics.length === 0 && (
         <EmptyState message={`${service} has no composable topic — it may only carry reserved traffic.`} />
       )}
 
-      {service && known && topic && versions.length === 0 && (
+      {resolvedService && known && topic && versions.length === 0 && (
         <EmptyState message={`${topic} has no composable version — it may be reserved, or not in the catalog.`} />
       )}
 
-      {service && known && topic && versions.length > 0 && (
+      {resolvedService && known && topic && versions.length > 0 && (
         <MessageComposer
           versions={versions}
           versionIndex={compose.versionIndex}
@@ -168,7 +215,7 @@ export function TestConsolePage({ service, topic }: TestConsolePageProps) {
                 onSend: () =>
                   void dispatch(
                     sendComposed({
-                      service,
+                      service: resolvedService,
                       topic,
                       headers: safeParse(compose.headersJson),
                       body: compose.bodyJson,

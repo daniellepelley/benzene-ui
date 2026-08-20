@@ -419,7 +419,6 @@ input, select, textarea {
 .bz-rollup { border: 1px solid var(--bz-border); border-radius: var(--bz-radius); padding: 0.9rem 1rem; background: var(--bz-sunken); }
 .bz-rollup h2 { margin-bottom: 0.35rem; }
 .bz-rollup p { margin: 0.3rem 0; }
-.bz-divergence { color: var(--bz-rag-amber); }
 
 /* ── Compose ───────────────────────────────────────────────────────────────────────────────── */
 .bz-compose { display: flex; flex-direction: column; gap: 0.75rem; max-width: 46rem; }
@@ -615,7 +614,6 @@ input, select, textarea {
 /* A filter inline with its heading holds the right-hand end, so the two lists on this page put
    their filter in the same place relative to the list rather than in the same place on screen. */
 .bz-section-head .bz-catalog-filter { margin-left: auto; }
-.bz-divergence { display: flex; align-items: baseline; gap: 0.35rem; flex-wrap: wrap; color: var(--bz-rag-amber); margin-bottom: 1.25rem; }
 
 /* ── Page head ─────────────────────────────────────────────────────────────────────────────────
    Title row, then the lede beneath it. The previous head centred everything on one baseline, which
@@ -958,3 +956,34 @@ button.bz-stat:focus-visible { outline: 2px solid var(--bz-accent); outline-offs
    its parent change so the relationship is structural rather than implied by proximity. */
 .bz-schema-drift { list-style: none; margin: 0.3rem 0 0; padding: 0 0 0 0.9rem; display: grid; gap: 0.2rem; border-left: 1px solid var(--bz-border-soft); }
 .bz-schema-drift li { display: flex; gap: 0.45rem; align-items: baseline; flex-wrap: wrap; }
+
+/* THE ESTATE VERDICT — the page's answer to its own question, above the numbers that support it.
+   Sized as a sentence a reader cannot miss, not as a banner: it is the first thing on the page and
+   the only thing there that states a conclusion. */
+.bz-estate-verdict {
+  margin: 0 0 1rem; font-size: 15px; line-height: 1.5; color: var(--bz-fg);
+  display: flex; align-items: baseline; gap: 0.4rem; flex-wrap: wrap;
+}
+.bz-estate-verdict[data-rag='red']   { color: var(--bz-rag-red); }
+.bz-estate-verdict[data-rag='amber'] { color: var(--bz-rag-amber); }
+.bz-estate-verdict[data-rag='gone']  { color: var(--bz-muted); }
+
+/* DECLARED VS OBSERVED — one block, one row per class of disagreement. This replaces four sibling
+   paragraphs of amber prose that a reader could not count. Rows are a grid so the glyph, the
+   finding, the affected services and the diagnosis line up down the block: scanning the second
+   column answers "how many different things are wrong", which the paragraphs never could. */
+.bz-divergence-block { margin: 0 0 1.25rem; }
+.bz-divergence-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; }
+.bz-divergence-row {
+  display: grid; grid-template-columns: auto minmax(12rem, auto) 1fr; gap: 0.5rem;
+  align-items: baseline; padding: 0.4rem 0.6rem;
+  border: 1px solid var(--bz-border-soft); border-radius: 5px; background: var(--bz-surface);
+}
+.bz-divergence-row[data-kind='silent']     { border-left: 3px solid var(--bz-muted); }
+.bz-divergence-row[data-kind='undeclared'] { border-left: 3px solid var(--bz-rag-amber); }
+.bz-divergence-row[data-kind='stale']      { border-left: 3px solid var(--bz-rag-amber); }
+.bz-divergence-label { font-weight: 600; }
+/* Identity, never status-coloured — the banners this replaces painted service names amber, so a
+   name wore the same hue as a real signal directly beside it. */
+.bz-divergence-services { display: inline-flex; gap: 0.3rem; flex-wrap: wrap; align-items: baseline; }
+.bz-divergence-diagnosis { grid-column: 2 / -1; font-size: 12px; color: var(--bz-muted); }

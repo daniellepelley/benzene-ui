@@ -1,26 +1,20 @@
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   selectEstateSummary, selectDivergences, selectIssueSummary, selectFleetAvailable,
-  selectFlaggedTopics, selectEdges, selectFlows, selectFailingFlowsOnly, selectInboxIssues,
-  selectServiceRags, selectCollapsedSections, selectFilter, selectVisibleServices,
+  selectInboxIssues, selectFilter, selectVisibleServices, selectEstateVerdict,
   selectChangeSummary, selectRollouts, selectFeedErrors, selectNeverHeartbeated, selectFeedHealth,
-  selectUndeclaredServices, selectMultiInstanceServices, selectRangeMs, RANGE_OPTIONS,
+  selectUndeclaredServices, selectMultiInstanceServices,
 } from '../../store/selectors';
 import {
-  navigated, failingFlowsToggled, sectionToggled, filterChanged, rangeChanged,
+  navigated, filterChanged,
 } from '../../store/slices/viewSlice';
 import { ServiceList } from '../containers/ServiceList';
-import { TopicCatalog } from '../containers/TopicCatalog';
-import { CollapsibleSection } from '../controls/CollapsibleSection';
-import { TopologyGraph } from '../sections/TopologyGraph';
-import { FlowList } from '../controls/FlowList';
-import { RangePicker } from '../controls/RangePicker';
+import { DivergenceBlock, type Divergence } from '../sections/DivergenceBlock';
+import { StatusGlyph } from '../primitives/StatusGlyph';
 import { EstateStats } from '../controls/EstateStats';
 import { IssueRow } from '../controls/IssueRow';
-import { StatusGlyph } from '../primitives/StatusGlyph';
 import { RolloutList } from '../sections/RolloutList';
 import { estateInstanceCaveat } from '../sections/compatibilityCopy';
-import { Chip } from '../primitives/Chip';
 import type { Rag } from '../../contracts';
 
 /** How many issues the front door shows before handing off to the full inbox. */
@@ -44,13 +38,6 @@ export function FleetPage() {
   const issueSummary = useAppSelector(selectIssueSummary);
   const inbox = useAppSelector(selectInboxIssues);
   const liveAvailable = useAppSelector(selectFleetAvailable);
-  const flagged = useAppSelector(selectFlaggedTopics);
-  const edges = useAppSelector(selectEdges);
-  const rags = useAppSelector(selectServiceRags);
-  const flows = useAppSelector(selectFlows);
-  const failingOnly = useAppSelector(selectFailingFlowsOnly);
-  const rangeMs = useAppSelector(selectRangeMs);
-  const collapsed = useAppSelector(selectCollapsedSections);
   const filter = useAppSelector(selectFilter);
   const visible = useAppSelector(selectVisibleServices);
   const changeSummary = useAppSelector(selectChangeSummary);
@@ -66,12 +53,37 @@ export function FleetPage() {
   const multiInstance = useAppSelector(selectMultiInstanceServices);
   const topRollouts = rollouts.slice(0, CHANGES_PREVIEW);
   const outstandingRollouts = rollouts.filter((r) => r.outstanding.length > 0);
+  const verdict = useAppSelector(selectEstateVerdict);
 
-  // A default-collapsed section inverts the flag rather than seeding the store, so a reader who
-  // opens one keeps it open without the store carrying a special case for it.
-  const isOpen = (id: string, collapsedByDefault = false) =>
-    collapsedByDefault ? collapsed.includes(id) : !collapsed.includes(id);
-  const toggle = (id: string) => dispatch(sectionToggled(id));
+  // The three classes of declared-vs-observed disagreement, as data. Two of them require a live
+  // plane to mean anything — without a collector every service is "never observed", and reporting
+  // that as a divergence would make the block useless the moment it is unwired.
+  const divergenceRows: Divergence[] = [
+    ...(liveAvailable && neverHeartbeated.length > 0 ? [{
+      kind: 'silent',
+      rag: 'gone' as const,
+      label: 'In the manifest, never heard from',
+      diagnosis: 'the reporting middleware may not be wired',
+      services: neverHeartbeated,
+    }] : []),
+    ...(undeclared.length > 0 ? [{
+      kind: 'undeclared',
+      rag: 'amber' as const,
+      label: 'Reporting, but absent from the manifest',
+      diagnosis: `the aggregator has not fetched a spec for ${undeclared.length === 1 ? 'it' : 'them'}`,
+      services: undeclared,
+    }] : []),
+    // STALE, not "silent" — a stale service told you it was fine and then stopped talking; a silent
+    // one has never spoken. Different problems, different fixes, so they stay separate rows.
+    ...(liveAvailable && divergences.length > 0 ? [{
+      kind: 'stale',
+      rag: 'amber' as const,
+      label: 'Declared healthy, then went quiet',
+      diagnosis: 'last heartbeat is older than the staleness window',
+      services: divergences,
+    }] : []),
+  ];
+
 
   const openService = (name: string) => dispatch(navigated({ page: 'service', selected: name }));
 
@@ -148,43 +160,27 @@ export function FleetPage() {
         </p>
       )}
 
+      {/* THE VERDICT, at full volume, above the numbers it summarises. The page's owned question is
+          "what state is the estate in, and what should I look at first?" and nothing on it answered
+          either half — five tiles and five cards, and the reader did the arithmetic. */}
+      <p className="bz-estate-verdict" data-rag={verdict.clauses.length > 0 ? verdict.rag : undefined}>
+        {verdict.clauses.length === 0
+          ? `All ${verdict.services} services are healthy, and nothing is awaiting a contract move.`
+          : (
+            <>
+              <StatusGlyph rag={verdict.rag} label="estate state" />
+              {' '}
+              {verdict.services} services: {joinClauses(verdict.clauses)}.
+            </>
+          )}
+      </p>
+
       <EstateStats stats={stats} />
 
-      {/* The failure a platform engineer named as the one they most need to catch on a rollout — the
-          service is deployed and the mesh middleware was never wired — and it was findable only by
-          opening each service page one at a time, because the estate list carries no liveness. */}
-      {liveAvailable && neverHeartbeated.length > 0 && (
-        <p className="bz-divergence" data-kind="silent">
-          <StatusGlyph rag="gone" label="never heartbeated" /> {neverHeartbeated.length} in the
-          manifest and never heard from — the reporting middleware may not be wired:{' '}
-          {neverHeartbeated.map((d) => <Chip key={d}>{d}</Chip>)}
-        </p>
-      )}
-
-      {/* `mesh.md` §4.2's *undeclared* case at service grain: live, sending, and never catalogued.
-          Dropped silently until now, which made it the third distinct cause of "why isn't my service
-          showing up" and the only one with no diagnosis anywhere in the product. */}
-      {undeclared.length > 0 && (
-        <p className="bz-divergence" data-kind="undeclared">
-          <StatusGlyph rag="amber" label="undeclared" /> {undeclared.length} reporting to the
-          collector and absent from the manifest — the aggregator has not fetched a spec for{' '}
-          {undeclared.length === 1 ? 'it' : 'them'}: {undeclared.map((d) => <Chip key={d} tone="warn">{d}</Chip>)}
-        </p>
-      )}
-
-      {/* Only meaningful with a collector — without one, every service is "never observed", and
-          reporting that as a divergence would make the feature useless the moment it is unwired. */}
-      {/* STALE, not "silent". The banner used the word `silent` while testing for `stale`, so an
-          estate with two never-heartbeated services named the one that had merely gone quiet. They
-          are different problems with different fixes: a stale service told you it was fine and then
-          stopped talking; a silent one has never spoken, which usually means the reporting
-          middleware was never wired. Both are now reported, separately, and by their right names. */}
-      {liveAvailable && divergences.length > 0 && (
-        <p className="bz-divergence">
-          <StatusGlyph rag="amber" label="divergence" /> {divergences.length} declaring healthy and
-          then going quiet: {divergences.map((d) => <Chip key={d} tone="warn">{d}</Chip>)}
-        </p>
-      )}
+      {/* FOUR BANNERS, ONE BLOCK. Each of these was a separate paragraph of amber prose: never
+          heartbeated, undeclared, and gone quiet. Individually honest; stacked, a reader could not
+          tell how many different things were wrong or which was theirs. */}
+      <DivergenceBlock divergences={divergenceRows} onOpenService={openService} />
 
       {liveAvailable && inbox.length > 0 && (
         <section>
@@ -268,57 +264,13 @@ export function FleetPage() {
         <ServiceList pageUrl={typeof location === 'undefined' ? '' : location.pathname + location.search} />
       </section>
 
-      {flows.available && (
-        <section>
-          <div className="bz-section-head">
-            <h2>Recent flows</h2>
-            {/* The window control belongs to the flows, which are the one thing on this page it
-                genuinely governs — the KPI tiles come from the manifest and the inbox answers a
-                fixed 24 hours whatever this says. In the chrome it appeared to govern all three. */}
-            <RangePicker
-              rangeMs={rangeMs}
-              options={RANGE_OPTIONS}
-              available={flows.available}
-              onChange={(ms) => dispatch(rangeChanged(ms))}
-            />
-          </div>
-          <FlowList
-            view={flows}
-            failingOnly={failingOnly}
-            onToggleFailing={() => dispatch(failingFlowsToggled())}
-            onOpenService={openService}
-          />
-        </section>
-      )}
 
-      {/* The functional map: what these services actually do. The product's first question, and
-          until now answerable only by opening every service in turn.
-          This also subsumes the old "topics needing attention" list — every flagged topic is a row
-          here with its status, so keeping a second surface for the same rows was duplication, and
-          duplication is how the page this replaced grew to five thousand lines. */}
-      <CollapsibleSection
-        id="topics"
-        title="Topics"
-        // Counts everything the table badges, not just the lifecycle `status` field. The verdict
-        // badges live in the same column, so a count that ignored them sat directly above its own
-        // contradicting evidence — "1 flagged" over five `breaking` rows.
-        note={flagged.length + changeSummary.changedVersions > 0
-          ? `${flagged.length + changeSummary.changedVersions} flagged`
-          : undefined}
-        open={isOpen('topics')}
-        onToggle={toggle}
-      >
-        <TopicCatalog />
-      </CollapsibleSection>
-
-      <CollapsibleSection
-        id="topology"
-        title="Topology"
-        open={isOpen('topology', true)}
-        onToggle={toggle}
-      >
-        <TopologyGraph edges={edges} rags={rags} onOpen={openService} />
-      </CollapsibleSection>
     </div>
   );
+}
+
+/** Oxford-comma-free clause joining: "a, b and c". A verdict is a sentence, not a list. */
+function joinClauses(clauses: string[]): string {
+  if (clauses.length === 1) return clauses[0]!;
+  return `${clauses.slice(0, -1).join(', ')} and ${clauses[clauses.length - 1]}`;
 }

@@ -1,6 +1,6 @@
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
-  selectTopic, selectTrafficForTopic, selectThread, selectCanPost, selectCanAnnotate,
+  selectTopic, selectTrafficForTopic,
   selectVersionCompatibility, selectHttpMappingsForTopic, selectLiveForTopic, versionLabel,
   selectRolloutForTopic, selectUsageWindow,
   selectFlowsForTopic, selectFailingFlowsOnly, selectTopicCompatibility, selectVersionSwitcher,
@@ -10,7 +10,6 @@ import { EdgeLivenessChip } from '../controls/EdgeLivenessChip';
 import {
   navigated, failingFlowsToggled, pivotedToFailingFlows, topicVersionSelected, rangeChanged,
 } from '../../store/slices/viewSlice';
-import { draftChanged, draftAuthorChanged, postAnnotation } from '../../store/slices/annotationsSlice';
 import { SchemaTree, type SchemaAnnotation } from '../sections/SchemaTree';
 import { ContractChanges } from '../sections/ContractChanges';
 import { VersionSwitcher } from '../controls/VersionSwitcher';
@@ -18,8 +17,6 @@ import { VersionCompatibility } from '../sections/VersionCompatibility';
 import { TopicLiveStrip } from '../sections/TopicLiveStrip';
 import { UsagePanel } from '../controls/UsagePanel';
 import { FlowList } from '../controls/FlowList';
-import { Thread } from '../sections/Thread';
-import { Composer } from '../sections/Composer';
 import { ValueRow } from '../controls/ValueRow';
 import { Card } from '../primitives/Card';
 import { PageHead } from '../controls/PageHead';
@@ -41,11 +38,6 @@ export function TopicPage({ topic }: TopicPageProps) {
   const usageWindow = useAppSelector(selectUsageWindow);
   const now = useAppSelector(selectNow);
   const rangeMs = useAppSelector(selectRangeMs);
-  const entity = `topic:${topic}`;
-  const thread = useAppSelector((s: RootState) => selectThread(s, entity));
-  const canPost = useAppSelector(selectCanPost);
-  const annotations = useAppSelector((s: RootState) => s.annotations);
-  const writable = useAppSelector(selectCanAnnotate);
   const compatibility = useAppSelector((s: RootState) => selectVersionCompatibility(s, topic));
   // The other half of the same question, for the exact version pair on screen.
   const rollout = useAppSelector((s: RootState) => selectRolloutForTopic(s, topic));
@@ -119,10 +111,10 @@ export function TopicPage({ topic }: TopicPageProps) {
               // That is round 5's version trap relocated: the page they came from said one thing and
               // the message they were about to send said another.
               onClick={() => dispatch(navigated({
-                page: 'compose', selected: topic, selectedVersion: entry.version,
+                page: 'test', selected: topic, selectedService: null, selectedVersion: entry.version,
               }))}
             >
-              compose a message
+              test this topic
             </button>
           ) : undefined
         }
@@ -322,28 +314,6 @@ export function TopicPage({ topic }: TopicPageProps) {
         </Card>
       )}
 
-      {/* NOTE: `mesh-ui-aims.md` §3 rules this section deleted — it serves no aim. Carded here only
-          so the page is consistent while it survives; removing it is its own change. */}
-      <Card title="Discussion">
-        <Thread annotations={thread} />
-        <Composer
-          draft={annotations.draft}
-          author={annotations.draftAuthor}
-          canPost={canPost}
-          posting={annotations.post === 'posting'}
-          error={annotations.postError}
-          onDraftChange={(t) => dispatch(draftChanged(t))}
-          onAuthorChange={(a) => dispatch(draftAuthorChanged(a))}
-          {...(writable
-            ? {
-                onPost: () =>
-                  void dispatch(
-                    postAnnotation({ entity, author: annotations.draftAuthor, text: annotations.draft }),
-                  ),
-              }
-            : {})}
-        />
-      </Card>
     </div>
   );
 }

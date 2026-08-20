@@ -3,7 +3,6 @@ import estate, { type MeshApi } from './slices/estateSlice';
 import view from './slices/viewSlice';
 import fleet from './slices/fleetSlice';
 import catalog from './slices/catalogSlice';
-import annotations from './slices/annotationsSlice';
 import compose from './slices/composeSlice';
 import capabilities, { capabilitiesOf } from './slices/capabilitiesSlice';
 import spec from './slices/specSlice';
@@ -17,7 +16,7 @@ import spec from './slices/specSlice';
  * is wired only at the composition root — no test ever touches `fetch`.
  */
 const rootReducer = combineReducers({
-  estate, view, fleet, catalog, annotations, compose, capabilities, spec,
+  estate, view, fleet, catalog, compose, capabilities, spec,
 });
 
 export const createStore = (api: MeshApi, preloadedState?: Partial<RootState>) =>

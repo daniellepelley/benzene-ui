@@ -12,19 +12,31 @@ import type { AppStore } from './store';
  *
  * Prefixes are carried over from the original UI so existing bookmarks keep working.
  */
-type EntityPage = 'service' | 'topic' | 'issue' | 'compose';
+type EntityPage = 'service' | 'topic' | 'issue';
 
 const PREFIX: Record<EntityPage, string> = {
   service: '#service/',
   topic: '#topic/',
   issue: '#issue/',
-  compose: '#compose/',
 };
+
+/**
+ * The retired `#compose/<topic>` route, still parsed so existing links keep working.
+ *
+ * Compose merged into the Test Console — same job, two doors (mesh-ui-aims.md §3). A bookmark is a
+ * promise the product made, so the hash is translated rather than dropped: it lands on the console
+ * with the topic already chosen, and the console resolves the service from the topic's handlers.
+ */
+const COMPOSE_PREFIX = '#compose/';
 
 /** Pages that are about the whole estate rather than one entity, so they carry no selection. */
 const STANDALONE: Record<string, Page> = {
   '#fleet': 'fleet',
-  '#value': 'value',
+  '#topics': 'topics',
+  '#retire': 'retire',
+  // The old spelling, kept parsing so existing links survive the rename. It is deliberately absent
+  // from `toHash`, so the address bar converges on `#retire` the moment anyone navigates.
+  '#value': 'retire',
   '#changes': 'changes',
   '#test': 'test',
 };
@@ -56,6 +68,12 @@ export function parseHash(hash: string): Route {
     // decoded (unlikely, but a service name never contains the raw separator either way).
     const rest = hash.slice(TEST_PREFIX.length);
     const at = rest.indexOf('/');
+    // `#test//<topic>` — no service chosen yet. The console resolves one from the topic's declared
+    // handlers, so this is a real, shareable state rather than a malformed link.
+    if (at === 0 && rest.length > 1) {
+      const { topic, version } = splitVersion(decodeURIComponent(rest.slice(1)));
+      return { page: 'test', selectedService: null, selected: topic, selectedVersion: version };
+    }
     if (at > 0 && at < rest.length - 1) {
       return {
         page: 'test',
@@ -78,6 +96,15 @@ export function parseHash(hash: string): Route {
     return { page: 'fleet', selected: null, selectedService: null, selectedVersion: null };
   }
 
+  if (hash.startsWith(COMPOSE_PREFIX)) {
+    const raw = decodeURIComponent(hash.slice(COMPOSE_PREFIX.length));
+    if (!raw) return { page: 'fleet', selected: null, selectedService: null, selectedVersion: null };
+    const { topic, version } = splitVersion(raw);
+    // No service: the console resolves it from the topic's declared handlers, which is exactly what
+    // the compose page did. An ambiguous topic asks rather than guessing.
+    return { page: 'test', selected: topic, selectedService: null, selectedVersion: version };
+  }
+
   for (const [page, prefix] of Object.entries(PREFIX) as [EntityPage, string][]) {
     if (hash.startsWith(prefix)) {
       const raw = decodeURIComponent(hash.slice(prefix.length));
@@ -96,7 +123,8 @@ export function toHash(
   page: Page, selected: string | null, selectedService: string | null = null,
   selectedVersion: string | null = null,
 ): string {
-  if (page === 'value') return '#value';
+  if (page === 'retire') return '#retire';
+  if (page === 'topics') return '#topics';
   if (page === 'changes') return '#changes';
   if (page === 'test') {
     // A partially-filled console is its own page, not the estate. Returning '#fleet' here used to
@@ -109,6 +137,14 @@ export function toHash(
     // '#test' with no service is still the Test page. Returning '#fleet' put the console on screen
     // with an address bar that disagreed, so a reload or a shared link went somewhere else — on the
     // one page whose own copy promises the URL carries its state.
+    // A topic with no service yet is addressable too — it is the state an old `#compose/<topic>`
+    // link and the topic page's "test this topic" action both produce, and the console resolves the
+    // service from the topic's handlers. The empty first segment is the "service not chosen"
+    // sentinel, which keeps the whole console in one `#test` family rather than reviving `#compose`.
+    if (selected) {
+      const suffix = selectedVersion ? `@${selectedVersion}` : '';
+      return `${TEST_PREFIX}/${encodeURIComponent(selected)}${suffix}`;
+    }
     return selectedService ? `${TEST_PREFIX}${encodeURIComponent(selectedService)}` : '#test';
   }
   if (page === 'fleet' || !selected) return '#fleet';

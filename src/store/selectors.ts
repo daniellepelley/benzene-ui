@@ -793,6 +793,58 @@ export interface LedgerChange extends TopicsTopicsItemCompatibilityChangesItem {
 }
 
 /**
+ * The estate in one sentence — what state it is in, and what to look at first.
+ *
+ * The page's owned question is "what state is the estate in, and what should I look at first?"
+ * (mesh-ui-aims.md §3), and until this existed nothing on it answered either half. A reader
+ * assembled the answer from five KPI tiles, up to four banners and five equal-weight cards, of
+ * which one asked anything of anybody — an arithmetic exercise where a verdict belonged.
+ *
+ * Clauses are ordered by what a reader must act on first, and a clause is OMITTED rather than
+ * rendered as a zero: "0 unhealthy" is noise in the one place a verdict lives. An estate with
+ * nothing wrong says so in as many words, which is a different sentence from an estate that could
+ * not be assessed — `feedErrors` is deliberately not folded in here, because a feed that could not
+ * be read is a fact about the plumbing and has its own line above.
+ */
+export const selectEstateVerdict = createSelector(
+  [selectEstateSummary, selectRollouts, selectDivergences, selectNeverHeartbeated,
+    selectUndeclaredServices, selectFleetAvailable],
+  (summary, rollouts, stale, neverHeard, undeclared, live) => {
+    const clauses: string[] = [];
+    if (summary.counts.red > 0) clauses.push(`${summary.counts.red} unhealthy`);
+    if (summary.counts.gone > 0) clauses.push(`${summary.counts.gone} unreachable`);
+    if (summary.counts.amber > 0) clauses.push(`${summary.counts.amber} degraded`);
+
+    const outstanding = rollouts.filter((r) => r.outstanding.length > 0).length;
+    if (outstanding > 0) {
+      clauses.push(`${outstanding} topic${outstanding === 1 ? '' : 's'} awaiting a contract move`);
+    }
+
+    // The divergence classes collapse into ONE clause here and stay separate in the block below.
+    // The verdict answers "how much is wrong"; the block answers "which kind, and whose".
+    const diverging = (live ? stale.length + neverHeard.length : 0) + undeclared.length;
+    if (diverging > 0) {
+      clauses.push(`declared and observed disagree in ${diverging} place${diverging === 1 ? '' : 's'}`);
+    }
+
+    return {
+      /** null when there is nothing to report — the caller renders the all-clear, not an empty string. */
+      clauses,
+      services: summary.total,
+      /**
+       * Colours the sentence. NEVER green on a non-empty verdict: `summary.worst` only knows about
+       * health, so an estate of perfectly healthy services with an outstanding breaking move scored
+       * green while the sentence beside it listed the move — the reassuring colour winning over its
+       * own words, which is the failure this sentence exists to prevent.
+       */
+      rag: clauses.length === 0
+        ? ('green' as Rag)
+        : (summary.worst && summary.worst !== 'green' ? summary.worst : ('amber' as Rag)),
+    };
+  },
+);
+
+/**
  * Every classified change in the estate, worst first — the data behind the changes ledger.
  *
  * Reserved topics are excluded for the same reason the aggregator excludes them from the diff: every
@@ -1499,20 +1551,6 @@ export const selectRetirementView = createSelector(
   },
 );
 
-// ── Annotations ─────────────────────────────────────────────────────────────────────────────────
-
-export const selectThread = createSelector(
-  [(s: RootState) => s.annotations.items, (_: RootState, entity: string) => entity],
-  (items, entity) =>
-    items
-      .filter((a) => a.entity === entity)
-      .slice()
-      .sort((a, b) => Date.parse(a.createdAtUtc) - Date.parse(b.createdAtUtc)),
-);
-
-export const selectCanPost = (s: RootState) =>
-  s.annotations.draft.trim().length > 0 && s.annotations.post !== 'posting';
-
 // ── Compose ─────────────────────────────────────────────────────────────────────────────────────
 
 import { exampleFromSchema, inboundSchema } from './exampleFromSchema';
@@ -1624,7 +1662,6 @@ export const selectComposeValidity = createSelector(
 
 export const selectCapabilities = (s: RootState) => s.capabilities;
 export const selectCanInvoke = (s: RootState) => s.capabilities.invoke;
-export const selectCanAnnotate = (s: RootState) => s.capabilities.annotate;
 
 // ── Test Console ────────────────────────────────────────────────────────────────────────────────
 

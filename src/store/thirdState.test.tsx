@@ -142,7 +142,10 @@ describe('a service the collector sees and the catalogue does not', () => {
     })));
 
     render(<Provider store={store}><FleetPage /></Provider>);
-    expect(screen.getByText(/reporting to the\s+collector and absent from the manifest/)).toBeInTheDocument();
+    // The four exception banners are one block now, so the finding reads as a row: the label names
+    // what is wrong, the diagnosis names whose problem it is. Both still have to be on screen.
+    expect(screen.getByText(/Reporting, but absent from the manifest/)).toBeInTheDocument();
+    expect(screen.getByText(/the aggregator has not fetched a spec/)).toBeInTheDocument();
     expect(screen.getByText(/the aggregator has not fetched a spec for/)).toBeInTheDocument();
     expect(screen.getByText('promo-api')).toBeInTheDocument();
   });

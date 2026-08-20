@@ -140,7 +140,22 @@ describe('the live window is controlled where it applies', () => {
     expect(screen.queryByLabelText('Live window')).toBeNull();
   });
 
-  it('is offered on the estate’s flows, which it does govern', async () => {
+  it('is offered on the topic’s traffic, which it does govern', async () => {
+    // The rule is unchanged — the window control lives on the surface whose data it governs — but
+    // the estate no longer carries flows at all: browsing them answers no part of "what should I
+    // look at first?", and it is a per-subject activity. So the control lives where the flows do.
+    const { TopicPage } = await import('../components/pages/TopicPage');
+    const store = await ready();
+    store.dispatch(fleetObserved(fleetView({
+      services: [fleetService({ service: 'orders-api' })],
+      traces: [fleetTrace({ traceId: 't1', topic: 'orders:create', startedAt: '2026-08-09T05:59:00Z' })],
+    })));
+
+    render(<Provider store={store}><TopicPage topic="orders:create" /></Provider>);
+    expect(screen.getByLabelText('Live window')).toBeInTheDocument();
+  });
+
+  it('is gone from the estate, which no longer carries the flows it governed', async () => {
     const { FleetPage } = await import('../components/pages/FleetPage');
     const store = await ready();
     store.dispatch(fleetObserved(fleetView({
@@ -149,6 +164,6 @@ describe('the live window is controlled where it applies', () => {
     })));
 
     render(<Provider store={store}><FleetPage /></Provider>);
-    expect(screen.getByLabelText('Live window')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Live window')).not.toBeInTheDocument();
   });
 });

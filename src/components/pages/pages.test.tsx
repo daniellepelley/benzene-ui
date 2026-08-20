@@ -5,7 +5,6 @@ import { act } from 'react';
 import { createStore } from '../../store/store';
 import { loadManifest } from '../../store/slices/estateSlice';
 import { loadCatalog } from '../../store/slices/catalogSlice';
-import { loadAnnotations } from '../../store/slices/annotationsSlice';
 import { fleetObserved, clockTicked } from '../../store/slices/fleetSlice';
 import { fleetView, fleetService, meshIssue } from '../../test/fleetView';
 import { fakeMeshApi } from '../../test/fakeMeshApi';
@@ -15,7 +14,6 @@ import { FleetPage } from './FleetPage';
 import { ServicePage } from './ServicePage';
 import { TopicPage } from './TopicPage';
 import { IssuePage } from './IssuePage';
-import { ComposePage } from './ComposePage';
 import { TestConsolePage } from './TestConsolePage';
 import { sendConfirmationToggled } from '../../store/slices/composeSlice';
 import type { ReactElement } from 'react';
@@ -24,7 +22,6 @@ const loaded = async (withFleet = false) => {
   const store = createStore(fakeMeshApi());
   await store.dispatch(loadManifest());
   await store.dispatch(loadCatalog());
-  await store.dispatch(loadAnnotations());
   if (withFleet) {
     store.dispatch(
       fleetObserved(
@@ -221,11 +218,17 @@ describe('IssuePage', () => {
   });
 });
 
-describe('ComposePage', () => {
+/**
+ * The compose flow AFTER the merge — the Test Console entered topic-first, which is what the
+ * separate compose page used to be. These are kept, repointed, rather than deleted with the page:
+ * a merge that quietly drops capability is a deletion wearing a merge's name, and every assertion
+ * below is a thing the product still has to do.
+ */
+describe('the Test Console, entered from a topic', () => {
   it('seeds the body from the topic schema', async () => {
     const store = await loaded();
     const topic = store.getState().catalog.topics!.topics.find((t) => t.requestSchema && !t.reserved)!;
-    show(store, <ComposePage topic={topic.topic} service="orders-api" />);
+    show(store, <TestConsolePage service="orders-api" topic={topic.topic} />);
 
     const body = screen.getByLabelText(/Body/) as HTMLTextAreaElement;
     // Deterministic, so this is a real assertion rather than "something appeared".
@@ -236,21 +239,21 @@ describe('ComposePage', () => {
   it('offers the raw transport for every topic', async () => {
     const store = await loaded();
     const topic = store.getState().catalog.topics!.topics.find((t) => !t.reserved)!;
-    show(store, <ComposePage topic={topic.topic} service="orders-api" />);
+    show(store, <TestConsolePage service="orders-api" topic={topic.topic} />);
 
     expect(screen.getByRole('option', { name: /raw \(benzene-message\)/ })).toBeInTheDocument();
   });
 
   it('says so when a topic cannot be composed against', async () => {
     const store = await loaded();
-    show(store, <ComposePage topic="not-a-topic" service="orders-api" />);
+    show(store, <TestConsolePage service="orders-api" topic="not-a-topic" />);
     expect(screen.getByText(/no composable version/)).toBeInTheDocument();
   });
 
   it('explains a read-only mesh instead of offering a dead Send button', async () => {
     const store = await loaded();
     const topic = store.getState().catalog.topics!.topics.find((t) => !t.reserved)!;
-    show(store, <ComposePage topic={topic.topic} service="orders-api" />);
+    show(store, <TestConsolePage service="orders-api" topic={topic.topic} />);
 
     // fakeMeshApi has no sendMessage, so `capabilities.invoke` is false and the composer says why
     // rather than rendering a button that cannot work.
@@ -264,7 +267,7 @@ describe('ComposePage', () => {
     );
     await store.dispatch(loadCatalog());
     const topic = store.getState().catalog.topics!.topics.find((t) => !t.reserved)!;
-    show(store, <ComposePage topic={topic.topic} service="orders-api" />);
+    show(store, <TestConsolePage service="orders-api" topic={topic.topic} />);
 
     expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
   });
@@ -275,7 +278,7 @@ describe('ComposePage', () => {
     );
     await store.dispatch(loadCatalog());
     const topic = store.getState().catalog.topics!.topics.find((t) => !t.reserved)!;
-    show(store, <ComposePage topic={topic.topic} service="orders-api" />);
+    show(store, <TestConsolePage service="orders-api" topic={topic.topic} />);
 
     act(() => store.dispatch(sendConfirmationToggled()));
 
@@ -292,10 +295,11 @@ describe('ComposePage', () => {
   it('dispatches to the service that HANDLES the topic, not the one that emits it', async () => {
     const store = await loaded();
     // payment:capture: produced by orders-api, handled by payments-api.
-    show(store, <ComposePage topic="payment:capture" service={null} />);
+    show(store, <TestConsolePage service={null} topic="payment:capture" />);
 
-    // Unambiguous, so no picker — and the target resolved is the handler.
-    expect(screen.queryByLabelText('Service')).not.toBeInTheDocument();
+    // The console always offers the service picker — it is the front door — but arriving topic-first
+    // with exactly one handler resolves the target rather than asking, and pre-selects it.
+    expect((screen.getByLabelText('Service') as HTMLSelectElement).value).toBe('payments-api');
     expect(screen.getByLabelText(/Body/)).toBeInTheDocument();
     expect(store.getState().compose.service).toBe('payments-api');
   });
@@ -311,10 +315,12 @@ describe('ComposePage', () => {
     const store = createStore(fakeMeshApi({ getTopics: async () => twoHandlers as Topics }));
     await store.dispatch(loadManifest());
     await store.dispatch(loadCatalog());
-    show(store, <ComposePage topic="payment:capture" service={null} />);
+    show(store, <TestConsolePage service={null} topic="payment:capture" />);
 
-    expect(screen.getByLabelText('Service')).toBeInTheDocument();
-    // Nothing chosen yet, so the composer itself does not render.
+    // Ambiguous: nothing is resolved, the picker is empty, and the page says why rather than
+    // silently firing a real handler on a service nobody chose.
+    expect((screen.getByLabelText('Service') as HTMLSelectElement).value).toBe('');
+    expect(screen.getByText(/2 services declare handling payment:capture/)).toBeInTheDocument();
     expect(screen.queryByLabelText(/Body/)).not.toBeInTheDocument();
   });
 });

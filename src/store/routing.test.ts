@@ -96,8 +96,11 @@ describe('hash routing', () => {
     // one page whose own copy promises the URL carries its state.
     expect(toHash('test', null, null)).toBe('#test');
     expect(parseHash('#test')).toEqual(route({ page: 'test' }));
-    // A topic with no service still has nothing to address: the console is service-first.
-    expect(toHash('test', 'order:created', null)).toBe('#test');
+    // A topic with no service IS addressable now: the console resolves the service from the topic's
+    // handlers, so this is a real, shareable state rather than a half-made choice to discard.
+    expect(toHash('test', 'order:created', null)).toBe('#test//order%3Acreated');
+    expect(parseHash('#test//order%3Acreated'))
+      .toEqual(route({ page: 'test', selected: 'order:created' }));
     expect(parseHash('#test/')).toEqual(route());
   });
 });

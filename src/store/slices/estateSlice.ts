@@ -212,12 +212,6 @@ export interface MeshApi {
    * kind of quiet lie this codebase exists to avoid.
    */
   getFleet?(query: import('./fleetSlice').FleetQuery): Promise<import('../../contracts').FleetView>;
-  getAnnotations?(): Promise<import('./annotationsSlice').Annotation[]>;
-  postAnnotation?(request: {
-    entity: string;
-    author: string;
-    text: string;
-  }): Promise<import('./annotationsSlice').Annotation>;
   /**
    * Optional: absent when no dispatch endpoint is configured, which disables the composer's send
    * button rather than hiding it. Throws {@link import('./composeSlice').MeshDispatchBlockedError}

@@ -3,10 +3,8 @@ import manifest from '../../contracts/artifacts/manifest.json';
 import topics from '../../contracts/artifacts/topics.json';
 import topology from '../../contracts/artifacts/topology.json';
 import usage from '../../contracts/artifacts/usage.json';
-import annotations from '../../contracts/artifacts/annotations.json';
 import orders from '../../contracts/artifacts/services/orders-api.json';
 import type { Manifest, ServiceSnapshot, Topics, Topology, Usage } from '../contracts';
-import type { Annotation } from '../store/slices/annotationsSlice';
 
 /**
  * The mesh API backed by the vendored sample artifacts.
@@ -21,6 +19,5 @@ export const fakeMeshApi = (over: Partial<MeshApi> = {}): MeshApi => ({
   getTopics: async () => topics as Topics,
   getTopology: async () => topology as Topology,
   getUsage: async () => usage as Usage,
-  getAnnotations: async () => annotations.annotations as Annotation[],
   ...over,
 });

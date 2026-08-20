@@ -1,9 +1,18 @@
 import type { ReactNode } from 'react';
 import type { TopicTraffic } from '../../store/selectors';
+import type { UsageEntriesItem } from '../../contracts';
+import { UsageBreakdown } from './UsageBreakdown';
 import { EmptyState } from '../primitives/EmptyState';
 
 export interface UsagePanelProps {
   traffic: TopicTraffic;
+  /**
+   * The rows behind the totals, for the per-transport breakdown.
+   *
+   * "Over which transports" is half of what the mesh promises about traffic, and this surface — the
+   * one page about a single topic — was the one that never answered it.
+   */
+  entries?: UsageEntriesItem[];
   /**
    * What period these counts cover.
    *
@@ -26,7 +35,7 @@ export interface UsagePanelProps {
  * that IS being measured is a real finding — a deprecation candidate. Zero because nothing is
  * measuring is not a finding at all, and showing them identically is how a dashboard invents work.
  */
-export function UsagePanel({ traffic, windowLabel, version = null }: UsagePanelProps) {
+export function UsagePanel({ traffic, entries = [], windowLabel, version = null }: UsagePanelProps) {
   if (!traffic.observed) {
     return <EmptyState message="No usage source is wired, so traffic for this topic is unknown." tone="unknown" />;
   }
@@ -80,6 +89,12 @@ export function UsagePanel({ traffic, windowLabel, version = null }: UsagePanelP
         <p className="bz-usage-note">
           Measured, but no traffic in this window — a deprecation candidate rather than a gap in the feed.
         </p>
+      )}
+      {/* OVER WHICH TRANSPORTS — the other half of what the mesh promises about traffic, and the
+          half this surface never delivered. Only the transport dimension: the topic is the page's
+          subject, and the success/failure split above already reports status. */}
+      {entries.length > 0 && (
+        <UsageBreakdown entries={entries} dimensions={[{ key: 'transport', label: 'Transport' }]} />
       )}
     </div>
   );

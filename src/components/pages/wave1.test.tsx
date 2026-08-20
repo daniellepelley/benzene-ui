@@ -231,3 +231,57 @@ describe('colour means status, and nothing else', () => {
     if (team) expect(team.getAttribute('data-tone')).toBeNull();
   });
 });
+
+/** Wave 3: structure and data. */
+describe('the topic page answers "over which transports"', () => {
+  it('breaks its traffic down by transport, not just in total', async () => {
+    // The mesh promises to say how often a topic is exercised AND over which transports. The rows
+    // were in the store the whole time; only the service grain ever rendered them.
+    const store = await loaded();
+    show(store, <TopicPage topic="orders:create" />);
+
+    const rows = [...document.querySelectorAll('.bz-usage-chip-row')]
+      .map((r) => r.querySelector('.bz-usage-dim')?.textContent);
+    expect(rows).toContain('Transport');
+  });
+});
+
+describe('the topic page tells "what changed" once', () => {
+  it('groups the three change axes under one card instead of three costumes', async () => {
+    const store = await loaded();
+    show(store, <TopicPage topic="orders:create" />);
+
+    expect(screen.getByRole('heading', { name: 'What changed' })).toBeInTheDocument();
+    // All three axes are still present — none was deleted, they answer different questions.
+    expect(screen.getByRole('heading', { name: /Against v1/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Which versions are covered/ })).toBeInTheDocument();
+  });
+});
+
+describe('which estate is on screen', () => {
+  it('says the environment is not published rather than guessing "dev"', async () => {
+    // An unlabelled production mesh rendering "dev" is the single most dangerous thing this could
+    // do, so the absent case is stated, never defaulted.
+    const store = await loaded();
+    show(store, <App />);
+
+    const chip = document.querySelector('.bz-app-env')!;
+    expect(chip.textContent).toBe('environment not published');
+    expect(chip.getAttribute('data-known')).toBeNull();
+  });
+
+  it('renders the label the deployment declared, and marks production', async () => {
+    const store = createStore(fakeMeshApi(), {
+      capabilities: {
+        fleet: false, invoke: false, refresh: false,
+        manifestUrl: null, logoutUrl: null, environment: 'production-eu',
+      },
+    });
+    await store.dispatch(loadManifest());
+    show(store, <App />);
+
+    const chip = document.querySelector('.bz-app-env')!;
+    expect(chip.textContent).toBe('production-eu');
+    expect(chip.getAttribute('data-production')).toBe('true');
+  });
+});

@@ -81,14 +81,14 @@ describe('TopicPage version compatibility', () => {
   it('shows nothing when the aggregator reconciled nothing', async () => {
     const store = await loaded();
     show(store, <TopicPage topic="order:legacy-export" />);
-    expect(screen.queryByRole('heading', { name: 'Version compatibility' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /Which versions are covered/ })).not.toBeInTheDocument();
   });
 
   it('warns about a produced version nothing consumes, and admits an upcaster may bridge it', async () => {
     const store = await loaded({ getTopics: async () => versioned as Topics });
     show(store, <TopicPage topic="payment:capture" />);
 
-    expect(screen.getByRole('heading', { name: 'Version compatibility' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Which versions are covered/ })).toBeInTheDocument();
     expect(screen.getByText(/forward-compatibility risk/)).toBeInTheDocument();
     expect(screen.getByText(/upcasters aren't visible to the mesh/)).toBeInTheDocument();
   });

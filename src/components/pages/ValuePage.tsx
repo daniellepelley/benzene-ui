@@ -3,6 +3,8 @@ import { selectRetirementView, selectShowUtility } from '../../store/selectors';
 import { navigated, utilityToggled } from '../../store/slices/viewSlice';
 import { RetirementRow } from '../controls/RetirementRow';
 import { PageHead } from '../controls/PageHead';
+import { Card } from '../primitives/Card';
+import { Keyline } from '../primitives/Keyline';
 import { StatusGlyph } from '../primitives/StatusGlyph';
 import { EmptyState } from '../primitives/EmptyState';
 
@@ -42,16 +44,13 @@ export function ValuePage() {
 
       {nothingToShow && <EmptyState message="No topics are declared, so there is nothing to assess." />}
 
+      {/* The card grammar the service page proved out, applied here: each tier is a bounded group
+          of related rows, and its sub-line is the card's note rather than a fourth paragraph. */}
       {view.removed.length > 0 && (
-        <section>
-          <h3 className="bz-vd-tier" data-rag="gone">
-            <StatusGlyph rag="gone" label="tier: removed" /> Removed since the previous run (
-            {view.removed.length})
-          </h3>
-          <p className="bz-vd-sub">
-            Declared in the previous aggregator run, declared nowhere now — a retirement that just
-            completed, or a disappearance to confirm.
-          </p>
+        <Card
+          title={`Removed since the previous run (${view.removed.length})`}
+          note="Declared in the previous run, declared nowhere now — a retirement that just completed, or a disappearance to confirm."
+        >
           {view.removed.map((r) => (
             <div className="bz-vd-row" data-rag="gone" key={`${r.topic}@${r.version}`}>
               <StatusGlyph rag="gone" label="removed" />
@@ -62,16 +61,16 @@ export function ValuePage() {
               <span className="bz-vd-evidence">no longer declared by any service</span>
             </div>
           ))}
-        </section>
+        </Card>
       )}
 
       {view.groups.map((group) => (
-        <section key={group.tier}>
-          <h3 className="bz-vd-tier" data-rag={group.rag}>
-            <StatusGlyph rag={group.rag} label={`tier: ${group.tier}`} /> {group.label} (
-            {group.rows.length})
-          </h3>
-          <p className="bz-vd-sub">{group.sub}</p>
+        <Card
+          key={group.tier}
+          title={`${group.label} (${group.rows.length})`}
+          note={group.sub}
+          actions={<StatusGlyph rag={group.rag} label={`tier: ${group.tier}`} />}
+        >
           {group.rows.map((row) => (
             <RetirementRow
               key={`${row.entry.topic}@${row.entry.version}`}
@@ -80,8 +79,17 @@ export function ValuePage() {
               onOpen={openTopic}
             />
           ))}
-        </section>
+        </Card>
       ))}
+
+      {/* AN EXCLUSION, STATED. "What is this costing us / who is using it commercially" was asked
+          twice in persona rounds; the mesh cannot see revenue, customers or cost, and a retirement
+          argument built here is a CONTRACT-and-traffic argument. Saying so is cheaper than being
+          asked a third time (mesh-ui-aims.md §4). */}
+      <Keyline>
+        Evidence here is declarations and observed traffic. The mesh cannot see revenue, customers or
+        cost, so nothing below is a commercial case on its own.
+      </Keyline>
     </div>
   );
 }

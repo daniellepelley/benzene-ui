@@ -10,7 +10,7 @@ import { navigated, themeCycled, themeRestored, type Theme } from './store/slice
 import {
   selectLoad, selectError, selectPage, selectSelected, selectSelectedService, selectEstateSummary,
   selectFeedHealth, selectRefreshState, selectRefreshNote, selectCanRefresh, selectLogoutUrl,
-  selectNow,
+  selectNow, selectEnvironment,
 } from './store/selectors';
 import {
   FleetPage, ServicePage, TopicPage, IssuePage, ValuePage, TestConsolePage,
@@ -69,6 +69,7 @@ export function App() {
   const refresh = useAppSelector(selectRefreshState);
   const refreshNote = useAppSelector(selectRefreshNote);
   const logoutUrl = useAppSelector(selectLogoutUrl);
+  const environment = useAppSelector(selectEnvironment);
   const onRefresh = () => void dispatch(refreshEstate());
 
   useEffect(() => {
@@ -167,6 +168,17 @@ export function App() {
             The AGE is the half that decides anything: a 2.5-month-stale snapshot rendered a raw UTC
             string indistinguishable from a fresh one, while every obligation on the Changes page was
             computed from it. */}
+        {/* WHICH ESTATE THIS IS, in the chrome, on every screen. A dev mesh and a production mesh
+            render identically today, and the only thing separating them is the URL — which is a
+            problem at one environment and an accident waiting to happen the moment a neutral
+            deployment can point at several. Unpublished says so; it never guesses "dev". */}
+        <span
+          className="bz-app-env"
+          data-known={environment != null ? 'true' : undefined}
+          data-production={environment != null && /^prod/i.test(environment) ? 'true' : undefined}
+        >
+          {environment ?? 'environment not published'}
+        </span>
         <span className="bz-app-meta" title="When the aggregator last published these artifacts">
           <Stamp
             iso={generatedAtUtc}

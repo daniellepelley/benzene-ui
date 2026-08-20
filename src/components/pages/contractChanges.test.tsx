@@ -36,7 +36,7 @@ describe('contract changes on the topic page', () => {
     const store = await loaded();
     show(store, <TopicPage topic="orders:create" />);
 
-    expect(screen.getByRole('heading', { name: 'Changed from v1' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Against v1' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'v2' })).toHaveAttribute('aria-current', 'true');
   });
 
@@ -48,7 +48,10 @@ describe('contract changes on the topic page', () => {
     // and when a version is first published in the same run BOTH axes describe that edit — the same
     // sentence, twice, honestly. Each section states which comparison it is; an unscoped query here
     // would break every time the other axis has something true to say.
-    const section = screen.getByRole('heading', { name: /Changed from v1/ }).closest('section')!;
+    // Scoped to the version-over-version sub-surface. All three "what changed" axes now share one
+    // card — deliberately, they describe one event from three angles — so `closest('section')` would
+    // return the card and discriminate nothing.
+    const section = screen.getByRole('heading', { name: /Against v1/ }).closest('.bz-changes-section') as HTMLElement;
     expect(within(section).getByText("Property 'channel' was added (required)")).toBeInTheDocument();
     expect(within(section).getByText("Property 'customerId' was removed")).toBeInTheDocument();
   });
@@ -59,7 +62,8 @@ describe('contract changes on the topic page', () => {
     const store = await loaded();
     show(store, <TopicPage topic="orders:create" />);
 
-    const section = screen.getByRole('heading', { name: /Since the previous run/ }).closest('section')!;
+    const heading = screen.getByRole('heading', { name: /Since the previous run/ });
+    const section = heading.parentElement!.querySelector('.bz-ledger') as HTMLElement;
     expect(within(section).getByText('orders:create.request.channel')).toBeInTheDocument();
     expect(within(section).getAllByText('breaking').length).toBeGreaterThan(0);
   });

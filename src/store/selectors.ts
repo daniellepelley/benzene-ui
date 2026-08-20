@@ -482,6 +482,27 @@ export const selectTrafficForTopic = createSelector(
   },
 );
 
+/**
+ * The raw usage rows for one topic, for a per-dimension breakdown beside its totals.
+ *
+ * `selectTrafficForTopic` sums transports away — correctly, it answers "how much, and how much of
+ * it failed". But the mesh's own promise is to say how often a topic is exercised **and over which
+ * transports**, and that half was delivered only at service grain. The rows were in the store the
+ * whole time; nothing selected them at this grain.
+ *
+ * Version scoping matches `selectTrafficForTopic` exactly — a breakdown scoped differently from the
+ * total printed above it is two numbers that cannot be reconciled.
+ */
+export const selectUsageRowsForTopic = createSelector(
+  [selectUsageRaw, (_: RootState, topic: string) => topic,
+    (s: RootState, topic: string) => selectDisplayedVersion(s, topic)],
+  (entries, topic, version): UsageEntriesItem[] => {
+    const all = (entries as UsageEntriesItem[]).filter((e) => e.topic === topic);
+    const feedHasVersions = all.some((e) => e.version != null && e.version !== '');
+    return feedHasVersions && version != null ? all.filter((e) => e.version === version) : all;
+  },
+);
+
 /** Every edge touching one service, in both directions. */
 export const selectEdgesForService = createSelector(
   [selectEdges, (_: RootState, service: string) => service],
@@ -1662,6 +1683,8 @@ export const selectComposeValidity = createSelector(
 
 export const selectCapabilities = (s: RootState) => s.capabilities;
 export const selectCanInvoke = (s: RootState) => s.capabilities.invoke;
+/** Which estate is on screen. Null means the deployment did not say — never "dev". */
+export const selectEnvironment = (s: RootState) => s.capabilities.environment;
 
 // ── Test Console ────────────────────────────────────────────────────────────────────────────────
 

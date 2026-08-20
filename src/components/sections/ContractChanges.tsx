@@ -78,10 +78,10 @@ export function ContractChanges({ compatibility, published, version }: ContractC
   // the reader's architecture that this product is in no position to make.
   if (!published) {
     return (
-      <section className="bz-changes-section">
-        <h3>Changed from the previous version</h3>
+      <div className="bz-changes-section">
+        <h4>Against the previous version</h4>
         <p className="bz-muted">{NOT_PUBLISHED_COPY}</p>
-      </section>
+      </div>
     );
   }
 
@@ -92,12 +92,12 @@ export function ContractChanges({ compatibility, published, version }: ContractC
 
   if (overall === 'notCompared') {
     return (
-      <section className="bz-changes-section" data-verdict="notCompared">
-        <h3>Changed from the previous version</h3>
+      <div className="bz-changes-section" data-verdict="notCompared">
+        <h4>Against the previous version</h4>
         <p className="bz-muted">
           {(notComparedReason && NOT_COMPARED_COPY[notComparedReason]) ?? NOT_COMPARED_FALLBACK}
         </p>
-      </section>
+      </div>
     );
   }
 
@@ -107,8 +107,8 @@ export function ContractChanges({ compatibility, published, version }: ContractC
   );
 
   return (
-    <section className="bz-changes-section" data-verdict={overall}>
-      <h3>Changed from {baselineVersion || 'the previous version'}</h3>
+    <div className="bz-changes-section" data-verdict={overall}>
+      <h4>Against {baselineVersion || 'the previous version'}</h4>
 
       <p className="bz-changes-summary">
         <VerdictBadge verdict={overall} baseline={baselineVersion} />
@@ -155,6 +155,6 @@ export function ContractChanges({ compatibility, published, version }: ContractC
       )}
 
       <p className="bz-muted bz-changes-caveat">{SCOPE_CAVEAT}</p>
-    </section>
+    </div>
   );
 }

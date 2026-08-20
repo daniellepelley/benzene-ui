@@ -5,6 +5,7 @@ import {
 import { navigated } from '../../store/slices/viewSlice';
 import { IssueRow, issueHeadline, WHY } from '../controls/IssueRow';
 import { EmptyState } from '../primitives/EmptyState';
+import { Keyline } from '../primitives/Keyline';
 import { Chip } from '../primitives/Chip';
 import { Stamp } from '../primitives/Stamp';
 
@@ -86,9 +87,7 @@ export function IssuePage({ selected }: IssuePageProps) {
     <div className="bz-page">
       <header className="bz-page-head">
         <h2>Issues</h2>
-        <Chip title="Occurrences, not distinct issues">
-          {summary.occurrences.toLocaleString()} occurrences · {summary.distinct} distinct
-        </Chip>
+        <Chip>{summary.occurrences.toLocaleString()} occurrences · {summary.distinct} distinct</Chip>
         {/* The window is stated, because it is deliberately NOT the one the picker controls. */}
         <span className="bz-page-note">last 24 hours</span>
       </header>
@@ -99,6 +98,14 @@ export function IssuePage({ selected }: IssuePageProps) {
           onOpen={(fingerprint) => dispatch(navigated({ page: 'issue', selected: fingerprint }))}
         />
       ))}
+      {/* AN EXCLUSION, STATED. Production support asked twice where acknowledgement and paging live.
+          The mesh shows what is failing and deliberately does not run an incident lifecycle
+          (mesh-ui-aims.md §4) — saying so once is cheaper than being asked again, and stops a reader
+          hunting for a button that will never exist. */}
+      <Keyline>
+        The mesh reports what is failing and for how long. Acknowledging, paging and the incident
+        lifecycle belong to your alerting tool — nothing here changes state on an issue.
+      </Keyline>
     </div>
   );
 }

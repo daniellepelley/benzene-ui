@@ -61,8 +61,8 @@ export function VersionCompatibility({ compatibility, rollout }: VersionCompatib
   const skewed = !isCompatible || noProducer;
 
   return (
-    <section className="bz-vc" data-skew={skewed ? 'true' : undefined}>
-      <h3>Version compatibility</h3>
+    <div className="bz-vc" data-skew={skewed ? 'true' : undefined}>
+      <h4>Which versions are covered on both sides</h4>
 
       {/* The state and the ordering constraint go at the top, where a reader who has arrived at a
           topic is already looking, rather than in a section of their own. */}
@@ -111,7 +111,7 @@ export function VersionCompatibility({ compatibility, rollout }: VersionCompatib
           balancer chose, so two consecutive runs can legitimately disagree mid-rollout. This is what
           stops "declared" being read as "deployed" — the exact question this panel invites. */}
       <p className="bz-muted bz-vc-caveat">{POLLED_INSTANCE_CAVEAT}</p>
-    </section>
+    </div>
   );
 }
 

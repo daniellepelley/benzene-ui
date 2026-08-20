@@ -4,6 +4,7 @@ import {
   selectVersionCompatibility, selectHttpMappingsForTopic, selectLiveForTopic, versionLabel,
   selectRolloutForTopic, selectUsageWindow,
   selectFlowsForTopic, selectFailingFlowsOnly, selectTopicCompatibility, selectVersionSwitcher,
+  selectUsageRowsForTopic,
   selectComparisonsPublished, selectTopicEntries, selectNow, selectRangeMs, RANGE_OPTIONS,
 } from '../../store/selectors';
 import { EdgeLivenessChip } from '../controls/EdgeLivenessChip';
@@ -19,6 +20,7 @@ import { UsagePanel } from '../controls/UsagePanel';
 import { FlowList } from '../controls/FlowList';
 import { ValueRow } from '../controls/ValueRow';
 import { Card } from '../primitives/Card';
+import { Keyline } from '../primitives/Keyline';
 import { PageHead } from '../controls/PageHead';
 import { Badge } from '../primitives/Badge';
 import { Chip } from '../primitives/Chip';
@@ -35,6 +37,7 @@ export function TopicPage({ topic }: TopicPageProps) {
   const dispatch = useAppDispatch();
   const entry = useAppSelector((s: RootState) => selectTopic(s, topic));
   const traffic = useAppSelector((s: RootState) => selectTrafficForTopic(s, topic));
+  const usageRows = useAppSelector((s: RootState) => selectUsageRowsForTopic(s, topic));
   const usageWindow = useAppSelector(selectUsageWindow);
   const now = useAppSelector(selectNow);
   const rangeMs = useAppSelector(selectRangeMs);
@@ -179,11 +182,55 @@ export function TopicPage({ topic }: TopicPageProps) {
         )}
       </Card>
 
-      {/* Placed above Traffic: on a page a reader opens to decide whether to ship, what changed in
-          the contract outranks how much traffic it carried. */}
-      <ContractChanges compatibility={contract} published={comparisonsPublished} version={entry.version} />
+      {/* ONE CARD, THREE AXES. This page told a reader "what changed" three times in three
+          costumes — a field list against the previous version, a version-coverage panel, and a
+          run-over-run card further down — each individually honest, and jointly demanding that the
+          reader work out they were describing one event. They are three answers to three genuinely
+          different questions, so none is deleted; they are grouped, sub-headed, and ordered from the
+          question a reader opens this page with.
 
-      <VersionCompatibility compatibility={compatibility} rollout={rollout} />
+          Placed above Traffic deliberately: deciding whether to ship outranks how much traffic the
+          topic carried. */}
+      <Card title="What changed">
+        <ContractChanges compatibility={contract} published={comparisonsPublished} version={entry.version} />
+        <VersionCompatibility compatibility={compatibility} rollout={rollout} />
+        {entry.changes && entry.changes.length > 0 && (
+          <>
+            <h4>Since the previous run</h4>
+            <p className="bz-page-note">
+              What moved between the last published catalogue and this one — including an in-place
+              edit to an already-published version, which has no version pair and so appears nowhere
+              above.
+            </p>
+            <ul className="bz-ledger">
+              {entry.changes.map((c, i) => (
+                <li key={i} className="bz-change" data-verdict={c.compatibility ?? undefined}>
+                  <Chip>{c.kind}</Chip>
+                  <span className="bz-change-desc">{c.description}</span>
+                  {c.schemaChanges && c.schemaChanges.length > 0 && (
+                    <ul className="bz-schema-drift">
+                      {c.schemaChanges.map((f, j) => (
+                        <li key={j} data-verdict={f.compatibility}>
+                          <span className="bz-verdict bz-verdict-inline" data-verdict={f.compatibility}>
+                            {f.compatibility}
+                          </span>
+                          <code className="bz-change-path">{f.path}</code>
+                          <span className="bz-change-desc">{f.description}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {c.schemaChanges == null && c.kind === 'schema-changed' && (
+                    <span className="bz-schema-facets">
+                      this catalogue does not classify drift, so which fields moved is unknown
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </Card>
 
       {/* THE PICKER LIVES HERE, on the surface whose data it governs, not in the chrome. This strip
           is the one place in the product that already stated its own window correctly — "counts
@@ -213,6 +260,7 @@ export function TopicPage({ topic }: TopicPageProps) {
             number — one derived it from a call rate and was out by a factor of twelve. */}
         <UsagePanel
           traffic={traffic}
+          entries={usageRows}
           windowLabel={usageWindow
             ? (
               <>
@@ -226,6 +274,14 @@ export function TopicPage({ topic }: TopicPageProps) {
             : "over the usage feed's own window, which the feed does not state"}
           version={entry.version}
         />
+
+        {/* AN EXCLUSION, STATED: no charts, no series. Asked for repeatedly, and refused for a
+            reason — the mesh holds counts over a window and ages, not time series, and drawing a
+            trend line over data it does not have would be the most convincing lie it could tell. */}
+        <Keyline>
+          Counts over a window and ages, not a time series — history and trends belong to your
+          metrics product.
+        </Keyline>
 
         {flows.available && (
           <>
@@ -292,41 +348,6 @@ export function TopicPage({ topic }: TopicPageProps) {
         )}
       </Card>
 
-      {entry.changes && entry.changes.length > 0 && (
-        <Card title="Since the previous run" note="What moved between the last published catalogue and this one">
-          <ul className="bz-ledger">
-            {entry.changes.map((c, i) => (
-              <li key={i} className="bz-change" data-verdict={c.compatibility ?? undefined}>
-                <Chip>{c.kind}</Chip>
-                <span className="bz-change-desc">{c.description}</span>
-                {/* The field-level breakdown, on the page that owns the topic. Before this shipped,
-                    the section said "Payload schema changed (request)" and stopped — a detection
-                    with no finding under it, which is the complaint that started this work. */}
-                {c.schemaChanges && c.schemaChanges.length > 0 && (
-                  <ul className="bz-schema-drift">
-                    {c.schemaChanges.map((f, j) => (
-                      <li key={j} data-verdict={f.compatibility}>
-                        <span className="bz-verdict bz-verdict-inline" data-verdict={f.compatibility}>
-                          {f.compatibility}
-                        </span>
-                        <code className="bz-change-path">{f.path}</code>
-                        <span className="bz-change-desc">{f.description}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {/* An aggregator that reported a change and could not classify it has not earned an
-                    all-clear — absent is not the same as "nothing moved". */}
-                {c.schemaChanges == null && c.kind === 'schema-changed' && (
-                  <span className="bz-schema-facets">
-                    this catalogue does not classify drift, so which fields moved is unknown
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
 
     </div>
   );

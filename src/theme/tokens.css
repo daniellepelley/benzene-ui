@@ -50,6 +50,28 @@
   --bz-rag-green: #0d7350;
   --bz-rag-green-bg: #e2f6ee;
   --bz-rag-gone: #767b93;
+
+  /* ── TYPE SCALE ────────────────────────────────────────────────────────────────────────────────
+     Seven steps, because the file had grown 27 distinct font-size values in three units, with
+     near-duplicates a reader cannot tell apart but a maintainer must choose between every time:
+     11px vs 11.5px vs 0.72rem; 12px vs 12.5px vs 0.78rem. Indistinguishable on screen, and each
+     new one made the next decision harder. `--bz-fs-num` is separate on purpose: the estate's big
+     figures are a display size, not the top of the prose ramp. */
+  --bz-fs-3xs: 10px;    /* micro-labels: verdict pills, uppercase eyebrows */
+  --bz-fs-2xs: 11px;    /* chips, keylines, facets, notes */
+  --bz-fs-xs: 12px;     /* secondary prose: descriptions, captions */
+  --bz-fs-sm: 13px;     /* dense body: table cells, list rows */
+  --bz-fs-md: 14px;     /* body */
+  --bz-fs-lg: 16px;     /* section and card headings */
+  --bz-fs-xl: 21px;     /* page titles */
+  --bz-fs-num: 23px;    /* the estate's figures — display, not prose */
+
+  /* Two card paddings, not four. `.bz-svc` (0.75/0.9rem), `.bz-card` (0.9/1rem), `.bz-stat`
+     (13/15px) and `.bz-issue` (11/14px) were four sizes for one idea — a bounded group of facts —
+     differing by amounts nobody chose and nobody can see. */
+  --bz-pad-card: 0.9rem 1rem;
+  --bz-pad-compact: 0.7rem 0.85rem;
+
   --bz-rag-gone-bg: #eceef8;
 
   --bz-chip-bg: #eceef8;
@@ -151,7 +173,7 @@ body {
   background: var(--bz-bg);
   color: var(--bz-fg);
   font-family: var(--bz-font);
-  font-size: 15px;
+  font-size: var(--bz-fs-md);
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
@@ -200,7 +222,7 @@ input, select, textarea {
 .bz-badge {
   display: inline-block;
   font-family: var(--bz-mono);
-  font-size: 10.5px;
+  font-size: var(--bz-fs-3xs);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -216,7 +238,7 @@ input, select, textarea {
 .bz-badge[data-rag='green'] { color: var(--bz-rag-green); background: var(--bz-rag-green-bg); }
 .bz-badge[data-rag='gone']  { color: var(--bz-rag-gone);  background: var(--bz-rag-gone-bg); }
 
-.bz-rag { font-size: 0.95em; line-height: 1; }
+.bz-rag { font-size: var(--bz-fs-md); line-height: 1; }
 .bz-rag[data-rag='red']   { color: var(--bz-rag-red); }
 .bz-rag[data-rag='amber'] { color: var(--bz-rag-amber); }
 .bz-rag[data-rag='green'] { color: var(--bz-rag-green); }
@@ -225,7 +247,7 @@ input, select, textarea {
 .bz-chip {
   display: inline-block;
   font-family: var(--bz-mono);
-  font-size: 10.5px;
+  font-size: var(--bz-fs-3xs);
   padding: 2px 7px;
   border: none;
   border-radius: var(--bz-radius-sm);
@@ -245,7 +267,7 @@ input, select, textarea {
   gap: 0.4rem;
   margin: 0;
   padding: 6px 0;
-  font-size: 12.5px;
+  font-size: var(--bz-fs-xs);
   color: var(--bz-muted);
 }
 /* Good news, stated. */
@@ -289,7 +311,7 @@ input, select, textarea {
 .bz-svc {
   border: 1px solid var(--bz-border);
   border-radius: var(--bz-radius);
-  padding: 0.75rem 0.9rem;
+  padding: var(--bz-pad-compact);
   background: var(--bz-surface);
   color: var(--bz-fg);
   box-shadow: var(--bz-shadow);
@@ -311,13 +333,13 @@ input, select, textarea {
 .bz-svc[data-changed][data-rag='amber'] { --bz-flash: var(--bz-rag-amber-bg); }
 .bz-svc[data-changed][data-rag='green'] { --bz-flash: var(--bz-rag-green-bg); }
 .bz-svc[data-changed][data-rag='gone'] { --bz-flash: var(--bz-rag-gone-bg); }
-.bz-svc-head { display: flex; align-items: center; gap: var(--bz-gap); flex-wrap: wrap; }
+.bz-svc-head { display: flex; align-items: center; gap: var(--bz-gap); flex-wrap: wrap; cursor: pointer; user-select: none; }
 .bz-svc-name {
   background: none; border: none; padding: 0; font: inherit; font-weight: 600;
   color: var(--bz-fg); cursor: pointer; text-align: left;
 }
 .bz-svc-name:hover { color: var(--bz-accent); text-decoration: underline; }
-.bz-svc-team { color: var(--bz-muted); font-size: 0.82rem; margin-left: auto; }
+.bz-svc-team { color: var(--bz-muted); font-size: var(--bz-fs-sm); margin-left: auto; }
 .bz-svc-body { margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid var(--bz-border-soft); }
 
 /* ── Controls ──────────────────────────────────────────────────────────────────────────────── */
@@ -327,7 +349,7 @@ input, select, textarea {
   align-items: flex-start;
   width: 100%;
   text-align: left;
-  padding: 11px 14px;
+  padding: var(--bz-pad-compact);
   margin-bottom: 7px;
   background: var(--bz-surface);
   border: 1px solid var(--bz-border);
@@ -341,14 +363,14 @@ input, select, textarea {
 .bz-issue[data-severity='amber'] .bz-issue-dot { background: var(--bz-rag-amber); }
 .bz-issue-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 18rem; }
 .bz-issue-headline { font-weight: 650; word-break: break-word; }
-.bz-issue-why { font-size: 12.5px; color: var(--bz-muted); }
-.bz-issue-arrow { margin-left: auto; color: var(--bz-muted); font-size: 1.1rem; line-height: 1; }
+.bz-issue-why { font-size: var(--bz-fs-xs); color: var(--bz-muted); }
+.bz-issue-arrow { margin-left: auto; color: var(--bz-muted); font-size: var(--bz-fs-lg); line-height: 1; }
 .bz-issue-msg:hover { color: var(--bz-accent); text-decoration: underline; }
 .bz-issue-meta { display: inline-flex; gap: 0.3rem; flex-wrap: wrap; align-items: baseline; }
 
 .bz-value { display: flex; gap: var(--bz-gap); padding: 8px 0; align-items: baseline; flex-wrap: wrap; border-top: 1px solid var(--bz-border-soft); }
 .bz-value:first-child { border-top: none; }
-.bz-value-label { color: var(--bz-muted); min-width: 7.5rem; font-size: 0.85rem; }
+.bz-value-label { color: var(--bz-muted); min-width: 7.5rem; font-size: var(--bz-fs-sm); }
 .bz-value-body { display: inline-flex; gap: 0.35rem; flex-wrap: wrap; align-items: baseline; }
 .bz-value-body button { background: none; border: none; padding: 0; font: inherit; color: var(--bz-accent); cursor: pointer; text-decoration: underline; }
 /* One declared consumer/producer plus its optional mesh.md §4.2 liveness chip (EdgeLivenessChip). */
@@ -357,8 +379,8 @@ input, select, textarea {
 .bz-usage-bar { display: flex; height: 8px; border-radius: 999px; overflow: hidden; background: var(--bz-border); }
 .bz-usage-ok { background: var(--bz-rag-green); }
 .bz-usage-fail { background: var(--bz-rag-red); }
-.bz-usage-legend { margin: 0.4rem 0 0; font-size: 0.88rem; color: var(--bz-muted); }
-.bz-usage-note { margin: 0.2rem 0 0; font-size: 0.82rem; color: var(--bz-muted); font-style: italic; }
+.bz-usage-legend { margin: 0.4rem 0 0; font-size: var(--bz-fs-sm); color: var(--bz-muted); }
+.bz-usage-note { margin: 0.2rem 0 0; font-size: var(--bz-fs-sm); color: var(--bz-muted); font-style: italic; }
 
 .bz-topic-list, .bz-edge-list, .bz-health, .bz-thread, .bz-schema, .bz-schema-children { list-style: none; margin: 0; padding: 0; }
 .bz-schema-children { padding-left: 1.1rem; border-left: 1px solid var(--bz-border-soft); margin-left: 0.3rem; }
@@ -367,26 +389,26 @@ input, select, textarea {
 .bz-schema-row { display: flex; gap: 0.45rem; align-items: baseline; flex-wrap: wrap; }
 .bz-topic-name, .bz-edge-peer { background: none; border: none; padding: 0; font: inherit; font-weight: 600; color: var(--bz-fg); cursor: pointer; }
 .bz-topic-name:hover, .bz-edge-peer:hover { color: var(--bz-accent); text-decoration: underline; }
-.bz-schema-name { font-family: ui-monospace, monospace; font-size: 0.88rem; }
+.bz-schema-name { font-family: ui-monospace, monospace; font-size: var(--bz-fs-sm); }
 .bz-health-name { font-weight: 600; }
-.bz-health-msg { color: var(--bz-muted); font-size: 0.85rem; }
+.bz-health-msg { color: var(--bz-muted); font-size: var(--bz-fs-sm); }
 
 /* ── Discussion ────────────────────────────────────────────────────────────────────────────── */
 .bz-note { border: 1px solid var(--bz-border-soft); border-radius: var(--bz-radius); padding: 0.6rem 0.8rem; margin-bottom: 0.5rem; }
-.bz-note header { display: flex; justify-content: space-between; gap: var(--bz-gap); font-size: 0.82rem; color: var(--bz-muted); }
+.bz-note header { display: flex; justify-content: space-between; gap: var(--bz-gap); font-size: var(--bz-fs-sm); color: var(--bz-muted); }
 .bz-note p { margin: 0.35rem 0 0; }
 .bz-composer { display: flex; flex-direction: column; gap: 0.4rem; max-width: 40rem; }
 .bz-composer input, .bz-composer textarea { padding: 0.4rem 0.5rem; border: 1px solid var(--bz-border); border-radius: var(--bz-radius); background: var(--bz-bg); color: var(--bz-fg); font: inherit; }
 .bz-composer button { align-self: flex-start; padding: 0.35rem 1rem; border-color: var(--bz-accent); background: var(--bz-accent); color: var(--bz-accent-contrast); font-weight: 600; }
 .bz-composer button:disabled { opacity: 0.5; cursor: not-allowed; }
-.bz-composer-error { color: var(--bz-rag-red); font-size: 0.85rem; margin: 0; }
-.bz-composer-readonly { color: var(--bz-muted); font-size: 0.88rem; font-style: italic; }
+.bz-composer-error { color: var(--bz-rag-red); font-size: var(--bz-fs-sm); margin: 0; }
+.bz-composer-readonly { color: var(--bz-muted); font-size: var(--bz-fs-sm); font-style: italic; }
 
 /* ── Topology ──────────────────────────────────────────────────────────────────────────────── */
 .bz-edge-ok { stroke: var(--bz-border); fill: var(--bz-border); }
 .bz-edge-err { stroke: var(--bz-rag-red); fill: var(--bz-rag-red); }
 .bz-topo-node rect { fill: var(--bz-bg); stroke: var(--bz-accent); stroke-width: 1.5; cursor: pointer; }
-.bz-topo-node text { fill: var(--bz-fg); font-size: 12px; pointer-events: none; }
+.bz-topo-node text { fill: var(--bz-fg); font-size: var(--bz-fs-xs); pointer-events: none; }
 .bz-topo-node:hover rect { fill: var(--bz-code-bg); }
 
 /* ── App shell ─────────────────────────────────────────────────────────────────────────────── */
@@ -394,11 +416,13 @@ input, select, textarea {
 .bz-app-head {
   display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
   padding-bottom: 0.75rem; border-bottom: 1px solid var(--bz-border); margin-bottom: 1.25rem;
+  position: sticky; top: 0; z-index: 40; background: var(--bz-bg); padding-top: 0.75rem;
 }
 /* The brand is a button because it navigates, but it must read as a wordmark, not as a control. */
 .bz-brand {
-  background: none; border: none; padding: 0; font-size: 1.15rem; font-weight: 700;
+  background: none; border: none; padding: 0; font-size: var(--bz-fs-lg); font-weight: 700;
   letter-spacing: -0.02em; color: var(--bz-fg);
+  display: inline-flex; align-items: center; gap: 0.45rem;
 }
 .bz-brand:hover { border-color: transparent; color: var(--bz-accent); }
 .bz-nav { display: inline-flex; gap: 0.35rem; }
@@ -413,19 +437,19 @@ input, select, textarea {
 
 /* ── Session and freshness ─────────────────────────────────────────────────────────────────────
    Both are absent entirely when unconfigured, so neither ever renders as a dead control. */
-.bz-signout { font-size: 0.82rem; color: var(--bz-muted); text-decoration: none; }
+.bz-signout { font-size: var(--bz-fs-sm); color: var(--bz-muted); text-decoration: none; }
 .bz-signout:hover { color: var(--bz-accent); text-decoration: underline; }
 .bz-refresh { display: inline-flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; }
-.bz-refresh-go { font-size: 0.82rem; padding: 0.15rem 0.6rem; }
+.bz-refresh-go { font-size: var(--bz-fs-sm); padding: 0.15rem 0.6rem; }
 .bz-refresh-go:disabled { opacity: 0.55; cursor: progress; }
-.bz-refresh-note { font-size: 0.78rem; color: var(--bz-muted); }
+.bz-refresh-note { font-size: var(--bz-fs-xs); color: var(--bz-muted); }
 /* Rate-limited is not a fault. Only a real failure is allowed to be red, or red stops meaning it. */
 .bz-refresh-note[data-tone='bad'] { color: var(--bz-rag-red); }
 
 /* The first minute of a deployment: nothing published yet, and one obvious way out of it. The
    dashed box is the EmptyState primitive's `unknown` tone, not a second one drawn here. */
 .bz-first-run { padding: 2.5rem 0; text-align: center; }
-.bz-first-run h2 { margin: 0 0 0.6rem; font-size: 1.05rem; }
+.bz-first-run h2 { margin: 0 0 0.6rem; font-size: var(--bz-fs-lg); }
 .bz-first-run .bz-empty { justify-content: center; margin-bottom: 1rem; }
 .bz-first-run .bz-refresh { justify-content: center; }
 /* Here the refresh is the page's one call to action, so it wears the primary button's clothes —
@@ -436,10 +460,11 @@ input, select, textarea {
 }
 .bz-first-run .bz-page-note { margin: 0; }
 .bz-page section { margin-bottom: 1.75rem; }
-.bz-page h2 { font-size: 1.15rem; margin: 0 0 0.6rem; }
-.bz-page h3 { font-size: 0.98rem; margin: 0 0 0.45rem; }
-.bz-page h4 { font-size: 0.85rem; margin: 0.6rem 0 0.2rem; color: var(--bz-muted); text-transform: uppercase; letter-spacing: 0.03em; }
-.bz-page-head { display: flex; align-items: center; gap: var(--bz-gap); margin-bottom: 0.75rem; }
+.bz-page h2 { font-size: var(--bz-fs-lg); margin: 0 0 0.6rem; }
+.bz-page h3 { font-size: var(--bz-fs-md); margin: 0 0 0.45rem; }
+.bz-page h4 { font-size: var(--bz-fs-sm); margin: 0.6rem 0 0.2rem; color: var(--bz-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+/* The layout half of `.bz-page-head` lives with the rest of the page-head rules below — it was
+   defined here too, with different alignment, gap and margin, and lost every one of them. */
 .bz-page-head h2 { margin: 0; }
 .bz-svc-list { display: flex; flex-direction: column; gap: 0.5rem; }
 .bz-rollup { border: 1px solid var(--bz-border); border-radius: var(--bz-radius); padding: 0.9rem 1rem; background: var(--bz-sunken); }
@@ -449,23 +474,23 @@ input, select, textarea {
 /* ── Compose ───────────────────────────────────────────────────────────────────────────────── */
 .bz-compose { display: flex; flex-direction: column; gap: 0.75rem; max-width: 46rem; }
 .bz-compose-controls { display: flex; gap: 1rem; flex-wrap: wrap; }
-.bz-compose-controls label, .bz-compose-field { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.85rem; color: var(--bz-muted); }
+.bz-compose-controls label, .bz-compose-field { display: flex; flex-direction: column; gap: 0.25rem; font-size: var(--bz-fs-sm); color: var(--bz-muted); }
 .bz-compose select, .bz-compose textarea { padding: 0.35rem 0.5rem; border: 1px solid var(--bz-border); border-radius: var(--bz-radius); background: var(--bz-bg); color: var(--bz-fg); font: inherit; }
-.bz-compose textarea { font-family: ui-monospace, monospace; font-size: 0.85rem; }
+.bz-compose textarea { font-family: ui-monospace, monospace; font-size: var(--bz-fs-sm); }
 .bz-compose textarea[aria-invalid='true'] { border-color: var(--bz-rag-red); }
-.bz-compose-invalid { color: var(--bz-rag-red); font-size: 0.8rem; }
+.bz-compose-invalid { color: var(--bz-rag-red); font-size: var(--bz-fs-xs); }
 .bz-compose button { align-self: flex-start; padding: 0.35rem 1rem; border-color: var(--bz-accent); background: var(--bz-accent); color: var(--bz-accent-contrast); font-weight: 600; }
 .bz-compose button:disabled { opacity: 0.5; cursor: not-allowed; }
-.bz-compose-result pre { background: var(--bz-code-bg); border: 1px solid var(--bz-border); border-radius: var(--bz-radius); padding: 0.75rem; overflow-x: auto; font-size: 0.85rem; }
+.bz-compose-result pre { background: var(--bz-code-bg); border: 1px solid var(--bz-border); border-radius: var(--bz-radius); padding: 0.75rem; overflow-x: auto; font-size: var(--bz-fs-sm); }
 .bz-composer-send { display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; }
-.bz-composer-confirm { display: flex; align-items: flex-start; gap: 0.4rem; font-size: 0.85rem; color: var(--bz-muted); cursor: pointer; }
+.bz-composer-confirm { display: flex; align-items: flex-start; gap: 0.4rem; font-size: var(--bz-fs-sm); color: var(--bz-muted); cursor: pointer; }
 .bz-composer-confirm input { margin-top: 0.15rem; }
-.bz-composer-blocked { color: var(--bz-rag-amber); background: var(--bz-rag-amber-bg); border-radius: var(--bz-radius); padding: 0.5rem 0.75rem; font-size: 0.85rem; margin: 0; }
+.bz-composer-blocked { color: var(--bz-rag-amber); background: var(--bz-rag-amber-bg); border-radius: var(--bz-radius); padding: 0.5rem 0.75rem; font-size: var(--bz-fs-sm); margin: 0; }
 
 /* ── Feed health ───────────────────────────────────────────────────────────────────────────── */
 /* Deliberately not a banner. The line sits inline in the reading order so it is impossible to
    dismiss and equally impossible to mistake for the data it qualifies. */
-.bz-feed-health { margin: 0 0 0.75rem; padding: 0.4rem 0.6rem; border-radius: var(--bz-radius); font-size: 0.85rem; border: 1px solid var(--bz-border); }
+.bz-feed-health { margin: 0 0 0.75rem; padding: 0.4rem 0.6rem; border-radius: var(--bz-radius); font-size: var(--bz-fs-sm); border: 1px solid var(--bz-border); }
 .bz-feed-health[data-kind='ok']   { color: var(--bz-muted); border-color: var(--bz-border); }
 .bz-feed-health[data-kind='warn'] { color: var(--bz-rag-amber); border-color: var(--bz-rag-amber); }
 .bz-feed-health[data-kind='bad']  { color: var(--bz-rag-red);   border-color: var(--bz-rag-red); }
@@ -481,12 +506,12 @@ input, select, textarea {
 .bz-vc { border: 1px solid var(--bz-border); border-radius: var(--bz-radius); padding: 0.75rem 1rem; }
 .bz-vc[data-skew='true'] { border-color: var(--bz-rag-amber); }
 .bz-vc h3 { margin: 0 0 0.35rem; }
-.bz-vc-lead { margin: 0 0 0.6rem; font-size: 0.88rem; color: var(--bz-muted); }
+.bz-vc-lead { margin: 0 0 0.6rem; font-size: var(--bz-fs-sm); color: var(--bz-muted); }
 .bz-vc-grid { display: flex; gap: 2rem; flex-wrap: wrap; }
 .bz-vc-cell { display: flex; gap: 0.35rem; align-items: baseline; flex-wrap: wrap; }
-.bz-vc-label { color: var(--bz-muted); font-size: 0.82rem; }
-.bz-vc-none { color: var(--bz-muted); font-style: italic; font-size: 0.85rem; }
-.bz-vc-issue { display: flex; gap: 0.35rem; align-items: baseline; flex-wrap: wrap; margin: 0.5rem 0 0; font-size: 0.85rem; }
+.bz-vc-label { color: var(--bz-muted); font-size: var(--bz-fs-sm); }
+.bz-vc-none { color: var(--bz-muted); font-style: italic; font-size: var(--bz-fs-sm); }
+.bz-vc-issue { display: flex; gap: 0.35rem; align-items: baseline; flex-wrap: wrap; margin: 0.5rem 0 0; font-size: var(--bz-fs-sm); }
 .bz-vc-issue[data-severity='bad'] .bz-vc-label { color: var(--bz-rag-amber); }
 
 /* ── Service detail ────────────────────────────────────────────────────────────────────────── */
@@ -494,7 +519,7 @@ input, select, textarea {
 .bz-about-live[data-liveness='stale']  { color: var(--bz-rag-amber); }
 .bz-about-live[data-liveness='silent'] { color: var(--bz-muted); }
 .bz-usage-chip-row { display: flex; gap: 0.35rem; align-items: baseline; flex-wrap: wrap; margin-top: 0.4rem; }
-.bz-usage-dim { color: var(--bz-muted); font-size: 0.8rem; min-width: 5rem; }
+.bz-usage-dim { color: var(--bz-muted); font-size: var(--bz-fs-xs); min-width: 5rem; }
 .bz-usage-toggle { background: none; border: none; padding: 0; font: inherit; font-size: inherit; color: var(--bz-accent); cursor: pointer; text-decoration: underline; }
 .bz-usage-note[data-provenance='fleet-wide'] { color: var(--bz-rag-amber); }
 
@@ -506,7 +531,7 @@ input, select, textarea {
 .bz-vd-tier[data-rag='amber'] { color: var(--bz-rag-amber); }
 .bz-vd-tier[data-rag='green'] { color: var(--bz-rag-green); }
 .bz-vd-tier[data-rag='gone']  { color: var(--bz-rag-gone); }
-.bz-vd-sub { margin: 0 0 0.5rem; font-size: 0.82rem; color: var(--bz-muted); }
+.bz-vd-sub { margin: 0 0 0.5rem; font-size: var(--bz-fs-sm); color: var(--bz-muted); }
 .bz-vd-row { display: flex; gap: 0.5rem; align-items: baseline; flex-wrap: wrap; padding: 0.3rem 0 0.3rem 0.5rem; border-left: 3px solid var(--bz-border); }
 .bz-vd-row[data-rag='red']   { border-left-color: var(--bz-rag-red); }
 .bz-vd-row[data-rag='amber'] { border-left-color: var(--bz-rag-amber); }
@@ -515,25 +540,25 @@ input, select, textarea {
 .bz-vd-topic { background: none; border: none; padding: 0; font: inherit; font-weight: 600; color: var(--bz-fg); cursor: pointer; }
 .bz-vd-topic:hover { color: var(--bz-accent); text-decoration: underline; }
 .bz-vd-removed { font-weight: 600; color: var(--bz-muted); text-decoration: line-through; }
-.bz-vd-shape, .bz-vd-evidence, .bz-vd-usage { font-size: 0.82rem; color: var(--bz-muted); }
-.bz-page-note { margin: 0; font-size: 0.85rem; color: var(--bz-muted); }
+.bz-vd-shape, .bz-vd-evidence, .bz-vd-usage { font-size: var(--bz-fs-sm); color: var(--bz-muted); }
+.bz-page-note { margin: 0; font-size: var(--bz-fs-sm); color: var(--bz-muted); }
 
 /* ── Live window ───────────────────────────────────────────────────────────────────────────── */
-.bz-range { display: inline-flex; gap: 0.4rem; align-items: baseline; font-size: 0.82rem; }
+.bz-range { display: inline-flex; gap: 0.4rem; align-items: baseline; font-size: var(--bz-fs-sm); }
 .bz-range-label { color: var(--bz-muted); }
-.bz-range select { padding: 0.15rem 0.35rem; border: 1px solid var(--bz-border); border-radius: var(--bz-radius); background: var(--bz-bg); color: var(--bz-fg); font: inherit; font-size: 0.82rem; }
+.bz-range select { padding: 0.15rem 0.35rem; border: 1px solid var(--bz-border); border-radius: var(--bz-radius); background: var(--bz-bg); color: var(--bz-fg); font: inherit; font-size: var(--bz-fs-sm); }
 
 .bz-live-strip { display: flex; gap: 0.9rem; align-items: baseline; flex-wrap: wrap; padding: 0.4rem 0.6rem; border: 1px solid var(--bz-border); border-radius: var(--bz-radius); margin-bottom: 0.5rem; }
-.bz-live-tag { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--bz-rag-green); }
+.bz-live-tag { font-size: var(--bz-fs-2xs); text-transform: uppercase; letter-spacing: 0.06em; color: var(--bz-rag-green); }
 .bz-live-item { display: inline-flex; gap: 0.3rem; align-items: baseline; flex-wrap: wrap; }
 .bz-live-item[data-failing='true'] .bz-live-v { color: var(--bz-rag-red); }
-.bz-live-k { font-size: 0.78rem; color: var(--bz-muted); }
+.bz-live-k { font-size: var(--bz-fs-xs); color: var(--bz-muted); }
 .bz-live-v { font-weight: 600; }
 /* The window travels with the number it qualifies — never inherited from a header. */
-.bz-live-window { font-size: 0.72rem; color: var(--bz-muted); font-style: italic; }
-.bz-live-silent { font-size: 0.82rem; color: var(--bz-muted); }
-.bz-live-missing { font-size: 0.72rem; color: var(--bz-rag-amber); font-style: italic; }
-.bz-issue-seen, .bz-issue-exemplars { font-size: 0.82rem; color: var(--bz-muted); margin: 0.2rem 0; }
+.bz-live-window { font-size: var(--bz-fs-2xs); color: var(--bz-muted); font-style: italic; }
+.bz-live-silent { font-size: var(--bz-fs-sm); color: var(--bz-muted); }
+.bz-live-missing { font-size: var(--bz-fs-2xs); color: var(--bz-rag-amber); font-style: italic; }
+.bz-issue-seen, .bz-issue-exemplars { font-size: var(--bz-fs-sm); color: var(--bz-muted); margin: 0.2rem 0; }
 /* The detail page's own facts row. The page used to reuse the list row here and printed its own
    headline twice; these are the parts the header does not already carry. */
 .bz-issue-facts { display: flex; gap: 0.4rem; align-items: baseline; flex-wrap: wrap; margin: 0.35rem 0; }
@@ -548,47 +573,47 @@ input, select, textarea {
 /* An absent timestamp is a fact about the feed, not a blank — it reads as the third state, not as
    a missing value nobody noticed. */
 .bz-stamp[data-absent] { font-style: italic; color: var(--bz-muted); white-space: normal; }
-.bz-svc-links { display: inline-flex; gap: 0.5rem; margin-left: auto; font-size: 0.8rem; }
+.bz-svc-links { display: inline-flex; gap: 0.5rem; margin-left: auto; font-size: var(--bz-fs-xs); }
 .bz-svc-links a { color: var(--bz-accent); }
 .bz-health > li { display: block; padding: 0.3rem 0; }
 .bz-health-row { display: flex; gap: 0.4rem; align-items: baseline; flex-wrap: wrap; }
-.bz-health-type { font-size: 0.78rem; color: var(--bz-muted); }
-.bz-health-status { font-size: 0.78rem; color: var(--bz-muted); }
-.bz-health-detail { display: flex; gap: 0.9rem; flex-wrap: wrap; margin: 0.2rem 0 0 1.4rem; font-size: 0.82rem; }
+.bz-health-type { font-size: var(--bz-fs-xs); color: var(--bz-muted); }
+.bz-health-status { font-size: var(--bz-fs-xs); color: var(--bz-muted); }
+.bz-health-detail { display: flex; gap: 0.9rem; flex-wrap: wrap; margin: 0.2rem 0 0 1.4rem; font-size: var(--bz-fs-sm); }
 .bz-health-detail div { display: flex; gap: 0.3rem; }
 .bz-health-detail dt { color: var(--bz-muted); margin: 0; }
 .bz-health-detail dd { margin: 0; }
-.bz-health-detail-empty { margin: 0.2rem 0 0 1.4rem; font-size: 0.8rem; color: var(--bz-muted); font-style: italic; }
+.bz-health-detail-empty { margin: 0.2rem 0 0 1.4rem; font-size: var(--bz-fs-xs); color: var(--bz-muted); font-style: italic; }
 .bz-app-worst { display: inline-flex; align-items: center; }
 
 /* ── Flows ─────────────────────────────────────────────────────────────────────────────────────── */
 .bz-live-pivot { padding: 0 0.35rem; border-color: var(--bz-rag-red); color: var(--bz-rag-red); font-weight: 600; }
-.bz-flow-toggle { font-size: 0.8rem; padding: 0.1rem 0.5rem; margin-bottom: 0.4rem; }
+.bz-flow-toggle { font-size: var(--bz-fs-xs); padding: 0.1rem 0.5rem; margin-bottom: 0.4rem; }
 .bz-flow-list { list-style: none; margin: 0; padding: 0; }
 .bz-flow-list li { display: flex; gap: 0.5rem; align-items: baseline; flex-wrap: wrap; padding: 0.35rem 0 0.35rem 0.5rem; border-left: 3px solid var(--bz-border); }
 .bz-flow-list li[data-failed] { border-left-color: var(--bz-rag-red); }
-.bz-flow-id { font-size: 0.78rem; color: var(--bz-muted); user-select: all; }
-.bz-flow-meta { font-size: 0.78rem; color: var(--bz-muted); }
+.bz-flow-id { font-size: var(--bz-fs-xs); color: var(--bz-muted); user-select: all; }
+.bz-flow-meta { font-size: var(--bz-fs-xs); color: var(--bz-muted); }
 .bz-flow-services { display: inline-flex; gap: 0.3rem; flex-wrap: wrap; }
-.bz-flow-svc { background: none; border: none; padding: 0; font-size: 0.82rem; color: var(--bz-accent); text-decoration: underline; }
+.bz-flow-svc { background: none; border: none; padding: 0; font-size: var(--bz-fs-sm); color: var(--bz-accent); text-decoration: underline; }
 
 /* ── Service spec ──────────────────────────────────────────────────────────────────────────────── */
 .bz-spec-desc { margin: 0 0 1rem; max-width: 60ch; color: var(--bz-muted); }
-.bz-spec-back { margin-left: auto; font-size: 0.85rem; }
+.bz-spec-back { margin-left: auto; font-size: var(--bz-fs-sm); }
 .bz-spec-summary { display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: flex-start; margin-bottom: 1.5rem; }
-.bz-stats { display: flex; gap: 0.75rem; flex-wrap: wrap; }
-.bz-stat { display: flex; flex: 1 1 8rem; flex-direction: column; padding: 13px 15px; border: 1px solid var(--bz-border); border-radius: var(--bz-radius); background: var(--bz-surface); box-shadow: var(--bz-shadow); }
+/* `.bz-stats`, `.bz-stat-n` and `.bz-stat-l` were each defined TWICE with different values; the
+   later block silently won and these declarations were dead. Only `.bz-stat` itself was ever a
+   single definition, so it is what survives here. */
+.bz-stat { display: flex; flex: 1 1 8rem; flex-direction: column; padding: var(--bz-pad-compact); border: 1px solid var(--bz-border); border-radius: var(--bz-radius); background: var(--bz-surface); box-shadow: var(--bz-shadow); }
 .bz-stat[data-accent] { border-color: var(--bz-accent); }
-.bz-stat-n { font-size: 1.4rem; font-weight: 700; line-height: 1.1; }
-.bz-stat-l { font-size: 0.75rem; color: var(--bz-muted); text-transform: uppercase; letter-spacing: 0.04em; }
-.bz-spec-reach { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.85rem; }
+.bz-spec-reach { display: flex; flex-direction: column; gap: 0.3rem; font-size: var(--bz-fs-sm); }
 .bz-spec-reach-row { display: inline-flex; gap: 0.35rem; align-items: baseline; flex-wrap: wrap; }
 .bz-spec-reach-k { color: var(--bz-muted); min-width: 8rem; }
 .bz-spec-section-head { display: flex; gap: 0.5rem; align-items: baseline; flex-wrap: wrap; margin-bottom: 0.5rem; }
 .bz-spec-section-head h3 { margin: 0; }
-.bz-spec-section-head button { font-size: 0.8rem; padding: 0.1rem 0.5rem; }
+.bz-spec-section-head button { font-size: var(--bz-fs-xs); padding: 0.1rem 0.5rem; }
 .bz-spec-schema { margin-bottom: 0.9rem; }
-.bz-spec-schema h4 { text-transform: none; font-size: 0.85rem; color: var(--bz-fg); font-family: var(--bz-mono); }
+.bz-spec-schema h4 { text-transform: none; font-size: var(--bz-fs-sm); color: var(--bz-fg); font-family: var(--bz-mono); }
 
 .bz-op { border: 1px solid var(--bz-border); border-radius: var(--bz-radius); margin-bottom: 0.4rem; background: var(--bz-surface); }
 .bz-op[data-expanded='true'] { border-color: var(--bz-accent); }
@@ -597,22 +622,22 @@ input, select, textarea {
 .bz-op-badges { display: inline-flex; gap: 0.25rem; }
 .bz-op-badges .bz-badge, .bz-op-http .bz-badge { text-transform: uppercase; }
 .bz-op-topic { font-weight: 650; }
-.bz-op-io { font-size: 0.82rem; color: var(--bz-muted); font-family: var(--bz-mono); }
+.bz-op-io { font-size: var(--bz-fs-sm); color: var(--bz-muted); font-family: var(--bz-mono); }
 .bz-op-arrow { color: var(--bz-accent); }
 .bz-op-chev { margin-left: auto; color: var(--bz-muted); }
 .bz-op-body { padding: 0 0.8rem 0.8rem; border-top: 1px solid var(--bz-border-soft); }
 .bz-op-http { list-style: none; margin: 0.6rem 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
 .bz-op-http li { display: flex; gap: 0.4rem; align-items: baseline; }
 .bz-op-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; }
-.bz-op-grid h4, .bz-op-example h4 { font-size: 0.75rem; margin: 0.5rem 0 0.25rem; color: var(--bz-muted); text-transform: uppercase; letter-spacing: 0.04em; }
-.bz-op-example pre { background: var(--bz-code-bg); border: 1px solid var(--bz-border); border-radius: var(--bz-radius); padding: 0.6rem; overflow-x: auto; font-size: 0.8rem; margin: 0; }
+.bz-op-grid h4, .bz-op-example h4 { font-size: var(--bz-fs-xs); margin: 0.5rem 0 0.25rem; color: var(--bz-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.bz-op-example pre { background: var(--bz-code-bg); border: 1px solid var(--bz-border); border-radius: var(--bz-radius); padding: 0.6rem; overflow-x: auto; font-size: var(--bz-fs-xs); margin: 0; }
 
 /* ── Estate stats ──────────────────────────────────────────────────────────────────────────────
    The first thing read on the page, so the largest thing on it. Tabular figures because these
    numbers sit in a row and a reader compares them column-wise. */
 .bz-stats { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 24px; }
-.bz-stat-n { font-family: var(--bz-mono); font-size: 23px; font-weight: 680; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.15; }
-.bz-stat-l { display: flex; align-items: center; gap: 0.3rem; margin-top: 1px; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--bz-muted); }
+.bz-stat-n { font-family: var(--bz-mono); font-size: var(--bz-fs-num); font-weight: 680; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.15; }
+.bz-stat-l { display: flex; align-items: center; gap: 0.3rem; margin-top: 1px; font-size: var(--bz-fs-2xs); text-transform: uppercase; letter-spacing: 0.1em; color: var(--bz-muted); }
 .bz-stat[data-rag='red']   .bz-stat-n { color: var(--bz-rag-red); }
 .bz-stat[data-rag='amber'] .bz-stat-n { color: var(--bz-rag-amber); }
 .bz-stat[data-rag='green'] .bz-stat-n { color: var(--bz-rag-green); }
@@ -643,7 +668,7 @@ input, select, textarea {
    qualifier on that surface's numbers, not a page-level setting, and the chrome is where it used to
    claim to be both. */
 .bz-section-head .bz-range { margin-left: auto; }
-.bz-section-more { margin-left: auto; font-size: 12px; padding: 0.15rem 0.5rem; }
+.bz-section-more { margin-left: auto; font-size: var(--bz-fs-xs); padding: 0.15rem 0.5rem; }
 /* A filter inline with its heading holds the right-hand end, so the two lists on this page put
    their filter in the same place relative to the list rather than in the same place on screen. */
 .bz-section-head .bz-catalog-filter { margin-left: auto; }
@@ -654,38 +679,35 @@ input, select, textarea {
 .bz-page-head { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 22px; }
 .bz-page-head-main { min-width: 0; }
 .bz-page-title { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-.bz-page-head h1 { margin: 0; font-size: 21px; letter-spacing: -0.01em; word-break: break-word; }
+.bz-page-head h1 { margin: 0; font-size: var(--bz-fs-xl); letter-spacing: -0.01em; word-break: break-word; }
 .bz-page-head[data-mono] h1 { font-family: var(--bz-mono); }
-.bz-page-lede { margin: 6px 0 0; color: var(--bz-muted); font-size: 13.5px; max-width: 62ch; }
+.bz-page-lede { margin: 6px 0 0; color: var(--bz-muted); font-size: var(--bz-fs-sm); max-width: 62ch; }
 .bz-page-actions { margin-left: auto; display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
-.bz-crumbs { display: flex; gap: 0.35rem; align-items: baseline; margin-bottom: 4px; font-size: 12px; }
-.bz-crumb { background: none; border: none; padding: 0; color: var(--bz-muted); font-size: 12px; }
+.bz-crumbs { display: flex; gap: 0.35rem; align-items: baseline; margin-bottom: 4px; font-size: var(--bz-fs-xs); }
+.bz-crumb { background: none; border: none; padding: 0; color: var(--bz-muted); font-size: var(--bz-fs-xs); }
 .bz-crumb:hover { color: var(--bz-accent); text-decoration: underline; border-color: transparent; }
 .bz-crumb::after { content: ' /'; color: var(--bz-border); }
 
 /* Drill-in section heads are eyebrows: eight equal-weight headings on one page is a wall, and the
    reader is scanning for one of them, not reading all eight. */
-.bz-page section > h3 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--bz-muted); margin: 0 0 0.5rem; }
+.bz-page section > h3 { font-size: var(--bz-fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--bz-muted); margin: 0 0 0.5rem; }
 
 /* The card header is the toggle, so the whole strip has to look like one. */
-.bz-svc-head { cursor: pointer; user-select: none; }
 .bz-svc-head:hover { background: var(--bz-surface-2); }
 .bz-chev { display: inline-block; margin-left: auto; color: var(--bz-muted); transition: transform 160ms; }
 .bz-svc[data-expanded='true'] .bz-chev { transform: rotate(90deg); }
 
 /* The header carries provenance, not just chrome — and stays put, because the worst-status mark is
    the one thing a reader checks on arrival and it must not scroll away. */
-.bz-app-head { position: sticky; top: 0; z-index: 40; background: var(--bz-bg); padding-top: 0.75rem; }
-.bz-brand { display: inline-flex; align-items: center; gap: 0.45rem; }
-.bz-app-meta { font-family: var(--bz-mono); font-size: 11.5px; color: var(--bz-muted); padding-left: 0.75rem; border-left: 1px solid var(--bz-border); }
+.bz-app-meta { font-family: var(--bz-mono); font-size: var(--bz-fs-2xs); color: var(--bz-muted); padding-left: 0.75rem; border-left: 1px solid var(--bz-border); }
 
 /* ── Tables ────────────────────────────────────────────────────────────────────────────────────
    For data a reader compares down a column. Numbers are right-aligned with tabular figures, and
    rows do not wrap, so scanning is scanning rather than reading. */
 .bz-table-wrap { overflow-x: auto; background: var(--bz-surface); border: 1px solid var(--bz-border); border-radius: var(--bz-radius); box-shadow: var(--bz-shadow); }
-.bz-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.bz-table-caption { padding: 10px 13px 0; text-align: left; font-size: 12px; color: var(--bz-muted); }
-.bz-table th { padding: 10px 13px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--bz-muted); white-space: nowrap; }
+.bz-table { width: 100%; border-collapse: collapse; font-size: var(--bz-fs-sm); }
+.bz-table-caption { padding: 10px 13px 0; text-align: left; font-size: var(--bz-fs-xs); color: var(--bz-muted); }
+.bz-table th { padding: 10px 13px; text-align: left; font-size: var(--bz-fs-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--bz-muted); white-space: nowrap; }
 .bz-table th[data-numeric], .bz-table td[data-numeric] { text-align: right; }
 .bz-table td[data-numeric] { font-variant-numeric: tabular-nums; }
 .bz-table td { padding: 9px 13px; border-top: 1px solid var(--bz-border-soft); white-space: nowrap; vertical-align: baseline; }
@@ -707,19 +729,19 @@ input, select, textarea {
 }
 
 /* A section a reader can put away. The header stays, so it is never hidden — only quiet. */
-.bz-section-toggle { font-size: 11.5px; padding: 0.1rem 0.5rem; }
+.bz-section-toggle { font-size: var(--bz-fs-2xs); padding: 0.1rem 0.5rem; }
 
 /* ── Topics catalog ────────────────────────────────────────────────────────────────────────────── */
 .bz-catalog-controls { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.5rem; }
-.bz-catalog-filter { width: 16rem; max-width: 100%; font-size: 12.5px; padding: 0.25rem 0.5rem; }
-.bz-catalog-count { font-size: 11.5px; color: var(--bz-muted); }
+.bz-catalog-filter { width: 16rem; max-width: 100%; font-size: var(--bz-fs-xs); padding: 0.25rem 0.5rem; }
+.bz-catalog-count { font-size: var(--bz-fs-2xs); color: var(--bz-muted); }
 .bz-cat-topic-cell { display: inline-flex; gap: 0.35rem; align-items: baseline; }
 .bz-cat-svcs { display: inline-flex; gap: 0.3rem; flex-wrap: wrap; }
-.bz-cat-svc { background: var(--bz-surface-2); border: none; border-radius: var(--bz-radius-sm); padding: 2px 7px; font-family: var(--bz-mono); font-size: 10.5px; color: var(--bz-fg); }
+.bz-cat-svc { background: var(--bz-surface-2); border: none; border-radius: var(--bz-radius-sm); padding: 2px 7px; font-family: var(--bz-mono); font-size: var(--bz-fs-3xs); color: var(--bz-fg); }
 .bz-cat-svc:hover { background: var(--bz-accent-tint); color: var(--bz-accent); border-color: transparent; }
 .bz-cat-none { color: var(--bz-muted); }
 .bz-svc-topics { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 1rem; }
-.bz-svc-topics h4 { font-size: 11px; margin: 0 0 0.2rem; color: var(--bz-muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.bz-svc-topics h4 { font-size: var(--bz-fs-2xs); margin: 0 0 0.2rem; color: var(--bz-muted); text-transform: uppercase; letter-spacing: 0.08em; }
 
 /* ── Contract changes ─────────────────────────────────────────────────────────────────────────────
    The verdict palette reuses the estate's existing RAG tokens rather than minting a third vocabulary
@@ -729,7 +751,7 @@ input, select, textarea {
    amber would be exactly the invented reassurance this whole surface exists to prevent. */
 .bz-verdict {
   display: inline-flex; align-items: baseline; gap: 0.3rem;
-  font-size: 11px; font-weight: 600; letter-spacing: 0.02em;
+  font-size: var(--bz-fs-2xs); font-weight: 600; letter-spacing: 0.02em;
   padding: 2px 7px; border-radius: var(--bz-radius-sm);
   background: var(--bz-surface-2); color: var(--bz-muted);
 }
@@ -738,16 +760,16 @@ input, select, textarea {
 .bz-verdict[data-verdict='compatible'] { color: var(--bz-rag-green); background: var(--bz-rag-green-bg); }
 .bz-verdict[data-verdict='notCompared'] { font-style: italic; font-weight: 500; }
 /* The attribution rides inside the badge so it cannot be dropped by a layout change. */
-.bz-verdict-attr { font-weight: 400; font-size: 10px; opacity: 0.75; }
+.bz-verdict-attr { font-weight: 400; font-size: var(--bz-fs-3xs); opacity: 0.75; }
 /* The subject sits between the verdict and the rule attribution, and is weighted slightly heavier
    than the attribution: which reader a verdict is about changes what it means, while which rule
    table produced it changes only how much to argue with it. */
-.bz-verdict-subject { font-weight: 400; font-size: 10px; opacity: 0.9; }
+.bz-verdict-subject { font-weight: 400; font-size: var(--bz-fs-3xs); opacity: 0.9; }
 
 .bz-changes-section { margin: 0 0 1.25rem; }
 .bz-changes-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0 0 0.6rem; }
-.bz-changes-count { font-size: 11px; color: var(--bz-muted); }
-.bz-changes-caveat { margin-top: 0.6rem; font-size: 11px; }
+.bz-changes-count { font-size: var(--bz-fs-2xs); color: var(--bz-muted); }
+.bz-changes-caveat { margin-top: 0.6rem; font-size: var(--bz-fs-2xs); }
 
 .bz-changes-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35rem; }
 .bz-change {
@@ -755,16 +777,16 @@ input, select, textarea {
   align-items: baseline; gap: 0.5rem;
   padding: 0.35rem 0.5rem; border-radius: var(--bz-radius-sm); background: var(--bz-surface-2);
 }
-.bz-change-side { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--bz-muted); }
-.bz-change-path { font-family: var(--bz-mono); font-size: 11.5px; color: var(--bz-fg); }
-.bz-change-desc { font-size: 12px; color: var(--bz-muted); }
+.bz-change-side { font-size: var(--bz-fs-3xs); text-transform: uppercase; letter-spacing: 0.06em; color: var(--bz-muted); }
+.bz-change-path { font-family: var(--bz-mono); font-size: var(--bz-fs-2xs); color: var(--bz-fg); }
+.bz-change-desc { font-size: var(--bz-fs-xs); color: var(--bz-muted); }
 
 /* The marker ON the schema tree is a VERDICT, so it wears the verdict look — `.bz-schema-mark` was a
    second, near-identical family styling the same three values, which is one meaning with two looks
    and the exact thing the visual system exists to prevent. */
 .bz-schema-node[data-removed='true'] { opacity: 0.75; }
 .bz-schema-gone { text-decoration: line-through; }
-.bz-schema-truncated { margin: 0.2rem 0 0; font-size: 11px; color: var(--bz-muted); }
+.bz-schema-truncated { margin: 0.2rem 0 0; font-size: var(--bz-fs-2xs); color: var(--bz-muted); }
 
 /* SCHEMA READABILITY — the Swagger / AsyncAPI reading order: name, type, constraints, meaning.
    The tree used to give type, format, required and enum four identical chips, so four different
@@ -776,33 +798,33 @@ input, select, textarea {
   text-decoration: none; cursor: help;
 }
 .bz-schema-type {
-  font-family: var(--bz-mono); font-size: 0.8rem; color: var(--bz-accent);
+  font-family: var(--bz-mono); font-size: var(--bz-fs-xs); color: var(--bz-accent);
 }
-.bz-schema-facets { font-size: 11px; color: var(--bz-muted); }
+.bz-schema-facets { font-size: var(--bz-fs-2xs); color: var(--bz-muted); }
 /* The one line on the page that says what a field MEANS rather than what shape it is, so it gets
    prose treatment and the tree's indent, not a chip. */
 .bz-schema-desc {
-  margin: 0.15rem 0 0; font-size: 12px; color: var(--bz-fg);
+  margin: 0.15rem 0 0; font-size: var(--bz-fs-xs); color: var(--bz-fg);
   max-width: 62ch; line-height: 1.45;
 }
 .bz-schema-enum { margin: 0.2rem 0 0; display: flex; gap: 0.3rem; align-items: baseline; flex-wrap: wrap; }
-.bz-schema-enum-label { font-size: 11px; color: var(--bz-muted); }
+.bz-schema-enum-label { font-size: var(--bz-fs-2xs); color: var(--bz-muted); }
 .bz-schema-enum-value {
-  font-family: var(--bz-mono); font-size: 11px; padding: 0.05rem 0.3rem;
+  font-family: var(--bz-mono); font-size: var(--bz-fs-2xs); padding: 0.05rem 0.3rem;
   border: 1px solid var(--bz-border-soft); border-radius: 3px; color: var(--bz-fg);
 }
 
 .bz-version-switch { display: flex; align-items: center; gap: 0.4rem; margin: 0 0 1rem; }
-.bz-version-switch-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--bz-muted); }
+.bz-version-switch-label { font-size: var(--bz-fs-3xs); text-transform: uppercase; letter-spacing: 0.08em; color: var(--bz-muted); }
 .bz-version-opt {
   background: var(--bz-surface-2); border: 1px solid transparent; border-radius: var(--bz-radius-sm);
-  padding: 2px 9px; font-family: var(--bz-mono); font-size: 11.5px; color: var(--bz-fg); cursor: pointer;
+  padding: 2px 9px; font-family: var(--bz-mono); font-size: var(--bz-fs-2xs); color: var(--bz-fg); cursor: pointer;
 }
 .bz-version-opt:hover { background: var(--bz-accent-tint); color: var(--bz-accent); }
 .bz-version-opt[data-current='true'] { background: var(--bz-accent-tint); color: var(--bz-accent); border-color: var(--bz-accent); }
 
 /* The version is part of the button's label, not a chip beside it — see TopicList. */
-.bz-topic-version { margin-left: 0.35rem; font-family: var(--bz-mono); font-size: 10.5px; color: var(--bz-muted); }
+.bz-topic-version { margin-left: 0.35rem; font-family: var(--bz-mono); font-size: var(--bz-fs-3xs); color: var(--bz-muted); }
 
 /* The ledger reuses .bz-change and widens it by one column for the topic button. */
 .bz-ledger { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35rem; }
@@ -819,7 +841,7 @@ input, select, textarea {
 .bz-change-services { display: inline-flex; gap: 0.6rem; flex-wrap: wrap; align-items: baseline; }
 .bz-change-party { display: inline-flex; gap: 0.3rem; flex-wrap: wrap; align-items: baseline; }
 .bz-change-party-label {
-  font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--bz-muted);
+  font-size: var(--bz-fs-3xs); text-transform: uppercase; letter-spacing: 0.08em; color: var(--bz-muted);
 }
 .bz-change-party[data-party='outstanding'] .bz-change-party-label { color: var(--bz-rag-amber); }
 .bz-cat-svc[data-outstanding='true'] {
@@ -833,7 +855,7 @@ button.bz-stat:hover { border-color: var(--bz-accent); }
 button.bz-stat:focus-visible { outline: 2px solid var(--bz-accent); outline-offset: 2px; }
 .bz-stat-note { margin-left: 0.35rem; font-style: italic; opacity: 0.8; }
 .bz-vd-change { display: inline-flex; align-items: baseline; gap: 0.35rem; }
-.bz-vd-change-desc { font-size: 11.5px; color: var(--bz-muted); }
+.bz-vd-change-desc { font-size: var(--bz-fs-2xs); color: var(--bz-muted); }
 
 /* ── Cards ────────────────────────────────────────────────────────────────────────────────────────
    Reuses the surface/border/radius tokens the estate's service cards and stat tiles already use. The
@@ -841,16 +863,16 @@ button.bz-stat:focus-visible { outline: 2px solid var(--bz-accent); outline-offs
    eight sibling sections with bare headings and no grouping. */
 .bz-card {
   background: var(--bz-surface); border: 1px solid var(--bz-border);
-  border-radius: var(--bz-radius); padding: 0.9rem 1rem; margin: 0 0 1rem;
+  border-radius: var(--bz-radius); padding: var(--bz-pad-card); margin: 0 0 1rem;
 }
 .bz-card-head { display: flex; align-items: baseline; gap: 0.6rem; margin: 0 0 0.7rem; }
-.bz-card-head h3 { margin: 0; font-size: 13px; }
-.bz-card-note { font-size: 11px; color: var(--bz-muted); }
+.bz-card-head h3 { margin: 0; font-size: var(--bz-fs-sm); }
+.bz-card-note { font-size: var(--bz-fs-2xs); color: var(--bz-muted); }
 .bz-card-actions { margin-left: auto; }
 /* A card's title is an h3 and anything subdividing it is an h4 — that is what turns six peer
    headings into two groups of two. The size gap has to be visible for the hierarchy to do any work. */
 .bz-card h4 {
-  font-size: 11px; margin: 0.8rem 0 0.3rem; color: var(--bz-muted);
+  font-size: var(--bz-fs-2xs); margin: 0.8rem 0 0.3rem; color: var(--bz-muted);
   text-transform: uppercase; letter-spacing: 0.08em;
 }
 .bz-card h4:first-of-type { margin-top: 0; }
@@ -859,14 +881,14 @@ button.bz-stat:focus-visible { outline: 2px solid var(--bz-accent); outline-offs
 /* The hashes survive as an audit token, at the weight of an audit token. */
 .bz-svc-drift-hash {
   display: block; margin-top: 0.2rem;
-  font-family: var(--bz-mono); font-size: 10.5px; color: var(--bz-muted);
+  font-family: var(--bz-mono); font-size: var(--bz-fs-3xs); color: var(--bz-muted);
 }
 .bz-link {
   background: none; border: none; padding: 0; font: inherit;
   color: var(--bz-accent); cursor: pointer; text-decoration: underline;
 }
-.bz-catalog-legend { margin: 0.5rem 0 0; font-size: 11px; color: var(--bz-muted); }
-.bz-boundary-detail { font-family: var(--bz-mono); font-size: 11.5px; }
+.bz-catalog-legend { margin: 0.5rem 0 0; font-size: var(--bz-fs-2xs); color: var(--bz-muted); }
+.bz-boundary-detail { font-family: var(--bz-mono); font-size: var(--bz-fs-2xs); }
 
 /* ── Outstanding contract moves ───────────────────────────────────────────────────────────────────
    Inside the Contract card, above what the service currently declares. The VERB is the emphasised
@@ -876,10 +898,10 @@ button.bz-stat:focus-visible { outline: 2px solid var(--bz-accent); outline-offs
 .bz-outstanding { margin: 0.75rem 0 0.25rem; }
 .bz-outstanding h4 {
   display: flex; align-items: baseline; gap: 0.5rem;
-  font-size: 11px; margin: 0 0 0.4rem; color: var(--bz-muted);
+  font-size: var(--bz-fs-2xs); margin: 0 0 0.4rem; color: var(--bz-muted);
   text-transform: uppercase; letter-spacing: 0.08em;
 }
-.bz-outstanding-count { text-transform: none; letter-spacing: 0; font-size: 11.5px; color: var(--bz-fg); }
+.bz-outstanding-count { text-transform: none; letter-spacing: 0; font-size: var(--bz-fs-2xs); color: var(--bz-fg); }
 .bz-outstanding-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.3rem; }
 .bz-outstanding-row {
   display: grid; align-items: baseline; gap: 0.6rem;
@@ -891,13 +913,13 @@ button.bz-stat:focus-visible { outline: 2px solid var(--bz-accent); outline-offs
 /* A catch-up is a gap that exists right now; a completion is a rollout that is merely unfinished.
    The border is the only difference in weight, because both are still work this service owes. */
 .bz-outstanding-row[data-kind='catchUp'] { border-left-color: var(--bz-rag-red); }
-.bz-outstanding-verb { font-family: var(--bz-mono); font-size: 11.5px; }
-.bz-outstanding-other { font-size: 11.5px; color: var(--bz-muted); }
+.bz-outstanding-verb { font-family: var(--bz-mono); font-size: var(--bz-fs-2xs); }
+.bz-outstanding-other { font-size: var(--bz-fs-2xs); color: var(--bz-muted); }
 /* On its own line and in the warning colour: this is the clause that stops a reader shipping a
    version-only handler and killing the live path. It is an instruction about THIS deploy, not
    context about the other end, so it does not share the muted treatment. */
 .bz-outstanding-alongside {
-  grid-column: 1 / -1; font-size: 11.5px; color: var(--bz-rag-amber); font-weight: 600;
+  grid-column: 1 / -1; font-size: var(--bz-fs-2xs); color: var(--bz-rag-amber); font-weight: 600;
 }
 .bz-outstanding-empty { margin: 0.6rem 0 0.25rem; }
 
@@ -911,7 +933,7 @@ button.bz-stat:focus-visible { outline: 2px solid var(--bz-accent); outline-offs
    panel is still scannable at a glance without the sentence carrying the whole load. */
 .bz-vc-state { display: flex; gap: 0.5rem; align-items: baseline; flex-wrap: wrap; margin: 0 0 0.5rem; }
 .bz-vc-chip {
-  font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em;
+  font-size: var(--bz-fs-3xs); text-transform: uppercase; letter-spacing: 0.06em;
   padding: 2px 7px; border-radius: var(--bz-radius-sm);
   background: var(--bz-chip-bg); color: var(--bz-chip-fg); white-space: nowrap;
 }
@@ -920,9 +942,9 @@ button.bz-stat:focus-visible { outline: 2px solid var(--bz-accent); outline-offs
    this branch exists to remove. */
 .bz-vc-chip[data-state='awaitingAdapter'] { background: var(--bz-rag-red-bg); color: var(--bz-rag-red); }
 .bz-vc-chip[data-state='awaitingOwner'] { background: var(--bz-rag-amber-bg); color: var(--bz-rag-amber); }
-.bz-vc-constraint { font-size: 0.88rem; }
+.bz-vc-constraint { font-size: var(--bz-fs-sm); }
 .bz-vc-disjoint { margin-top: -0.35rem; }
-.bz-vc-caveat { margin: 0.6rem 0 0; font-size: 11.5px; }
+.bz-vc-caveat { margin: 0.6rem 0 0; font-size: var(--bz-fs-2xs); }
 
 /* ── Rollouts ─────────────────────────────────────────────────────────────────────────────────────
    A rollout row is a small block, not a table row: its substance is a sentence, and a sentence
@@ -948,7 +970,7 @@ button.bz-stat:focus-visible { outline: 2px solid var(--bz-accent); outline-offs
 .bz-rollout[data-state='awaitingAdapter'] { border-left-color: var(--bz-rag-red); }
 .bz-rollout[data-state='awaitingOwner'] { border-left-color: var(--bz-rag-amber); }
 .bz-rollout-head { display: flex; gap: 0.5rem; align-items: baseline; flex-wrap: wrap; }
-.bz-rollout-constraint { margin: 0.35rem 0 0; font-size: 0.88rem; }
+.bz-rollout-constraint { margin: 0.35rem 0 0; font-size: var(--bz-fs-sm); }
 .bz-rollout-disjoint { color: var(--bz-rag-red); }
 /* The one place the product says something positive about a breaking change: the team that ran an
    overlap window did the hard thing correctly and should see the product say so. */
@@ -972,11 +994,11 @@ button.bz-stat:focus-visible { outline: 2px solid var(--bz-accent); outline-offs
   display: grid; grid-template-columns: minmax(8rem, auto) minmax(4rem, auto) 1fr;
   gap: 0.6rem; align-items: baseline;
 }
-.bz-by-service-count { font-size: 11.5px; font-weight: 600; }
-.bz-by-service-topics { font-size: 11.5px; color: var(--bz-muted); font-family: var(--bz-mono); }
+.bz-by-service-count { font-size: var(--bz-fs-2xs); font-weight: 600; }
+.bz-by-service-topics { font-size: var(--bz-fs-2xs); color: var(--bz-muted); font-family: var(--bz-mono); }
 @media (max-width: 40rem) { .bz-by-service-list li { grid-template-columns: 1fr; gap: 0.1rem; } }
-.bz-outstanding-caveat { margin: 0.5rem 0 0; font-size: 11.5px; }
-.bz-usage-window { color: var(--bz-muted); font-size: 11.5px; }
+.bz-outstanding-caveat { margin: 0.5rem 0 0; font-size: var(--bz-fs-2xs); }
+.bz-usage-window { color: var(--bz-muted); font-size: var(--bz-fs-2xs); }
 
 /* The field-level drift list nested inside a run-over-run change on the topic page. Indented under
    its parent change so the relationship is structural rather than implied by proximity. */
@@ -987,7 +1009,7 @@ button.bz-stat:focus-visible { outline: 2px solid var(--bz-accent); outline-offs
    Sized as a sentence a reader cannot miss, not as a banner: it is the first thing on the page and
    the only thing there that states a conclusion. */
 .bz-estate-verdict {
-  margin: 0 0 1rem; font-size: 15px; line-height: 1.5; color: var(--bz-fg);
+  margin: 0 0 1rem; font-size: var(--bz-fs-md); line-height: 1.5; color: var(--bz-fg);
   display: flex; align-items: baseline; gap: 0.4rem; flex-wrap: wrap;
 }
 .bz-estate-verdict[data-rag='red']   { color: var(--bz-rag-red); }
@@ -1012,7 +1034,7 @@ button.bz-stat:focus-visible { outline: 2px solid var(--bz-accent); outline-offs
 /* Identity, never status-coloured — the banners this replaces painted service names amber, so a
    name wore the same hue as a real signal directly beside it. */
 .bz-divergence-services { display: inline-flex; gap: 0.3rem; flex-wrap: wrap; align-items: baseline; }
-.bz-divergence-diagnosis { grid-column: 2 / -1; font-size: 12px; color: var(--bz-muted); }
+.bz-divergence-diagnosis { grid-column: 2 / -1; font-size: var(--bz-fs-xs); color: var(--bz-muted); }
 
 /* A verdict on work that is DONE: outlined, not filled. The verdict still reads — the word and the
    glyph are untouched — but a finished migration stops shouting as loudly as a blocking one. */
@@ -1029,7 +1051,7 @@ button.bz-stat:focus-visible { outline: 2px solid var(--bz-accent); outline-offs
   margin: 0.6rem 0 0;
   padding-top: 0.5rem;
   border-top: 1px solid var(--bz-border-soft);
-  font-size: 11px;
+  font-size: var(--bz-fs-2xs);
   line-height: 1.5;
   color: var(--bz-muted);
   max-width: 90ch;
@@ -1040,7 +1062,7 @@ button.bz-stat:focus-visible { outline: 2px solid var(--bz-accent); outline-offs
    one neutral chip apiece, which is how "18.0% of calls failed" and "error rate not reported" came
    to look identical. */
 .bz-qualifier {
-  font-size: 11px; padding: 1px 6px; border-radius: var(--bz-radius-sm);
+  font-size: var(--bz-fs-2xs); padding: 1px 6px; border-radius: var(--bz-radius-sm);
 }
 .bz-qualifier[data-kind='alarm'] { color: var(--bz-rag-amber); background: var(--bz-rag-amber-bg); font-weight: 600; }
 .bz-qualifier[data-kind='alarm'][data-severe='true'] { color: var(--bz-rag-red); background: var(--bz-rag-red-bg); }
@@ -1049,13 +1071,31 @@ button.bz-stat:focus-visible { outline: 2px solid var(--bz-accent); outline-offs
   color: var(--bz-muted); background: none; font-style: italic; padding: 0;
 }
 /* The footnote. Subordinate to everything it annotates, and never pilled. */
-.bz-provenance { font-size: 11px; color: var(--bz-muted); }
+.bz-provenance { font-size: var(--bz-fs-2xs); color: var(--bz-muted); }
 
 /* An operation's classification — a verb, an event, a message. NOT the status palette: nothing is
    wrong with a DELETE, and painting it red put a classification in the verdict vocabulary. */
 .bz-op-kind {
-  font-family: var(--bz-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em;
+  font-family: var(--bz-mono); font-size: var(--bz-fs-3xs); font-weight: 600; letter-spacing: 0.04em;
   padding: 1px 6px; border-radius: var(--bz-radius-sm);
   background: var(--bz-surface-2); color: var(--bz-fg); border: 1px solid var(--bz-border-soft);
 }
 .bz-op-kind[data-kind='event'], .bz-op-kind[data-kind='msg'] { color: var(--bz-muted); font-style: italic; }
+
+/* ── PRINT ─────────────────────────────────────────────────────────────────────────────────────
+   A mesh screen is evidence: it gets pasted into a ticket, a review pack, a steering deck. Shadows
+   and sticky chrome are noise on paper, and — the reason this exists — a collapsed section prints
+   as a heading with nothing under it, which reads as "there was nothing" rather than "this was
+   folded away". Every keyline prints, because that is where the load-bearing text now lives. */
+@media print {
+  .bz-app-head { position: static; }
+  .bz-svc, .bz-card, .bz-stat, .bz-issue { box-shadow: none; }
+  .bz-nav, .bz-theme-toggle, .bz-refresh, .bz-signout { display: none; }
+  .bz-keyline { break-inside: avoid; }
+  /* A section folded shut must say so rather than print as an empty heading. */
+  [data-open='false'] .bz-collapsible-body::after {
+    content: ' (collapsed — expand on screen to see this)';
+    color: var(--bz-muted); font-size: var(--bz-fs-2xs); font-style: italic;
+  }
+  .bz-page { break-inside: auto; }
+}

@@ -157,3 +157,33 @@ describe('RAG colours clear WCAG AA on their own backgrounds', () => {
     }
   });
 });
+
+/**
+ * THE VISUAL SYSTEM, ENFORCED.
+ *
+ * Both of these were found by audit rather than by anything in the build: 27 distinct font sizes in
+ * three units with invisible near-duplicates (11px vs 11.5px vs 0.72rem), and six class families
+ * defined twice with different values where the later block silently won. Neither is the kind of
+ * thing a reviewer catches by reading a diff, and both make every later change more expensive.
+ */
+describe('the stylesheet does not fight itself', () => {
+  const sheet = readFileSync(join(import.meta.dirname, 'tokens.css'), 'utf8');
+
+  it('defines each class family exactly once', () => {
+    const selectors = [...sheet.matchAll(/^(\.[a-z0-9-]+(?:,\s*\.[a-z0-9-]+)*)\s*\{/gm)]
+      .map((m) => m[1]!.trim());
+    const counts = new Map<string, number>();
+    for (const selector of selectors) counts.set(selector, (counts.get(selector) ?? 0) + 1);
+    const duplicated = [...counts].filter(([, n]) => n > 1).map(([s]) => s);
+    expect(duplicated, 'a second definition silently overrides the first').toEqual([]);
+  });
+
+  it('sizes type from the scale rather than by hand', () => {
+    // `inherit` and one `em` (a sort marker that scales with its header) are the only exemptions.
+    const body = sheet.slice(sheet.indexOf('--bz-fs-num'));
+    const raw = [...body.matchAll(/font-size:\s*([^;]+);/g)]
+      .map((m) => m[1]!.trim())
+      .filter((v) => !v.startsWith('var(') && v !== 'inherit' && !v.endsWith('em'));
+    expect(raw, 'add a step to the scale rather than a new one-off size').toEqual([]);
+  });
+});

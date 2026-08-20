@@ -1,7 +1,7 @@
 import type { ServiceUsageSummary } from '../../store/selectors';
-import { usageGroups, formatCount, isKnownStatus, isSuccessStatus } from '../../store/selectors';
+import { formatCount, isKnownStatus, isSuccessStatus } from '../../store/selectors';
 import { EmptyState } from '../primitives/EmptyState';
-import { Chip } from '../primitives/Chip';
+import { UsageBreakdown } from '../controls/UsageBreakdown';
 import { Stamp } from '../primitives/Stamp';
 
 export interface ServiceUsageProps {
@@ -16,10 +16,10 @@ export interface ServiceUsageProps {
 }
 
 const DIMENSIONS = [
-  { key: 'topic', label: 'Topic' },
-  { key: 'transport', label: 'Transport' },
-  { key: 'status', label: 'Status' },
-] as const;
+  { key: 'topic' as const, label: 'Topic' },
+  { key: 'transport' as const, label: 'Transport' },
+  { key: 'status' as const, label: 'Status' },
+];
 
 /**
  * Observed traffic for one service, broken down by whatever dimensions the feed could supply.
@@ -106,20 +106,7 @@ export function ServiceUsage({ usage, showUtility, onToggleUtility, window, now 
             </p>
           )}
 
-          {DIMENSIONS.map(({ key, label }) => {
-            const groups = usageGroups(usage.entries, key);
-            if (groups.length === 0) return null;
-            return (
-              <div className="bz-usage-chip-row" key={key}>
-                <span className="bz-usage-dim">{label}</span>
-                {groups.map((g) => (
-                  <Chip key={g.key} title={`${g.count.toLocaleString()} messages`}>
-                    {g.key} {formatCount(g.count)}
-                  </Chip>
-                ))}
-              </div>
-            );
-          })}
+          <UsageBreakdown entries={usage.entries} dimensions={DIMENSIONS} />
 
           {hiddenNote}
         </>

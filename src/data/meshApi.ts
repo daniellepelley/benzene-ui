@@ -183,6 +183,15 @@ export interface MeshApiOptions {
    * is no Sign out control — not a disabled one.
    */
   logoutUrl?: string;
+  /**
+   * Which estate this page is looking at, e.g. `production`, `staging`, `dev-pr-412`.
+   *
+   * Free text, and the host's to declare — never inferred from a hostname. Absent is honest and
+   * common: nothing publishes it until `placement.environment` reaches the spec. It is deliberately
+   * NOT defaulted, because an unlabelled production mesh that renders "dev" is worse than one that
+   * renders nothing (work/mesh-environments-and-access.md E1).
+   */
+  environment?: string;
 }
 
 /**
@@ -208,6 +217,7 @@ export function optionsFromDocument(location: Location, root: HTMLElement): Mesh
     dispatchEndpoint: pick('dispatch', 'data-dispatch-url'),
     refreshEndpoint: pick('refresh', 'data-refresh-url'),
     logoutUrl: pick('logout', 'data-logout-url'),
+    environment: pick('environment', 'data-environment'),
   };
 }
 

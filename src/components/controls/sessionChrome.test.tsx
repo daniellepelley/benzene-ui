@@ -14,19 +14,30 @@ import { CatalogEmpty } from './CatalogEmpty';
  */
 
 describe('SignOut', () => {
-  it('renders nothing at all when no logout URL is configured', () => {
-    const { container } = render(<SignOut />);
+  const noop = () => {};
+
+  it('renders nothing at all when no logout endpoint is configured', () => {
+    const { container } = render(<SignOut available={false} onSignOut={noop} />);
     expect(container).toBeEmptyDOMElement();
-    expect(render(<SignOut url={null} />).container).toBeEmptyDOMElement();
   });
 
-  it('is a link to the host’s logout endpoint, not an action', () => {
-    // The endpoint answers with a redirect. A button with a spinner would dress a page transition up
-    // as an operation, and leave the reader watching a stale page while the browser navigates away.
-    render(<SignOut url="/benzene/auth/logout" />);
+  it('asks the container to sign out when pressed', () => {
+    const onSignOut = vi.fn();
+    render(<SignOut available onSignOut={onSignOut} />);
 
-    const link = screen.getByRole('link', { name: 'Sign out' });
-    expect(link).toHaveAttribute('href', '/benzene/auth/logout');
+    screen.getByRole('button', { name: 'Sign out' }).click();
+
+    expect(onSignOut).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports a failed sign-out inline, so a reader is not left believing a stale page succeeded', () => {
+    render(<SignOut available note="401 Unauthorized" onSignOut={noop} />);
+    expect(screen.getByText('401 Unauthorized')).toHaveAttribute('data-tone', 'bad');
+  });
+
+  it('says nothing while idle', () => {
+    render(<SignOut available note={null} onSignOut={noop} />);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 });
 

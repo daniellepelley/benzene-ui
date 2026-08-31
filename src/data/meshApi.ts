@@ -78,6 +78,40 @@ async function postRefresh(endpoint: string): Promise<void> {
   if (!response.ok) throw failed(response, endpoint);
 }
 
+/** What `postLogout` resolved to, once the server accepted the sign-out. */
+export interface LogoutResult {
+  /**
+   * The identity provider's own end-session URL, present only for a federated (OIDC) deployment.
+   * Absent — the ordinary local/basic-auth case — means the caller reloads instead.
+   */
+  redirect?: string;
+}
+
+/**
+ * Ends the session.
+ *
+ * `X-Benzene-Logout: 1` is the same CSRF defence {@link postRefresh} uses for `X-Benzene-Refresh`,
+ * agreed with the server side: a cross-site form cannot set a custom header, and a cross-origin
+ * `fetch` that does turns preflighted, which the server refuses without this header. `same-origin`
+ * credentials is stated for the same reason `postRefresh` states it — the request needs the session
+ * cookie, and it is the correct behaviour for a cross-origin endpoint too.
+ *
+ * Unlike `postRefresh`, the response body matters: a federated deployment answers with the identity
+ * provider's own end-session `redirect`, so the caller can send the browser there instead of just
+ * reloading a page that a shared IdP session would silently re-authenticate. A body that fails to
+ * parse as JSON is treated as "no redirect", not as a failure — the sign-out itself already
+ * succeeded by the time this reads the body.
+ */
+export async function postLogout(endpoint: string): Promise<LogoutResult> {
+  const response = await fetch(resolveUrl(endpoint), {
+    method: 'POST',
+    headers: { 'X-Benzene-Logout': '1', accept: 'application/json' },
+    credentials: 'same-origin',
+  });
+  if (!response.ok) throw failed(response, endpoint);
+  return (await response.json().catch(() => ({}))) as LogoutResult;
+}
+
 /**
  * One Benzene message, over the mesh wire envelope.
  *
@@ -244,4 +278,5 @@ export const createMeshApi = (options: MeshApiOptions = {}): MeshApi => ({
   ...(options.refreshEndpoint
     ? { requestRefresh: () => postRefresh(options.refreshEndpoint!) }
     : {}),
+  ...(options.logoutUrl ? { requestSignOut: () => postLogout(options.logoutUrl!) } : {}),
 });

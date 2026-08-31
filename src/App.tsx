@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from './store/hooks';
 import {
-  loadManifest, loadService, refreshManifest, refreshEstate, ARTIFACT_POLL_MS,
+  loadManifest, loadService, refreshManifest, refreshEstate, requestSignOut, ARTIFACT_POLL_MS,
 } from './store/slices/estateSlice';
 import { loadCatalog } from './store/slices/catalogSlice';
 import { probeFleet, pollInbox, clockTicked, FLEET_POLL_MS, INBOX_POLL_MS } from './store/slices/fleetSlice';
@@ -10,7 +10,7 @@ import { navigated, themeCycled, themeRestored, type Theme } from './store/slice
 import {
   selectLoad, selectError, selectPage, selectSelected, selectSelectedService, selectEstateSummary,
   selectFeedHealth, selectRefreshState, selectRefreshNote, selectCanRefresh, selectLogoutUrl,
-  selectNow, selectEnvironment,
+  selectSignOutNote, selectNow, selectEnvironment,
 } from './store/selectors';
 import {
   FleetPage, ServicePage, TopicPage, IssuePage, ValuePage, TestConsolePage,
@@ -69,8 +69,10 @@ export function App() {
   const refresh = useAppSelector(selectRefreshState);
   const refreshNote = useAppSelector(selectRefreshNote);
   const logoutUrl = useAppSelector(selectLogoutUrl);
+  const signOutNote = useAppSelector(selectSignOutNote);
   const environment = useAppSelector(selectEnvironment);
   const onRefresh = () => void dispatch(refreshEstate());
+  const onSignOut = () => void dispatch(requestSignOut());
 
   useEffect(() => {
     void dispatch(loadManifest());
@@ -237,7 +239,7 @@ export function App() {
             onRefresh={onRefresh}
           />
           <ThemeToggle theme={theme} onCycle={() => dispatch(themeCycled())} />
-          <SignOut url={logoutUrl} />
+          <SignOut available={!!logoutUrl} note={signOutNote} onSignOut={onSignOut} />
         </span>
       </header>
 

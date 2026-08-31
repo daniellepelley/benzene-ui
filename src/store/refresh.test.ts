@@ -1,8 +1,9 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createStore } from './store';
 import {
   loadManifest,
   refreshEstate,
+  requestSignOut,
   MeshFetchError,
   type MeshApi,
 } from './slices/estateSlice';
@@ -188,6 +189,79 @@ describe('asking the mesh to run a pass now', () => {
     await store.dispatch(refreshEstate());
 
     expect(store.getState().estate.refresh).toBe('failed');
+  });
+});
+
+describe('ending the session', () => {
+  // jsdom's real navigation throws "Not implemented" — these are the two side effects the thunk
+  // is responsible for triggering, stubbed so the test can observe that it triggered the right one.
+  const originalLocation = window.location;
+  const reload = vi.fn();
+  let href = '';
+
+  beforeEach(() => {
+    href = '';
+    reload.mockClear();
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: {
+        ...originalLocation,
+        reload,
+        set href(value: string) {
+          href = value;
+        },
+        get href() {
+          return href;
+        },
+      },
+    });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, 'location', { configurable: true, value: originalLocation });
+  });
+
+  const withSignOut = (requestSignOutImpl: MeshApi['requestSignOut']) =>
+    createStore(fakeMeshApi({ requestSignOut: requestSignOutImpl }));
+
+  it('sends the browser to the identity provider’s own end-session URL when it answers with one', async () => {
+    const store = withSignOut(async () => ({ redirect: 'https://idp.example.com/end-session' }));
+
+    await store.dispatch(requestSignOut());
+
+    expect(href).toBe('https://idp.example.com/end-session');
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it('reloads instead, for the ordinary non-federated case', async () => {
+    const store = withSignOut(async () => ({}));
+
+    await store.dispatch(requestSignOut());
+
+    expect(reload).toHaveBeenCalledTimes(1);
+    expect(href).toBe('');
+  });
+
+  it('leaves the reader on the page and tells them why, when the sign-out itself fails', async () => {
+    // The browser never left, so the store — not a redirect — is how the reader finds out.
+    const store = withSignOut(async () => {
+      throw new MeshFetchError('401 Unauthorized for /benzene/auth/logout', 401);
+    });
+
+    await store.dispatch(requestSignOut());
+
+    expect(reload).not.toHaveBeenCalled();
+    expect(store.getState().estate.signOut).toBe('failed');
+    expect(store.getState().estate.signOutNote).toBe('401 Unauthorized for /benzene/auth/logout');
+  });
+
+  it('refuses to pretend when no logout endpoint is wired', async () => {
+    const store = createStore(fakeMeshApi());
+
+    await store.dispatch(requestSignOut());
+
+    expect(store.getState().estate.signOut).toBe('failed');
+    expect(store.getState().estate.signOutNote).toBe('This mesh has no sign-out endpoint.');
   });
 });
 

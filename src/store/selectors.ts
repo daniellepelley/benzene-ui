@@ -24,6 +24,7 @@ export const selectRefreshNote = (s: RootState) => s.estate.refreshNote;
 export const selectCanRefresh = (s: RootState) => s.capabilities.refresh;
 /** Where signing out goes, or null when this deployment has no session to end. */
 export const selectLogoutUrl = (s: RootState) => s.capabilities.logoutUrl;
+export const selectSignOutNote = (s: RootState) => s.estate.signOutNote;
 export const selectFilter = (s: RootState) => s.view.filter;
 export const selectPage = (s: RootState) => s.view.page;
 export const selectSelected = (s: RootState) => s.view.selected;

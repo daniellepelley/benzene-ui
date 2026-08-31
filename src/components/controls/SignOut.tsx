@@ -1,28 +1,37 @@
 export interface SignOutProps {
   /**
-   * The host's logout endpoint. Absent — the ordinary local, static-hosting and no-auth case — means
-   * no control at all.
+   * False when the deployment has no logout endpoint — the ordinary local, static-hosting and
+   * no-auth case. Absent rather than disabled: a greyed-out "Sign out" on a mesh that has no
+   * sessions is worse than silence, because it says the deployment has authentication and that it
+   * is broken, and neither is true.
    */
-  url?: string | null;
+  available: boolean;
+  /** What to tell the reader about a failed sign-out. Null while idle. */
+  note?: string | null;
+  onSignOut: () => void;
 }
 
 /**
  * Ending the session, when there is one.
  *
- * An anchor rather than a button, because that is what it is: the host's logout endpoint answers
- * with a redirect, so this navigates. Rendering it as a button with a spinner would dress a page
- * transition up as an operation that can fail, and the reader would be looking at a stale page while
- * the browser was already leaving it.
- *
- * Nothing is rendered without a URL. A greyed-out "Sign out" on a mesh that has no sessions is worse
- * than silence: it says the deployment has authentication and that it is broken, and neither is true.
+ * A button rather than a link: the container's `onSignOut` is a POST behind the CSRF header the
+ * server requires, so it can fail like any other write — an expired session, a network blip, the
+ * host briefly down — and is handled like one, with an inline note rather than a page that silently
+ * stays signed in while claiming otherwise.
  */
-export function SignOut({ url }: SignOutProps) {
-  if (!url) return null;
+export function SignOut({ available, note, onSignOut }: SignOutProps) {
+  if (!available) return null;
 
   return (
-    <a className="bz-signout" href={url} rel="nofollow">
-      Sign out
-    </a>
+    <span className="bz-signout-wrap">
+      <button type="button" className="bz-signout" onClick={onSignOut}>
+        Sign out
+      </button>
+      {note && (
+        <span className="bz-refresh-note" data-tone="bad" role="status">
+          {note}
+        </span>
+      )}
+    </span>
   );
 }

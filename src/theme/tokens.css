@@ -437,7 +437,11 @@ input, select, textarea {
 
 /* ── Session and freshness ─────────────────────────────────────────────────────────────────────
    Both are absent entirely when unconfigured, so neither ever renders as a dead control. */
-.bz-signout { font-size: var(--bz-fs-sm); color: var(--bz-muted); text-decoration: none; }
+.bz-signout-wrap { display: inline-flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; }
+.bz-signout {
+  font: inherit; font-size: var(--bz-fs-sm); color: var(--bz-muted); text-decoration: none;
+  background: none; border: none; padding: 0; cursor: pointer;
+}
 .bz-signout:hover { color: var(--bz-accent); text-decoration: underline; }
 .bz-refresh { display: inline-flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; }
 .bz-refresh-go { font-size: var(--bz-fs-sm); padding: 0.15rem 0.6rem; }
@@ -1090,7 +1094,7 @@ button.bz-stat:focus-visible { outline: 2px solid var(--bz-accent); outline-offs
 @media print {
   .bz-app-head { position: static; }
   .bz-svc, .bz-card, .bz-stat, .bz-issue { box-shadow: none; }
-  .bz-nav, .bz-theme-toggle, .bz-refresh, .bz-signout { display: none; }
+  .bz-nav, .bz-theme-toggle, .bz-refresh, .bz-signout-wrap { display: none; }
   .bz-keyline { break-inside: avoid; }
   /* A section folded shut must say so rather than print as an empty heading. */
   [data-open='false'] .bz-collapsible-body::after {

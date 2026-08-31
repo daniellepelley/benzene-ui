@@ -40,6 +40,14 @@ export class MeshFetchError extends Error {
 /** Where a refresh has got to. `throttled` and `expired` are answers, not errors — see below. */
 export type RefreshState = 'idle' | 'refreshing' | 'throttled' | 'expired' | 'failed';
 
+/**
+ * Where a sign-out has got to. Only two states, unlike {@link RefreshState}: signing out has no
+ * server-side rate limit and no "expired session" answer worth distinguishing — a session that has
+ * already run out signs itself out just fine. It either goes through, in which case the page is
+ * already navigating away and nothing is left to render, or it does not.
+ */
+export type SignOutState = 'idle' | 'failed';
+
 export interface EstateState {
   load: EstateLoadState;
   error: string | null;
@@ -69,6 +77,10 @@ export interface EstateState {
   refresh: RefreshState;
   /** What to tell the reader about the last refresh. Null while idle or in flight. */
   refreshNote: string | null;
+  /** The most recent sign-out attempt. See {@link SignOutState}. */
+  signOut: SignOutState;
+  /** What to tell the reader about a failed sign-out. Null otherwise. */
+  signOutNote: string | null;
 }
 
 const initialState: EstateState = {
@@ -81,6 +93,8 @@ const initialState: EstateState = {
   changed: [],
   refresh: 'idle',
   refreshNote: null,
+  signOut: 'idle',
+  signOutNote: null,
 };
 
 /** How often the published artifacts are re-fetched. */
@@ -198,6 +212,38 @@ export const refreshEstate = createAsyncThunk<
   await Promise.all([dispatch(refreshManifest()), dispatch(loadCatalog())]);
 });
 
+/**
+ * Ends the session.
+ *
+ * The navigation is the point, so it happens here rather than being handed back to a component to
+ * act on: a federated deployment's `redirect` sends the browser to the identity provider's own
+ * end-session URL, and the ordinary case just reloads — either way the page is leaving, and a
+ * component re-rendering from a state change is not the mechanism for that.
+ *
+ * A rejection therefore means the browser never left: the reader is still looking at the page they
+ * clicked "Sign out" on, and needs to be told why.
+ */
+export const requestSignOut = createAsyncThunk<
+  void,
+  void,
+  { extra: MeshApi; rejectValue: string }
+>('estate/requestSignOut', async (_, { extra, rejectWithValue }) => {
+  if (!extra.requestSignOut) {
+    return rejectWithValue('This mesh has no sign-out endpoint.');
+  }
+  let result: { redirect?: string };
+  try {
+    result = await extra.requestSignOut();
+  } catch (error) {
+    return rejectWithValue(error instanceof Error ? error.message : 'Sign out failed');
+  }
+  if (result.redirect) {
+    window.location.href = result.redirect;
+  } else {
+    window.location.reload();
+  }
+});
+
 export interface MeshApi {
   getManifest(): Promise<Manifest>;
   getService(name: string): Promise<ServiceSnapshot>;
@@ -233,6 +279,12 @@ export interface MeshApi {
    * and 401 (the session ran out) apart from a genuine failure.
    */
   requestRefresh?(): Promise<void>;
+  /**
+   * Optional: absent unless the host wired a logout endpoint. Ends the session; resolves with the
+   * identity provider's own end-session `redirect` for a federated deployment, or an empty object
+   * for the ordinary case, in which the caller just reloads.
+   */
+  requestSignOut?(): Promise<{ redirect?: string }>;
 }
 
 const estateSlice = createSlice({
@@ -304,6 +356,16 @@ const estateSlice = createSlice({
         // already on the screen.
         state.refresh = action.payload?.state ?? 'failed';
         state.refreshNote = action.payload?.note ?? action.error.message ?? 'The refresh could not be started.';
+      })
+      .addCase(requestSignOut.pending, (state) => {
+        state.signOut = 'idle';
+        state.signOutNote = null;
+      })
+      // No `.fulfilled` case: success navigates the browser away, and there is no page left to
+      // update the store for.
+      .addCase(requestSignOut.rejected, (state, action) => {
+        state.signOut = 'failed';
+        state.signOutNote = action.payload ?? action.error.message ?? 'Sign out failed';
       });
   },
 });

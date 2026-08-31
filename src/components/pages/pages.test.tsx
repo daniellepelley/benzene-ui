@@ -174,6 +174,20 @@ describe('ServicePage', () => {
 
     expect(screen.getByText(/Connection refused/)).toBeInTheDocument();
   });
+
+  it('says the topics feed could not be read, rather than claiming the service consumes/produces nothing', async () => {
+    // `[]` is the shape of BOTH "this service declares nothing" and "topics.json 503'd" — the same
+    // defect TopicCatalog was already fixed for (selectFeedErrors), left standing on this page because
+    // its Consumes/Produces lists had their own empty-state branch. See TopicList's feedError prop.
+    const store = createStore(fakeMeshApi({ getTopics: async () => { throw new Error('503'); } }));
+    await store.dispatch(loadManifest());
+    await store.dispatch(loadCatalog());
+    show(store, <ServicePage service="orders-api" />);
+
+    expect(screen.queryByText('Consumes nothing.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Produces nothing.')).not.toBeInTheDocument();
+    expect(screen.getAllByText(/could not be read — 503/).length).toBeGreaterThan(0);
+  });
 });
 
 describe('TopicPage', () => {

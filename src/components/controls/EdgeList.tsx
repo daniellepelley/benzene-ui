@@ -11,6 +11,15 @@ export interface EdgeListProps {
   /** Which end of the edge to name — the other end is the service in context. */
   show: 'client' | 'server';
   emptyMessage: string;
+  /**
+   * The topology feed's own read failure, if any (`selectFeedErrors`, feed `'topology'`).
+   *
+   * `edges` is `[]` both when a service genuinely declares no calls in this direction AND when
+   * `topology.json` failed to load. Without this, a 503 on the feed rendered as "Declares no
+   * outbound calls."/"No service declares a call to this one." — an assertion about the SERVICE
+   * built on a fact about the PLUMBING. See `TopicList.feedError` for the sibling fix.
+   */
+  feedError?: string;
   onOpen?: (service: string) => void;
   /** The ticked clock. `mesh.md` §4.2's "last observed at" is only useful with its age beside it. */
   now: number;
@@ -19,8 +28,12 @@ export interface EdgeListProps {
 const rate = (v: number | null | undefined) =>
   v == null ? null : `${(v * 100).toFixed(1)}%`;
 
-export function EdgeList({ edges, show, emptyMessage, onOpen, now }: EdgeListProps) {
-  if (edges.length === 0) return <EmptyState message={emptyMessage} />;
+export function EdgeList({ edges, show, emptyMessage, feedError, onOpen, now }: EdgeListProps) {
+  if (edges.length === 0) {
+    return feedError
+      ? <EmptyState message={feedError} tone="error" />
+      : <EmptyState message={emptyMessage} />;
+  }
 
   const anyMeasured = edges.some((e) => e.requestsPerMinute != null);
 

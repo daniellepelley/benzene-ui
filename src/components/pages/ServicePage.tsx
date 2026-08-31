@@ -7,7 +7,7 @@ import {
   selectObligationsForService, selectComparisonsPublished, selectServiceHasVersionPairs,
   selectRolloutsAwaitedByService, selectUsageWindow, selectMissingFeedsForService,
   selectObservedHealth, selectNow, selectFleetService, selectInstanceCount, selectLiveForService,
-  selectServiceDriftSummary,
+  selectServiceDriftSummary, selectFeedErrors,
 } from '../../store/selectors';
 import { navigated, utilityToggled, failingFlowsToggled, changeServiceFiltered,
 } from '../../store/slices/viewSlice';
@@ -40,6 +40,12 @@ export function ServicePage({ service }: ServicePageProps) {
   const snapshot = useAppSelector((s: RootState) => s.estate.snapshots[service] ?? null);
   const topics = useAppSelector((s: RootState) => selectTopicsForService(s, service));
   const edges = useAppSelector((s: RootState) => selectEdgesForService(s, service));
+  // A service's Consumes/Produces and Calls sections are both `[]` whether it genuinely declares
+  // nothing OR the backing feed 503'd — TopicCatalog already tells the difference for the estate-wide
+  // table; this service's own view needs the same read, not a re-derived one.
+  const feedErrors = useAppSelector(selectFeedErrors);
+  const topicsFeedError = feedErrors.find((e) => e.feed === 'topics')?.message;
+  const topologyFeedError = feedErrors.find((e) => e.feed === 'topology')?.message;
   const liveness = useAppSelector((s: RootState) => selectLiveness(s, service));
   const issues = useAppSelector((s: RootState) => selectIssuesForService(s, service));
   const live = useAppSelector(selectFleetAvailable);
@@ -186,11 +192,11 @@ export function ServicePage({ service }: ServicePageProps) {
         <div className="bz-svc-topics">
           <div>
             <h4>Consumes</h4>
-            <TopicList topics={topics.consumes} emptyMessage="Consumes nothing." onOpen={openTopic} />
+            <TopicList topics={topics.consumes} emptyMessage="Consumes nothing." feedError={topicsFeedError} onOpen={openTopic} />
           </div>
           <div>
             <h4>Produces</h4>
-            <TopicList topics={topics.produces} emptyMessage="Produces nothing." onOpen={openTopic} />
+            <TopicList topics={topics.produces} emptyMessage="Produces nothing." feedError={topicsFeedError} onOpen={openTopic} />
           </div>
         </div>
       </Card>
@@ -202,9 +208,9 @@ export function ServicePage({ service }: ServicePageProps) {
         {/* mesh.md §4: the edge list is the declared graph (`consumes`/`topics`), not trace-derived —
             an empty list means no service has registered the other end, never "nothing observed". */}
         <h4>Outbound</h4>
-        <EdgeList edges={edges.outbound} show="server" emptyMessage="Declares no outbound calls." onOpen={open} now={now} />
+        <EdgeList edges={edges.outbound} show="server" emptyMessage="Declares no outbound calls." feedError={topologyFeedError} onOpen={open} now={now} />
         <h4>Inbound</h4>
-        <EdgeList edges={edges.inbound} show="client" emptyMessage="No service declares a call to this one." onOpen={open} now={now} />
+        <EdgeList edges={edges.inbound} show="client" emptyMessage="No service declares a call to this one." feedError={topologyFeedError} onOpen={open} now={now} />
       </Card>
 
       {/* STATE — everything about this instant, including when the snapshot was taken. That row used

@@ -7,6 +7,16 @@ import { EmptyState } from '../primitives/EmptyState';
 export interface TopicListProps {
   topics: TopicsTopicsItem[];
   emptyMessage: string;
+  /**
+   * The topics feed's own read failure, if any (`selectFeedErrors`, feed `'topics'`).
+   *
+   * `topics` is `[]` both when a service genuinely declares none AND when `topics.json` failed to
+   * load — the aggregator's catalog and this service's slice of it collapse to the same shape either
+   * way. Without this, a 503 on the feed rendered as "Consumes nothing."/"Produces nothing.", an
+   * assertion about the SERVICE built on a fact about the PLUMBING — the same defect `TopicCatalog`
+   * was fixed for, left standing here because this list has its own empty-state branch.
+   */
+  feedError?: string;
   onOpen?: (topic: string, version: string) => void;
 }
 
@@ -16,8 +26,12 @@ const STATUS_LABEL: Record<string, string> = {
   gap: 'gap',
 };
 
-export function TopicList({ topics, emptyMessage, onOpen }: TopicListProps) {
-  if (topics.length === 0) return <EmptyState message={emptyMessage} />;
+export function TopicList({ topics, emptyMessage, feedError, onOpen }: TopicListProps) {
+  if (topics.length === 0) {
+    return feedError
+      ? <EmptyState message={feedError} tone="error" />
+      : <EmptyState message={emptyMessage} />;
+  }
 
   return (
     <ul className="bz-topic-list">

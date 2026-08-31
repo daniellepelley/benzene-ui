@@ -92,3 +92,32 @@ describe('EdgeList — declared vs. observed (mesh.md §4.2)', () => {
     expect(screen.getByText('(24h ago)')).toBeInTheDocument();
   });
 });
+
+/**
+ * `edges` is `[]` both when a service genuinely declares no calls in this direction AND when
+ * `topology.json` itself failed to load — those are opposite facts, one about the service and one
+ * about the plumbing, and `TopicCatalog` already keeps them apart for the estate-wide table. This is
+ * the identical fix for the per-service Calls section, which used to collapse a 503 into "Declares no
+ * outbound calls." — see `Benzene.Mesh.Artifacts.MeshArtifactMiddleware`'s CLAUDE.md for a live case.
+ */
+describe('EdgeList — feed read failure vs a genuine absence', () => {
+  it('renders the feed error, not the empty-message, when the topology feed could not be read', () => {
+    render(
+      <EdgeList edges={[]} show="server" emptyMessage="Declares no outbound calls." feedError="503" now={NOW} />,
+    );
+    expect(screen.queryByText('Declares no outbound calls.')).not.toBeInTheDocument();
+    expect(screen.getByText(/could not be read — 503/)).toBeInTheDocument();
+  });
+
+  it('renders the empty-message when there genuinely are no edges and the feed read fine', () => {
+    render(<EdgeList edges={[]} show="server" emptyMessage="Declares no outbound calls." now={NOW} />);
+    expect(screen.getByText('Declares no outbound calls.')).toBeInTheDocument();
+  });
+
+  it('renders the real edges rather than the feed error once the feed has data', () => {
+    render(
+      <EdgeList edges={[edge({})]} show="server" emptyMessage="none" feedError="503" now={NOW} />,
+    );
+    expect(screen.getByText('payments-api')).toBeInTheDocument();
+  });
+});

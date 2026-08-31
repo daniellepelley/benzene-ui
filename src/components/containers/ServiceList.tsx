@@ -1,7 +1,7 @@
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   selectVisibleServices, ragForStatus, selectVisibleServiceLinks, selectVisibleServiceTopics,
-  selectChangedServices,
+  selectChangedServices, selectFeedErrors,
 } from '../../store/selectors';
 import { serviceToggled, navigated } from '../../store/slices/viewSlice';
 import { ServiceCard } from '../controls/ServiceCard';
@@ -34,6 +34,9 @@ export function ServiceList({ pageUrl = '' }: ServiceListProps = {}) {
   // empty box: the affordance promised detail and delivered nothing, which is worse than no
   // affordance, because a reader concludes the data is missing rather than the control is broken.
   const topics = useAppSelector(selectVisibleServiceTopics);
+  // Same read TopicCatalog already uses: a 503 on topics.json must not render as "Consumes nothing."
+  // on every card in the list, which is the identical claim-built-on-plumbing defect ServicePage had.
+  const topicsFeedError = useAppSelector(selectFeedErrors).find((e) => e.feed === 'topics')?.message;
   const changed = useAppSelector(selectChangedServices);
   const dispatch = useAppDispatch();
 
@@ -60,6 +63,7 @@ export function ServiceList({ pageUrl = '' }: ServiceListProps = {}) {
               <TopicList
                 topics={topics[i]?.consumes ?? []}
                 emptyMessage="Consumes nothing."
+                feedError={topicsFeedError}
                 onOpen={(topic, version) => dispatch(navigated({ page: 'topic', selected: topic, selectedVersion: version }))}
               />
             </div>
@@ -68,6 +72,7 @@ export function ServiceList({ pageUrl = '' }: ServiceListProps = {}) {
               <TopicList
                 topics={topics[i]?.produces ?? []}
                 emptyMessage="Produces nothing."
+                feedError={topicsFeedError}
                 onOpen={(topic, version) => dispatch(navigated({ page: 'topic', selected: topic, selectedVersion: version }))}
               />
             </div>

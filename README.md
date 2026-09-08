@@ -51,7 +51,9 @@ src/
                 MessageComposer · VersionCompatibility · ServiceAbout · ServiceUsage · TopicLiveStrip
                 SpecOperation · SpecSummary
     containers/ ServiceList — the only place a component meets the store
-    pages/      Fleet · Service · Topic · Issue · Compose · Value · Spec
+    pages/      Fleet · Service · Topic · Issue · Value · TestConsole · Changes · Topics · Spec
+                Setup — what the mesh has wired, what it has not, and what is failing (the only
+                place that story is told; the pages themselves stay quiet)
   data/         the mesh HTTP client, injected into the store
   theme/        design tokens
 contracts/      vendored sample artifacts + SPEC_VERSION (codegen input)

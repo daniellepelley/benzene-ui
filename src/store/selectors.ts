@@ -373,7 +373,7 @@ export const selectUsageWindow = createSelector(
  */
 export const selectFeedErrors = createSelector(
   [(s: RootState) => s.catalog.feedErrors],
-  (errors) => Object.entries(errors).map(([feed, message]) => ({ feed, message })),
+  (errors) => Object.entries(errors).map(([feed, error]) => ({ feed, message: error.message, status: error.status })),
 );
 
 /**

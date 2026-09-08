@@ -2,10 +2,10 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   selectTopicsForService, selectEdgesForService, selectLiveness, selectIssuesForService,
   selectFleetAvailable, ragForStatus,
-  selectServiceAbout, selectUsageForService, selectShowUtility, selectFeedHealth,
+  selectServiceAbout, selectUsageForService, selectShowUtility,
   selectFlowsForService, selectFailingFlowsOnly, selectServiceChangeSummary,
   selectObligationsForService, selectComparisonsPublished, selectServiceHasVersionPairs,
-  selectRolloutsAwaitedByService, selectUsageWindow, selectMissingFeedsForService,
+  selectRolloutsAwaitedByService, selectUsageWindow,
   selectObservedHealth, selectNow, selectFleetService, selectInstanceCount, selectLiveForService,
   selectServiceDriftSummary, selectFeedErrors,
 } from '../../store/selectors';
@@ -15,7 +15,6 @@ import { TopicList } from '../controls/TopicList';
 import { EdgeList } from '../controls/EdgeList';
 import { LiveStrip } from '../controls/LiveStrip';
 import { IssueRow } from '../controls/IssueRow';
-import { FeedHealthLine } from '../controls/FeedHealthLine';
 import { FlowList } from '../controls/FlowList';
 import { ServiceAbout, ServiceLiveness } from '../sections/ServiceAbout';
 import { ServiceLiveStrip } from '../sections/ServiceLiveStrip';
@@ -56,15 +55,14 @@ export function ServicePage({ service }: ServicePageProps) {
   const about = useAppSelector((s: RootState) => selectServiceAbout(s, service));
   const usage = useAppSelector((s: RootState) => selectUsageForService(s, service));
   const usageWindow = useAppSelector(selectUsageWindow);
-  // Feeds the collector has DECLARED it cannot supply for this service. Read at topic grain and
-  // ignored here, so a service whose collector said `["health","usage"]` rendered "Heartbeat
-  // healthy", "9.8k messages observed" and "● No issues observed" — three positive assertions built
-  // on feeds the plane had just said it does not have.
-  const missingFeeds = useAppSelector((s: RootState) => selectMissingFeedsForService(s, service));
+  // Feeds the collector has DECLARED it cannot supply for this service are no longer a banner
+  // here: each strip below already reads "not supplied by this plane" in place, and the service's
+  // row on the Setup page names them beside every other service's. What stays on this page is
+  // what is TRUE of the service, not what is missing from the mesh.
   // What the LIVE plane says, which is a fresher source than the manifest and was read by nothing.
   const observedHealth = useAppSelector((s: RootState) => selectObservedHealth(s, service));
   const showUtility = useAppSelector(selectShowUtility);
-  const feedHealth = useAppSelector(selectFeedHealth);
+  const openSetup = () => dispatch(navigated({ page: 'setup' }));
   const flows = useAppSelector((s: RootState) => selectFlowsForService(s, service));
   const failingOnly = useAppSelector(selectFailingFlowsOnly);
   const contractChanges = useAppSelector((s: RootState) => selectServiceChangeSummary(s, service));
@@ -144,17 +142,6 @@ export function ServicePage({ service }: ServicePageProps) {
         actions={live ? <LiveStrip liveness={liveness} issueCount={issues.reduce((n, i) => n + i.count, 0)} diverged={entry.status === 'healthy' && liveness === 'stale'} /> : undefined}
       />
 
-      <FeedHealthLine health={feedHealth} />
-
-      {/* The plane's own admission, at the top, before anything it governs. */}
-      {missingFeeds.length > 0 && (
-        <p className="bz-feed-health" data-kind="degraded">
-          The collector reports no <strong>{missingFeeds.join(', ')}</strong>{' '}
-          {missingFeeds.length === 1 ? 'feed' : 'feeds'} for this service, so anything below that
-          would come from {missingFeeds.length === 1 ? 'it' : 'them'} is unknown rather than absent.
-        </p>
-      )}
-
       {/* Two planes, one question, and they can disagree. The manifest is a snapshot and the plane is
           now, so the reader is told BOTH rather than handed a merged verdict with the disagreement
           hidden — a service declaring healthy while the collector calls it unreachable is a finding,
@@ -192,11 +179,11 @@ export function ServicePage({ service }: ServicePageProps) {
         <div className="bz-svc-topics">
           <div>
             <h4>Consumes</h4>
-            <TopicList topics={topics.consumes} emptyMessage="Consumes nothing." feedError={topicsFeedError} onOpen={openTopic} />
+            <TopicList topics={topics.consumes} emptyMessage="Consumes nothing." feedError={topicsFeedError} onSetup={openSetup} onOpen={openTopic} />
           </div>
           <div>
             <h4>Produces</h4>
-            <TopicList topics={topics.produces} emptyMessage="Produces nothing." feedError={topicsFeedError} onOpen={openTopic} />
+            <TopicList topics={topics.produces} emptyMessage="Produces nothing." feedError={topicsFeedError} onSetup={openSetup} onOpen={openTopic} />
           </div>
         </div>
       </Card>
@@ -208,9 +195,9 @@ export function ServicePage({ service }: ServicePageProps) {
         {/* mesh.md §4: the edge list is the declared graph (`consumes`/`topics`), not trace-derived —
             an empty list means no service has registered the other end, never "nothing observed". */}
         <h4>Outbound</h4>
-        <EdgeList edges={edges.outbound} show="server" emptyMessage="Declares no outbound calls." feedError={topologyFeedError} onOpen={open} now={now} />
+        <EdgeList edges={edges.outbound} show="server" emptyMessage="Declares no outbound calls." feedError={topologyFeedError} onSetup={openSetup} onOpen={open} now={now} />
         <h4>Inbound</h4>
-        <EdgeList edges={edges.inbound} show="client" emptyMessage="No service declares a call to this one." feedError={topologyFeedError} onOpen={open} now={now} />
+        <EdgeList edges={edges.inbound} show="client" emptyMessage="No service declares a call to this one." feedError={topologyFeedError} onSetup={openSetup} onOpen={open} now={now} />
       </Card>
 
       {/* STATE — everything about this instant, including when the snapshot was taken. That row used
@@ -237,6 +224,7 @@ export function ServicePage({ service }: ServicePageProps) {
           usage={usage}
           showUtility={showUtility}
           onToggleUtility={() => dispatch(utilityToggled())}
+          onSetup={openSetup}
         />
         {live && (
           <>

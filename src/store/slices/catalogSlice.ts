@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import type { MeshApi } from './estateSlice';
+import { MeshFetchError, type MeshApi } from './estateSlice';
 import type { Topics, Topology, Usage } from '../../contracts';
 import type { LoadState } from './estateSlice';
 
@@ -31,7 +31,22 @@ export interface CatalogState {
    * The live plane already gets this right ("live plane unreachable — no successful poll yet;
    * retrying"). This is the static half held to the same standard.
    */
-  feedErrors: Record<string, string>;
+  feedErrors: Record<string, FeedError>;
+}
+
+/**
+ * Why an artifact could not be read.
+ *
+ * The status travels with the message because it is what tells "this aggregator does not publish
+ * usage.json" (a 404 — a deployment that has not wired a usage source, which is ordinary and not a
+ * fault) apart from "usage.json is broken" (a 500, a refused connection, a body that will not
+ * parse). The Setup page files the first under *not wired* and the second under *failing*, and
+ * only the second is something a person has to go and fix. Null when the failure never got an HTTP
+ * answer at all.
+ */
+export interface FeedError {
+  message: string;
+  status: number | null;
 }
 
 const initialState: CatalogState = {
@@ -45,12 +60,15 @@ const initialState: CatalogState = {
 
 /** Reads one artifact, keeping the REASON a read failed rather than collapsing it to absence. */
 async function read<T>(
-  name: string, fetchIt: () => Promise<T>, errors: Record<string, string>,
+  name: string, fetchIt: () => Promise<T>, errors: Record<string, FeedError>,
 ): Promise<T | null> {
   try {
     return await fetchIt();
   } catch (e) {
-    errors[name] = e instanceof Error ? e.message : String(e);
+    errors[name] = {
+      message: e instanceof Error ? e.message : String(e),
+      status: e instanceof MeshFetchError ? e.status : null,
+    };
     return null;
   }
 }
@@ -58,7 +76,7 @@ async function read<T>(
 export const loadCatalog = createAsyncThunk<
   {
     topics: Topics | null; topology: Topology | null; usage: Usage | null;
-    feedErrors: Record<string, string>;
+    feedErrors: Record<string, FeedError>;
   },
   void,
   { extra: MeshApi }
@@ -66,7 +84,7 @@ export const loadCatalog = createAsyncThunk<
   // Settled, not all: an aggregator may publish topics without usage if no usage source is wired.
   // One missing artifact must not blank the other two — but "missing" and "unreadable" are recorded
   // separately, because only one of them is a statement about the estate.
-  const feedErrors: Record<string, string> = {};
+  const feedErrors: Record<string, FeedError> = {};
   const [topics, topology, usage] = await Promise.all([
     read('topics', () => extra.getTopics(), feedErrors),
     read('topology', () => extra.getTopology(), feedErrors),

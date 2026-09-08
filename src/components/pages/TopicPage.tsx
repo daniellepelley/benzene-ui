@@ -249,6 +249,7 @@ export function TopicPage({ topic }: TopicPageProps) {
             number — one derived it from a call rate and was out by a factor of twelve. */}
         <UsagePanel
           traffic={traffic}
+          onSetup={() => dispatch(navigated({ page: 'setup' }))}
           entries={usageRows}
           windowLabel={usageWindow
             ? (

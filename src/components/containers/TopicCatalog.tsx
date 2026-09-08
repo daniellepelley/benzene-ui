@@ -187,8 +187,9 @@ export function TopicCatalog() {
             // problem across five services when the real answer was a 403 on one URL.
             topicsFeedError ? (
               <EmptyState
-                message={`The topic catalogue could not be read (${topicsFeedError}), so what this estate publishes is unknown.`}
+                message="The topic catalogue could not be read, so what this estate publishes is unknown."
                 tone="unknown"
+                action={{ label: 'See Setup', onClick: () => dispatch(navigated({ page: 'setup' })) }}
               />
             ) : (
               <EmptyState

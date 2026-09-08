@@ -18,10 +18,15 @@ const t = (over: Partial<TopicsTopicsItem>): TopicsTopicsItem =>
  * feed.
  */
 describe('TopicList — feed read failure vs a genuine absence', () => {
-  it('renders the feed error, not the empty-message, when the topics feed could not be read', () => {
-    render(<TopicList topics={[]} emptyMessage="Consumes nothing." feedError="503" />);
+  it('renders unknown, not the empty-message, when the topics feed could not be read', () => {
+    // The error text itself is deliberately NOT here — a 503 on every card is the plumbing shouting
+    // over the estate. The list says the answer is unknown; the Setup page says why.
+    render(<TopicList topics={[]} emptyMessage="Consumes nothing." feedError="503" onSetup={() => {}} />);
     expect(screen.queryByText('Consumes nothing.')).not.toBeInTheDocument();
-    expect(screen.getByText(/could not be read — 503/)).toBeInTheDocument();
+    expect(screen.queryByText(/503/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Unknown — the topics feed could not be read/).closest('.bz-empty'))
+      .toHaveAttribute('data-tone', 'unknown');
+    expect(screen.getByRole('button', { name: 'See Setup' })).toBeInTheDocument();
   });
 
   it('renders the empty-message when there genuinely are no topics and the feed read fine', () => {

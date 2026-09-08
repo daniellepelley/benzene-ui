@@ -2,7 +2,7 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   selectEstateSummary, selectDivergences, selectIssueSummary, selectFleetAvailable,
   selectInboxIssues, selectFilter, selectVisibleServices, selectEstateVerdict,
-  selectChangeSummary, selectRollouts, selectFeedErrors, selectNeverHeartbeated, selectFeedHealth,
+  selectChangeSummary, selectRollouts, selectNeverHeartbeated, selectFeedHealth,
   selectUndeclaredServices, selectMultiInstanceServices,
 } from '../../store/selectors';
 import {
@@ -45,7 +45,6 @@ export function FleetPage() {
   // mid-migration with a named blocker is. Ranked by the same rule as the Rollouts screen, so the
   // five here are the same five at the top there.
   const rollouts = useAppSelector(selectRollouts);
-  const feedErrors = useAppSelector(selectFeedErrors);
   // Wired but not answering is the case that matters: no collector at all is not a gap in knowledge.
   const liveWired = useAppSelector(selectFeedHealth) != null;
   const neverHeartbeated = useAppSelector(selectNeverHeartbeated);
@@ -102,9 +101,12 @@ export function FleetPage() {
    * services exist, and that is a different question from whether they are up.
    */
   const healthUnknown = liveWired && !liveAvailable;
+  const openSetup = () => dispatch(navigated({ page: 'setup' }));
+  // Uncomputed, and it says so — but the REASON is one click away on Setup rather than a clause
+  // on the tile. The tile keeps its honesty (a dash, never a zero) and loses its prose.
   const healthTile = (key: string, value: number, label: string, rag: Rag) =>
     (healthUnknown
-      ? { key, value: 0, label, placeholder: '—', note: 'not computed — the live plane is not answering' }
+      ? { key, value: 0, label, placeholder: '—', note: 'not computed', onClick: openSetup }
       : { key, value, label, rag });
 
   const stats = [
@@ -144,21 +146,11 @@ export function FleetPage() {
 
   return (
     <div className="bz-page">
-      {/* NAMED, and in the chrome. An artifact the UI could not read is a fact about the plumbing,
-          not about the estate, and until this line existed the only way to discover a 404 on
-          topics.json was to open the browser console — the page itself said no service had declared
-          a topic. The live plane has said "unreachable — retrying" since round 2; this is the static
-          half held to the same standard. */}
-      {feedErrors.length > 0 && (
-        <p className="bz-feed-health" data-kind="bad">
-          {feedErrors.map((e) => (
-            <span key={e.feed}>
-              <strong>{e.feed}</strong> could not be read ({e.message}) — anything derived from it is
-              unknown, not empty.
-            </span>
-          ))}
-        </p>
-      )}
+      {/* No feed-error banner here any more. An artifact the UI could not read is a fact about the
+          PLUMBING, not the estate — which is exactly why it no longer sits above the estate's
+          verdict. Every section fed by an unreadable artifact still says "unknown" rather than
+          "none" (that honesty stayed), and the reason — the status, the URL — is the feed's row on
+          the Setup page, counted into the nav badge. */}
 
       {/* THE VERDICT, at full volume, above the numbers it summarises. The page's owned question is
           "what state is the estate in, and what should I look at first?" and nothing on it answered

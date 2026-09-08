@@ -101,12 +101,14 @@ describe('EdgeList — declared vs. observed (mesh.md §4.2)', () => {
  * outbound calls." — see `Benzene.Mesh.Artifacts.MeshArtifactMiddleware`'s CLAUDE.md for a live case.
  */
 describe('EdgeList — feed read failure vs a genuine absence', () => {
-  it('renders the feed error, not the empty-message, when the topology feed could not be read', () => {
+  it('renders unknown, not the empty-message, when the topology feed could not be read', () => {
     render(
       <EdgeList edges={[]} show="server" emptyMessage="Declares no outbound calls." feedError="503" now={NOW} />,
     );
     expect(screen.queryByText('Declares no outbound calls.')).not.toBeInTheDocument();
-    expect(screen.getByText(/could not be read — 503/)).toBeInTheDocument();
+    expect(screen.queryByText(/503/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Unknown — the topology feed could not be read/).closest('.bz-empty'))
+      .toHaveAttribute('data-tone', 'unknown');
   });
 
   it('renders the empty-message when there genuinely are no edges and the feed read fine', () => {

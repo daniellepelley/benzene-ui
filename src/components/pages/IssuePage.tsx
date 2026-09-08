@@ -22,8 +22,15 @@ export function IssuePage({ selected }: IssuePageProps) {
   const now = useAppSelector(selectNow);
 
   if (!available) {
-    // No collector is not an empty inbox — saying "no issues" would be a lie of omission.
-    return <EmptyState message="No collector is wired, so no issues have been observed. This is not the same as there being none." tone="unknown" />;
+    // No collector is not an empty inbox — saying "no issues" would be a lie of omission. The
+    // sentence stays (this page has nothing else to be), and the way to the reason goes with it.
+    return (
+      <EmptyState
+        message="No collector is wired, so no issues have been observed. This is not the same as there being none."
+        tone="unknown"
+        action={{ label: 'See Setup', onClick: () => dispatch(navigated({ page: 'setup' })) }}
+      />
+    );
   }
 
   if (selected !== 'all') {

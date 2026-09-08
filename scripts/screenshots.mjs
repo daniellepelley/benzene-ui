@@ -76,6 +76,9 @@ const PAGES = [
   { name: 'service', path: '/#service/payments-api' },
   { name: 'topic', path: '/#topic/payment%3Acapture' },
   { name: 'value', path: '/#value' },
+  // The one page about the mesh rather than the estate. Against the static fixtures it shows the
+  // partial-mesh shape the page exists for: a catalog, no live plane, no dispatch — and no badge.
+  { name: 'setup', path: '/#setup' },
   { name: 'spec', path: '/mesh-spec-ui.html?service=orders-api&mesh=/', click: '.bz-op-head' },
   // Dark declared through `data-theme` rather than the OS. It is a second copy of the dark token
   // block, so it is the one that can silently drift into a half-dark page; the run above with

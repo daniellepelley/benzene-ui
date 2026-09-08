@@ -18,8 +18,10 @@ describe('an unreadable feed is never reported as an empty estate', () => {
     }));
     await store.dispatch(loadCatalog());
 
+    // A plain Error carries no HTTP status; a MeshFetchError would (see setup.test.ts, where the
+    // status is what files a 404 as "not wired" and everything else as "failing").
     expect(selectFeedErrors(store.getState())).toEqual([
-      { feed: 'topics', message: '404 Not Found' },
+      { feed: 'topics', message: '404 Not Found', status: null },
     ]);
   });
 

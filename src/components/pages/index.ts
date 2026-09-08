@@ -7,3 +7,4 @@ export * from './ValuePage';
 export * from './ChangesPage';
 export * from './SpecPage';
 export * from './TestConsolePage';
+export * from './SetupPage';

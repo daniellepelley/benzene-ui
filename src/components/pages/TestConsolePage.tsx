@@ -210,6 +210,7 @@ export function TestConsolePage({ service, topic }: TestConsolePageProps) {
           onBody={(b) => dispatch(bodyEdited(b))}
           onHeaders={(h) => dispatch(headersEdited(h))}
           onConfirmToggle={() => dispatch(sendConfirmationToggled())}
+          onSetup={() => dispatch(navigated({ page: 'setup' }))}
           {...(canSendMessages
             ? {
                 onSend: () =>

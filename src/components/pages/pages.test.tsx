@@ -186,7 +186,8 @@ describe('ServicePage', () => {
 
     expect(screen.queryByText('Consumes nothing.')).not.toBeInTheDocument();
     expect(screen.queryByText('Produces nothing.')).not.toBeInTheDocument();
-    expect(screen.getAllByText(/could not be read — 503/).length).toBeGreaterThan(0);
+    // Unknown, not the error text: the 503 itself is the feed's row on the Setup page.
+    expect(screen.getAllByText(/Unknown — the topics feed could not be read/).length).toBeGreaterThan(0);
   });
 });
 
@@ -273,7 +274,7 @@ describe('the Test Console, entered from a topic', () => {
     // fakeMeshApi has no sendMessage, so `capabilities.invoke` is false and the composer says why
     // rather than rendering a button that cannot work.
     expect(screen.queryByRole('button', { name: 'Send' })).not.toBeInTheDocument();
-    expect(screen.getByText(/no invoke endpoint configured/)).toBeInTheDocument();
+    expect(screen.getByText(/Dispatch is not wired/)).toBeInTheDocument();
   });
 
   it('offers Send, disabled, when the mesh advertises an invoke endpoint but sending is unconfirmed', async () => {

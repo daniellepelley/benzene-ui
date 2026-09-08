@@ -33,7 +33,15 @@ export function ValuePage() {
         lede={
           view.feedWired
             ? 'What the estate could retire, and the evidence for each case — structural plus observed usage, candidates first.'
-            : "What the estate could retire. Structural evidence only: no usage feed is wired, so “unused” cannot be proven here."
+            : (
+              <>
+                What the estate could retire. Structural evidence only: no usage feed is wired, so
+                “unused” cannot be proven here.{' '}
+                <button type="button" className="bz-link" onClick={() => dispatch(navigated({ page: 'setup' }))}>
+                  See Setup
+                </button>
+              </>
+            )
         }
         actions={
           <button type="button" onClick={() => dispatch(utilityToggled())}>

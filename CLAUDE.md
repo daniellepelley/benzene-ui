@@ -25,7 +25,7 @@ actions and assert on output, never simulate clicks to drive state.
 `dist/index.html` inlines all JS and CSS and makes **zero external requests**. `Benzene.Mesh.Ui`
 embeds it and serves it from inside a running service — no CDN, no static hosting. CI asserts this.
 Consequences: no code splitting, no dynamic import, no runtime CDN anything, and bundle size is a
-budget (currently ~349 KB for the mesh UI — grown stepwise from 250 KB as the Test Console, schema agreement and dispatch landed — and
+budget (currently ~374 KB for the mesh UI — grown stepwise from 250 KB as the Test Console, schema agreement, dispatch and the Setup page landed — and
 218 KB for the spec viewer, against the 274 KB and 955-line hand-written pages they replace).
 
 ## The collector is a Benzene service, not a REST API
@@ -123,6 +123,12 @@ A dashboard that overclaims is worse than none. These distinctions are deliberat
 - a produced version nothing consumes is a prompt to confirm an upcaster exists, not a proven break
 - "unused" is never claimed without a usage feed; the value view degrades to structural evidence and
   says so
+- **what is NOT WIRED is said once, on the Setup page (`#setup`, `store/setup.ts`) — never as a
+  banner on the pages.** A mesh works on the subset it has: a page renders only what it can stand
+  behind (an unwired feed still reads *unknown*, never zero, and offers "See Setup"), and the chrome
+  carries one number — the wiring that is *failing* or *degraded* — never a sentence. "Not wired" is
+  listed on Setup but never counted into that number; it is the ordinary shape of a partial mesh.
+  Adding a "no X is wired" paragraph to a page is a regression, not a courtesy.
 
 ## Do NOT
 

@@ -17,6 +17,12 @@ export interface TopicListProps {
    * was fixed for, left standing here because this list has its own empty-state branch.
    */
   feedError?: string;
+  /**
+   * Where the reader goes to see WHY the feed could not be read. The raw error is deliberately not
+   * rendered here — a 503 and a URL on every card of every service is the plumbing shouting over
+   * the estate — so the list says only that the answer is unknown, and offers the way to the reason.
+   */
+  onSetup?: () => void;
   onOpen?: (topic: string, version: string) => void;
 }
 
@@ -26,10 +32,18 @@ const STATUS_LABEL: Record<string, string> = {
   gap: 'gap',
 };
 
-export function TopicList({ topics, emptyMessage, feedError, onOpen }: TopicListProps) {
+export function TopicList({ topics, emptyMessage, feedError, onSetup, onOpen }: TopicListProps) {
   if (topics.length === 0) {
+    // Unknown, not "nothing": the feed behind this list could not be read, so the honest answer is
+    // neither the empty message nor the error text — it is that nobody can say, and where to look.
     return feedError
-      ? <EmptyState message={feedError} tone="error" />
+      ? (
+        <EmptyState
+          message="Unknown — the topics feed could not be read."
+          tone="unknown"
+          action={onSetup ? { label: 'See Setup', onClick: onSetup } : undefined}
+        />
+      )
       : <EmptyState message={emptyMessage} />;
   }
 

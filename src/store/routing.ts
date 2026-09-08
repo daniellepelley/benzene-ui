@@ -39,6 +39,7 @@ const STANDALONE: Record<string, Page> = {
   '#value': 'retire',
   '#changes': 'changes',
   '#test': 'test',
+  '#setup': 'setup',
 };
 
 /** The `test` page's prefix, kept out of `PREFIX` because its entity is a pair, not a single string. */
@@ -126,6 +127,7 @@ export function toHash(
   if (page === 'retire') return '#retire';
   if (page === 'topics') return '#topics';
   if (page === 'changes') return '#changes';
+  if (page === 'setup') return '#setup';
   if (page === 'test') {
     // A partially-filled console is its own page, not the estate. Returning '#fleet' here used to
     // make the copy promising "service and topic are both in the URL" false until both were chosen,

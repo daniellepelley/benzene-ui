@@ -6,6 +6,8 @@ import { EmptyState } from '../primitives/EmptyState';
 
 export interface UsagePanelProps {
   traffic: TopicTraffic;
+  /** Where the "no usage source" state leads: the Setup page, which says what wiring it needs. */
+  onSetup?: () => void;
   /**
    * The rows behind the totals, for the per-transport breakdown.
    *
@@ -35,9 +37,15 @@ export interface UsagePanelProps {
  * that IS being measured is a real finding — a deprecation candidate. Zero because nothing is
  * measuring is not a finding at all, and showing them identically is how a dashboard invents work.
  */
-export function UsagePanel({ traffic, entries = [], windowLabel, version = null }: UsagePanelProps) {
+export function UsagePanel({ traffic, entries = [], windowLabel, version = null, onSetup }: UsagePanelProps) {
   if (!traffic.observed) {
-    return <EmptyState message="No usage source is wired, so traffic for this topic is unknown." tone="unknown" />;
+    return (
+      <EmptyState
+        message="No usage source is wired, so traffic for this topic is unknown."
+        tone="unknown"
+        action={onSetup ? { label: 'See Setup', onClick: onSetup } : undefined}
+      />
+    );
   }
 
   // Wired, and it reported nothing for this topic. That is a measurement, not an absence of one, and

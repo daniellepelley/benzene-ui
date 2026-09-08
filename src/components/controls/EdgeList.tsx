@@ -20,6 +20,8 @@ export interface EdgeListProps {
    * built on a fact about the PLUMBING. See `TopicList.feedError` for the sibling fix.
    */
   feedError?: string;
+  /** Where the reason lives. See `TopicList.onSetup` — the error text itself is not rendered here. */
+  onSetup?: () => void;
   onOpen?: (service: string) => void;
   /** The ticked clock. `mesh.md` §4.2's "last observed at" is only useful with its age beside it. */
   now: number;
@@ -28,10 +30,16 @@ export interface EdgeListProps {
 const rate = (v: number | null | undefined) =>
   v == null ? null : `${(v * 100).toFixed(1)}%`;
 
-export function EdgeList({ edges, show, emptyMessage, feedError, onOpen, now }: EdgeListProps) {
+export function EdgeList({ edges, show, emptyMessage, feedError, onSetup, onOpen, now }: EdgeListProps) {
   if (edges.length === 0) {
     return feedError
-      ? <EmptyState message={feedError} tone="error" />
+      ? (
+        <EmptyState
+          message="Unknown — the topology feed could not be read."
+          tone="unknown"
+          action={onSetup ? { label: 'See Setup', onClick: onSetup } : undefined}
+        />
+      )
       : <EmptyState message={emptyMessage} />;
   }
 

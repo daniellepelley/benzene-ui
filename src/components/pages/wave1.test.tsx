@@ -93,13 +93,14 @@ describe('the estate answers its own question', () => {
 });
 
 describe('every screen is reachable', () => {
-  it('offers six destinations, including the two that had no route', async () => {
+  it('offers six estate destinations plus Setup, including the two that had no route', async () => {
     const store = await loaded();
     show(store, <App />);
 
     const nav = document.querySelector('.bz-nav')!;
     const labels = [...nav.querySelectorAll('button')].map((b) => b.textContent);
-    expect(labels).toEqual(['Estate', 'Topics', 'Changes', 'Issues', 'Retire', 'Test']);
+    // Setup is the seventh and is about the mesh rather than the estate — see store/setup.ts.
+    expect(labels).toEqual(['Estate', 'Topics', 'Changes', 'Issues', 'Retire', 'Test', 'Setup']);
   });
 
   it('routes Topics, which had no hash at all', () => {
@@ -259,15 +260,15 @@ describe('the topic page tells "what changed" once', () => {
 });
 
 describe('which estate is on screen', () => {
-  it('says the environment is not published rather than guessing "dev"', async () => {
+  it('renders no environment chip rather than guessing "dev" — the absence is stated on Setup', async () => {
     // An unlabelled production mesh rendering "dev" is the single most dangerous thing this could
-    // do, so the absent case is stated, never defaulted.
+    // do, so the absent case is never defaulted. It is no longer nagged about on every screen
+    // either: the chrome shows nothing, and the Setup page's "Environment label" row says why.
     const store = await loaded();
     show(store, <App />);
 
-    const chip = document.querySelector('.bz-app-env')!;
-    expect(chip.textContent).toBe('environment not published');
-    expect(chip.getAttribute('data-known')).toBeNull();
+    expect(document.querySelector('.bz-app-env')).toBeNull();
+    expect(screen.queryByText('environment not published')).not.toBeInTheDocument();
   });
 
   it('renders the label the deployment declared, and marks production', async () => {

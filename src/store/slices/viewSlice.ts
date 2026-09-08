@@ -3,7 +3,10 @@ import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 // `compose` is gone: it was the Test Console entered from a topic rather than a page of its own
 // (mesh-ui-aims.md §3). `value` is now `retire` — "value" was the product's internal word for the
 // question a reader actually arrives with, which is "what could we retire?".
-export type Page = 'fleet' | 'service' | 'topic' | 'issue' | 'topics' | 'retire' | 'test' | 'changes';
+// `setup` is the one page about the MESH rather than about the estate: what this deployment has
+// wired, what it has not, and what is failing — so that story lives in one place instead of being
+// scattered across every surface as a banner (see store/setup.ts).
+export type Page = 'fleet' | 'service' | 'topic' | 'issue' | 'topics' | 'retire' | 'test' | 'changes' | 'setup';
 
 /**
  * View state lives here, not in components.

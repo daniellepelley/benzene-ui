@@ -413,8 +413,11 @@ input, select, textarea {
 
 /* ── App shell ─────────────────────────────────────────────────────────────────────────────── */
 .bz-app { max-width: 1100px; margin: 0 auto; padding: 1.25rem clamp(18px, 4vw, 44px) 4rem; }
+/* One line at desktop width. With `wrap`, flex lays items out at their content width and wraps
+   BEFORE any item shrinks, so the shrinkable stamp below never got to shrink and the tools dropped
+   to a second line the moment the nav gained a badge. Narrow screens re-enable wrapping. */
 .bz-app-head {
-  display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+  display: flex; align-items: center; gap: 0.6rem; flex-wrap: nowrap;
   padding-bottom: 0.75rem; border-bottom: 1px solid var(--bz-border); margin-bottom: 1.25rem;
   position: sticky; top: 0; z-index: 40; background: var(--bz-bg); padding-top: 0.75rem;
 }
@@ -703,7 +706,14 @@ input, select, textarea {
 
 /* The header carries provenance, not just chrome — and stays put, because the worst-status mark is
    the one thing a reader checks on arrival and it must not scroll away. */
-.bz-app-meta { font-family: var(--bz-mono); font-size: var(--bz-fs-2xs); color: var(--bz-muted); padding-left: 0.75rem; border-left: 1px solid var(--bz-border); }
+/* The stamp is the header's one shrinkable item: when the nav grows (a Setup badge, a long
+   environment label) it gives way with an ellipsis rather than pushing the tools onto a second
+   line, which is what happened the first time the nav gained a seventh button. */
+.bz-app-meta {
+  font-family: var(--bz-mono); font-size: var(--bz-fs-2xs); color: var(--bz-muted);
+  padding-left: 0.75rem; border-left: 1px solid var(--bz-border);
+  flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 
 /* ── Tables ────────────────────────────────────────────────────────────────────────────────────
    For data a reader compares down a column. Numbers are right-aligned with tabular figures, and
@@ -1136,3 +1146,67 @@ button.bz-stat:focus-visible { outline: 2px solid var(--bz-accent); outline-offs
 .bz-agreement-what { font-family: var(--bz-mono); font-size: var(--bz-fs-2xs); color: var(--bz-fg); }
 .bz-agreement-variants li[data-absent='true'] .bz-agreement-what { color: var(--bz-muted); font-style: italic; }
 .bz-agreement-who { font-size: var(--bz-fs-2xs); color: var(--bz-muted); }
+
+/* ── Setup ──────────────────────────────────────────────────────────────────────────────────────
+   The one page about the mesh rather than the estate. Every "this is not wired" sentence the
+   product used to scatter across its screens lives here instead, so the pages can go quiet. The
+   nav badge counts only what needs a person (failing, degraded); "not wired" is listed, never
+   counted — it is the ordinary shape of a partial mesh. */
+.bz-nav-badge {
+  display: inline-block; min-width: 1.1rem; margin-left: 0.35rem; padding: 0 0.3rem;
+  border-radius: 999px; font-size: var(--bz-fs-3xs); font-weight: 700; line-height: 1.5;
+  font-variant-numeric: tabular-nums; text-align: center; vertical-align: 1px;
+  background: var(--bz-rag-amber-bg); color: var(--bz-rag-amber);
+}
+.bz-nav-badge[data-worst='failing'] { background: var(--bz-rag-red-bg); color: var(--bz-rag-red); }
+.bz-nav button[aria-current='page'] .bz-nav-badge { background: var(--bz-accent-contrast); color: var(--bz-accent); }
+/* Setup sits apart from the six estate destinations: it is a different kind of page. */
+.bz-nav button[data-setup] { margin-left: 0.25rem; }
+
+.bz-setup-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+.bz-setup-item {
+  padding: var(--bz-pad-compact); border: 1px solid var(--bz-border); border-radius: var(--bz-radius);
+  background: var(--bz-surface); box-shadow: var(--bz-shadow);
+}
+.bz-setup-item[data-state='failing']  { border-color: var(--bz-rag-red); }
+.bz-setup-item[data-state='degraded'] { border-color: var(--bz-rag-amber); }
+/* Not wired is quiet by design — dashed, like an `unknown` empty, because it is the same family. */
+.bz-setup-item[data-state='off']      { border-style: dashed; }
+.bz-setup-item-head { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+.bz-setup-item-head h3 { margin: 0; font-size: var(--bz-fs-md); }
+.bz-setup-detail { color: var(--bz-muted); font-size: var(--bz-fs-sm); }
+.bz-setup-item[data-state='failing'] .bz-setup-detail { color: var(--bz-rag-red); }
+.bz-setup-item[data-state='degraded'] .bz-setup-detail { color: var(--bz-rag-amber); }
+.bz-setup-item-body {
+  display: grid; grid-template-columns: max-content 1fr; gap: 0.15rem 0.75rem;
+  margin: 0.45rem 0 0; font-size: var(--bz-fs-xs); color: var(--bz-muted);
+}
+.bz-setup-item-body dt { text-transform: uppercase; letter-spacing: 0.06em; font-size: var(--bz-fs-3xs); padding-top: 2px; }
+.bz-setup-item-body dd { margin: 0; }
+
+.bz-setup-services td { vertical-align: top; }
+.bz-setup-service { font-family: var(--bz-mono); text-decoration: none; color: var(--bz-fg); }
+.bz-setup-service:hover { text-decoration: underline; color: var(--bz-accent); }
+.bz-setup-mark { display: inline-block; min-width: 1.1rem; text-align: center; font-weight: 700; }
+.bz-setup-mark[data-mark='yes']     { color: var(--bz-rag-green); }
+.bz-setup-mark[data-mark='no']      { color: var(--bz-rag-amber); }
+.bz-setup-mark[data-mark='off']     { color: var(--bz-muted); font-weight: 400; }
+.bz-setup-mark[data-mark='unknown'] { color: var(--bz-muted); }
+.bz-setup-qualifier { margin-left: 0.4rem; font-size: var(--bz-fs-2xs); color: var(--bz-muted); }
+.bz-setup-hints { max-width: 28rem; font-size: var(--bz-fs-xs); color: var(--bz-muted); }
+.bz-setup-hints p { margin: 0 0 0.25rem; }
+.bz-setup-legend { margin: 0.5rem 0 0; font-size: var(--bz-fs-2xs); color: var(--bz-muted); display: flex; gap: 0.35rem 0.9rem; flex-wrap: wrap; }
+.bz-setup-legend span { font-weight: 700; margin-right: 0.25rem; }
+.bz-setup-legend span[data-mark='yes'] { color: var(--bz-rag-green); }
+.bz-setup-legend span[data-mark='no']  { color: var(--bz-rag-amber); }
+.bz-setup-legend span[data-mark='off'], .bz-setup-legend span[data-mark='unknown'] { color: var(--bz-muted); }
+
+/* Below a laptop width the header has to wrap — a two-line header beats a horizontally scrolling
+   one — and the stamp comes back to full width so it is not an ellipsis on a line of its own. */
+@media (max-width: 900px) {
+  .bz-app-head { flex-wrap: wrap; }
+  .bz-app-meta { flex-basis: auto; overflow: visible; white-space: normal; }
+}
+/* Only the stamp shrinks. Everything else in the header is a control or a wordmark, and a control
+   that wraps its own label ("Setup" over "2") is worse than a stamp that loses its tail. */
+.bz-brand, .bz-nav, .bz-nav button, .bz-app-worst, .bz-app-tools, .bz-app-env { flex-shrink: 0; white-space: nowrap; }

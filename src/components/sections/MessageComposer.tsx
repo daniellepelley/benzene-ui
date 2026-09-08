@@ -26,6 +26,8 @@ export interface MessageComposerProps {
   onConfirmToggle: () => void;
   /** Absent on a read-only mesh — the composer then explains itself rather than disappearing. */
   onSend?: () => void;
+  /** Where a read-only composer sends the reader to learn what wiring a send needs. */
+  onSetup?: () => void;
 }
 
 /**
@@ -37,7 +39,7 @@ export interface MessageComposerProps {
 export function MessageComposer({
   versions, versionIndex, transports, transport, headersJson, bodyJson,
   bodyValid, headersValid, canSend, send, error, result, confirmed,
-  onVersion, onTransport, onBody, onHeaders, onConfirmToggle, onSend,
+  onVersion, onTransport, onBody, onHeaders, onConfirmToggle, onSend, onSetup,
 }: MessageComposerProps) {
   if (versions.length === 0) {
     return <EmptyState message="This topic has no non-reserved version to compose against." />;
@@ -107,7 +109,13 @@ export function MessageComposer({
         </div>
       ) : (
         <p className="bz-composer-readonly">
-          This mesh has no invoke endpoint configured, so messages can be composed but not sent.
+          Dispatch is not wired on this mesh, so messages can be composed but not sent.
+          {onSetup && (
+            <>
+              {' '}
+              <button type="button" className="bz-link" onClick={onSetup}>See Setup</button>
+            </>
+          )}
         </p>
       )}
 

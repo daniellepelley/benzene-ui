@@ -68,6 +68,8 @@ describe('hash routing', () => {
   it('routes the changes ledger', () => {
     expect(toHash('changes', null)).toBe('#changes');
     expect(parseHash('#changes')).toEqual(route({ page: 'changes' }));
+    expect(toHash('setup', null)).toBe('#setup');
+    expect(parseHash('#setup')).toEqual(route({ page: 'setup' }));
   });
 
   it('never emits a selected hash without a selection', () => {

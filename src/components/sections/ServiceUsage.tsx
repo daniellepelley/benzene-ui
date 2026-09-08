@@ -13,6 +13,8 @@ export interface ServiceUsageProps {
   usage: ServiceUsageSummary;
   showUtility: boolean;
   onToggleUtility?: () => void;
+  /** Where the "no usage feed" state leads: the Setup page, which says what wiring it needs. */
+  onSetup?: () => void;
 }
 
 const DIMENSIONS = [
@@ -29,9 +31,15 @@ const DIMENSIONS = [
  * and **feed wired, everything seen was benzene plumbing** (also a real observation, and one that
  * would read as "no traffic" if the utility rows were simply dropped).
  */
-export function ServiceUsage({ usage, showUtility, onToggleUtility, window, now }: ServiceUsageProps) {
+export function ServiceUsage({ usage, showUtility, onToggleUtility, onSetup, window, now }: ServiceUsageProps) {
   if (usage.mode === 'none') {
-    return <EmptyState message="No usage feed is wired, so traffic for this service is unknown." tone="unknown" />;
+    return (
+      <EmptyState
+        message="No usage feed is wired, so traffic for this service is unknown."
+        tone="unknown"
+        action={onSetup ? { label: 'See Setup', onClick: onSetup } : undefined}
+      />
+    );
   }
 
   const total = usage.entries.reduce((sum, e) => sum + e.count, 0);

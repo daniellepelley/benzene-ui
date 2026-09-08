@@ -39,6 +39,7 @@ export function ServiceList({ pageUrl = '' }: ServiceListProps = {}) {
   const topicsFeedError = useAppSelector(selectFeedErrors).find((e) => e.feed === 'topics')?.message;
   const changed = useAppSelector(selectChangedServices);
   const dispatch = useAppDispatch();
+  const openSetup = () => dispatch(navigated({ page: 'setup' }));
 
   if (services.length === 0) {
     return <EmptyState message="No services match this filter." />;
@@ -64,6 +65,7 @@ export function ServiceList({ pageUrl = '' }: ServiceListProps = {}) {
                 topics={topics[i]?.consumes ?? []}
                 emptyMessage="Consumes nothing."
                 feedError={topicsFeedError}
+                onSetup={openSetup}
                 onOpen={(topic, version) => dispatch(navigated({ page: 'topic', selected: topic, selectedVersion: version }))}
               />
             </div>
@@ -73,6 +75,7 @@ export function ServiceList({ pageUrl = '' }: ServiceListProps = {}) {
                 topics={topics[i]?.produces ?? []}
                 emptyMessage="Produces nothing."
                 feedError={topicsFeedError}
+                onSetup={openSetup}
                 onOpen={(topic, version) => dispatch(navigated({ page: 'topic', selected: topic, selectedVersion: version }))}
               />
             </div>

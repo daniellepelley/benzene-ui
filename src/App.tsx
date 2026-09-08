@@ -9,15 +9,15 @@ import { ErrorBoundary } from './components/primitives/ErrorBoundary';
 import { navigated, themeCycled, themeRestored, type Theme } from './store/slices/viewSlice';
 import {
   selectLoad, selectError, selectPage, selectSelected, selectSelectedService, selectEstateSummary,
-  selectFeedHealth, selectRefreshState, selectRefreshNote, selectCanRefresh, selectLogoutUrl,
+  selectRefreshState, selectRefreshNote, selectCanRefresh, selectLogoutUrl,
   selectSignOutNote, selectNow, selectEnvironment,
 } from './store/selectors';
+import { selectSetupAttention } from './store/setup';
 import {
   FleetPage, ServicePage, TopicPage, IssuePage, ValuePage, TestConsolePage,
-  ChangesPage, TopicsPage,
+  ChangesPage, TopicsPage, SetupPage,
 } from './components/pages';
 import type { Page } from './store/slices/viewSlice';
-import { FeedHealthLine } from './components/controls/FeedHealthLine';
 import { EmptyState } from './components/primitives/EmptyState';
 import { StatusGlyph } from './components/primitives/StatusGlyph';
 import { Stamp } from './components/primitives/Stamp';
@@ -61,7 +61,10 @@ export function App() {
   const selected = useAppSelector(selectSelected);
   const selectedService = useAppSelector(selectSelectedService);
   const summary = useAppSelector(selectEstateSummary);
-  const feedHealth = useAppSelector(selectFeedHealth);
+  // What needs a person: failing or degraded wiring, counted once, shown once, in the nav. This is
+  // the whole of the mesh's own status in the chrome — every sentence about an unwired feed that
+  // used to sit on a page now sits behind this number on the Setup page.
+  const setupAttention = useAppSelector(selectSetupAttention);
   const generatedAtUtc = useAppSelector((s) => s.estate.generatedAtUtc);
   const now = useAppSelector(selectNow);
   const theme = useAppSelector((s) => s.view.theme);
@@ -173,14 +176,18 @@ export function App() {
         {/* WHICH ESTATE THIS IS, in the chrome, on every screen. A dev mesh and a production mesh
             render identically today, and the only thing separating them is the URL — which is a
             problem at one environment and an accident waiting to happen the moment a neutral
-            deployment can point at several. Unpublished says so; it never guesses "dev". */}
-        <span
-          className="bz-app-env"
-          data-known={environment != null ? 'true' : undefined}
-          data-production={environment != null && /^prod/i.test(environment) ? 'true' : undefined}
-        >
-          {environment ?? 'environment not published'}
-        </span>
+            deployment can point at several. It never guesses "dev". When nothing is published the
+            chrome says NOTHING here rather than nagging on every screen: that an environment label
+            is not wired is a fact about the deployment, and it is stated on the Setup page. */}
+        {environment != null && (
+          <span
+            className="bz-app-env"
+            data-known="true"
+            data-production={/^prod/i.test(environment) ? 'true' : undefined}
+          >
+            {environment}
+          </span>
+        )}
         <span className="bz-app-meta" title="When the aggregator last published these artifacts">
           <Stamp
             iso={generatedAtUtc}
@@ -207,6 +214,27 @@ export function App() {
               {item.label}
             </button>
           ))}
+          {/* SETUP, apart from the six estate destinations because it is about the mesh, not the
+              estate. The badge counts only what needs a person — failing or degraded wiring — never
+              what is simply not wired, so a partial mesh that is working as configured shows no
+              number at all. */}
+          <button
+            type="button"
+            data-setup=""
+            aria-current={page === 'setup' ? 'page' : undefined}
+            onClick={() => dispatch(navigated({ page: 'setup' }))}
+          >
+            Setup
+            {setupAttention.attention > 0 && (
+              <span
+                className="bz-nav-badge"
+                data-worst={setupAttention.worst ?? undefined}
+                title={`${setupAttention.attention} item${setupAttention.attention === 1 ? '' : 's'} of the mesh’s own wiring need${setupAttention.attention === 1 ? 's' : ''} attention`}
+              >
+                {setupAttention.attention}
+              </span>
+            )}
+          </button>
         </nav>
         {/* The worst status in the estate, always in the same place — a reader who checks one thing
             on arrival checks this, and it must not move about as the page changes. */}
@@ -243,15 +271,24 @@ export function App() {
         </span>
       </header>
 
-      {/* Only when something is wrong: a green line here would be chrome in the place a warning
-          eventually has to appear, and readers learn to skip chrome. */}
-      <FeedHealthLine health={feedHealth} />
+      {/* No feed-health line in the chrome any more. The live plane's state — unreachable, blind,
+          stale — is the first row on the Setup page and the number on its nav button; a paragraph
+          of it above every screen was the single loudest of the scattered wiring messages. */}
 
       <main>
-        {load === 'loading' && <EmptyState message="Loading the estate…" />}
-        {load === 'failed' && <EmptyState message={error ?? 'The estate could not be loaded.'} />}
+        {/* Setup renders whatever the estate's load state: it is the page that explains a failed or
+            empty load, so it cannot itself be gated on a successful one. */}
+        {page === 'setup' && <SetupPage />}
+        {page !== 'setup' && load === 'loading' && <EmptyState message="Loading the estate…" />}
+        {page !== 'setup' && load === 'failed' && (
+          <EmptyState
+            message={error ?? 'The estate could not be loaded.'}
+            tone="error"
+            action={{ label: 'Open Setup', onClick: () => dispatch(navigated({ page: 'setup' })) }}
+          />
+        )}
         {/* Not a failure: the mesh is up and has published nothing yet. See CatalogEmpty. */}
-        {load === 'empty' && (
+        {page !== 'setup' && load === 'empty' && (
           <CatalogEmpty
             canRefresh={canRefresh}
             refresh={refresh}
@@ -259,7 +296,7 @@ export function App() {
             onRefresh={onRefresh}
           />
         )}
-        {load === 'ready' && (
+        {page !== 'setup' && load === 'ready' && (
           // Keyed on the page and selection so navigating away from a crashed view clears the error
           // — without the key, a boundary that caught once stays caught and every subsequent click
           // shows the same failure.

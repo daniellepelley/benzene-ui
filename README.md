@@ -92,7 +92,7 @@ healthy that have stopped reporting. That is the single most useful thing the li
 as a resource and serves it from inside the running service: no CDN, no static hosting, no network
 egress. That rules out code splitting and makes bundle size a budget.
 
-Current: **349 KB** and **253 KB**. The estate view started below the 274 KB hand-written page it
+Current: **377 KB** and **272 KB**. The estate view started below the 274 KB hand-written page it
 replaced and has since outgrown it as capability landed (Test Console, schema agreement, dispatch);
 the budget discipline is that every growth step is a deliberate trade, not drift. CI asserts there
 are no external requests.

@@ -1,7 +1,10 @@
 {
-  "openapi": "3.0.1",
-  "info": { "title": "Quiet Service", "version": "0.1.0" },
+  "schemaDialect": "openapi-3.0",
+  "service": "quiet-service",
+  "contractHash": "sha256:bf6017a6af2dc275a2804ada3f476ba0bfca4faae43ac0cc0202468fa86e850e",
+  "registrationHash": "sha256:35bd89c914389a6bc6e0a8eb98119fe1d158148e9ad3d7e676a4d514f531f1b6",
   "requests": [],
   "events": [],
+  "sends": [],
   "components": { "schemas": {} }
 }

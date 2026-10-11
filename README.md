@@ -70,11 +70,28 @@ scripts/        generate-contracts.mjs
 | `annotations` | Discussion threads. The only read-**write** data, hence its own slice |
 | `compose` | The try-it workflow — topic, version, transport, body, headers, result |
 | `capabilities` | What this mesh can do — derived from the injected API, not guessed at |
-| `spec` | One service's own spec document, fetched on demand. Powers the spec viewer |
+| `spec` | One service's own Contract Document (`benzene:spec`), fetched on demand and stored as published. Powers the spec viewer |
 | `view` | Page, selection, filter, expansion, live window, utility toggle — everything the user has done |
 
 Keeping `estate` and `fleet` apart is what makes `selectDivergences` expressible: services declaring
 healthy that have stopped reporting. That is the single most useful thing the live plane adds.
+
+## Reading a Contract Document
+
+Every reader of a service's spec goes through one function, `readContractDocument`
+(`src/contracts/contractDocument.ts`), which normalises both shapes an estate serves while ports
+adopt a spec release at different times:
+
+- the **Contract Document** (spec 0.3): `schemaDialect`, `service`/`serviceVersion`/`versionScheme`/
+  `description`, `contractHash`/`registrationHash`, and `requests`, `events` and `sends` — an absent
+  `response` is *no payload*, `{}` is *any payload*;
+- the **legacy document** (spec ≤ 0.2): `openapi`, `info.*`, reserved entries, and sends folded into
+  `events`.
+
+`benzene:` entries are dropped from either. A `schemaDialect` other than `openapi-3.0` is refused,
+as the spec requires. The spec viewer shows sends in their own section, inlines `$ref`s for reading,
+and shows the author's example where there is one — otherwise a sample it generates from the schema,
+labelled as the viewer's rather than the service's.
 
 ## Commands
 
@@ -92,7 +109,7 @@ healthy that have stopped reporting. That is the single most useful thing the li
 as a resource and serves it from inside the running service: no CDN, no static hosting, no network
 egress. That rules out code splitting and makes bundle size a budget.
 
-Current: **377 KB** and **272 KB**. The estate view started below the 274 KB hand-written page it
+Current: **381 KB** and **277 KB** (the last step: reading both Contract Document shapes, the Sends section and generated examples). The estate view started below the 274 KB hand-written page it
 replaced and has since outgrown it as capability landed (Test Console, schema agreement, dispatch);
 the budget discipline is that every growth step is a deliberate trade, not drift. CI asserts there
 are no external requests.

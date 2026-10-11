@@ -6,7 +6,6 @@ const base = {
   kind: 'request' as const,
   topic: 'orders:create',
   version: 'v1',
-  reserved: false,
   httpMappings: [{ method: 'POST', path: '/orders' }],
   input: {
     type: 'object',
@@ -16,6 +15,7 @@ const base = {
   },
   output: { type: 'object', title: 'OrderCreated', properties: { orderId: { type: 'string' } } },
   example: { customerId: '3fa85f64-5717-4562-b3fc-2c963f66afa6' },
+  exampleSource: 'document' as const,
 };
 
 const meta = {
@@ -65,31 +65,42 @@ export const Event: Story = {
       kind: 'event',
       topic: 'payment:capture',
       version: 'v2',
-      reserved: false,
       httpMappings: [],
       input: { type: 'object', title: 'PaymentCapture', properties: { amount: { type: 'number' } } },
       output: null,
       example: { amount: 42.5 },
+      exampleSource: 'document',
     },
   },
 };
 
-/** A benzene utility, shown only when the reader asks for them. */
-export const Reserved: Story = {
+/** A send to a topic another party defines, one-way: no response is declared, so none comes back. */
+export const OneWaySend: Story = {
   args: {
+    expanded: true,
     operation: {
-      ...base,
-      id: 'request:benzene:spec',
-      topic: 'benzene:spec',
-      version: null,
-      reserved: true,
+      id: 'send:payment:capture@v2',
+      kind: 'send',
+      topic: 'payment:capture',
+      version: 'v2',
       httpMappings: [],
-      input: { type: 'object' },
-      output: { type: 'object', title: 'ServiceSpec' },
-      example: undefined,
+      input: { type: 'object', title: 'PaymentCapture', properties: { amount: { type: 'number' } } },
+      output: null,
+      example: { amount: 0 },
+      exampleSource: 'generated',
     },
   },
 };
 
-/** No example published, so none is invented. */
-export const NoExample: Story = { args: { expanded: true, operation: { ...base, example: undefined } } };
+/** A handler that returns no payload: the response is absent, which is said, never drawn as a dash. */
+export const NoResponse: Story = {
+  args: { expanded: true, operation: { ...base, id: 'request:orders:cancel', topic: 'orders:cancel', version: null, httpMappings: [], output: null } },
+};
+
+/** The service supplied no example, so this viewer generates one from the schema — and says so. */
+export const GeneratedExample: Story = {
+  args: { expanded: true, operation: { ...base, example: { customerId: '00000000-0000-0000-0000-000000000000', note: 'string' }, exampleSource: 'generated' } },
+};
+
+/** No example and nothing to generate one from (`{}` is any payload). */
+export const NoExample: Story = { args: { expanded: true, operation: { ...base, input: {}, example: undefined, exampleSource: null } } };

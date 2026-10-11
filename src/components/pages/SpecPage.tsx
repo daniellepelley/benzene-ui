@@ -1,9 +1,9 @@
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
-  selectSpec, selectSpecLoad, selectSpecError, selectSpecSummary, selectOperations,
-  selectUtilityOperations, selectSpecShowUtility, selectExpandedOperations, selectSpecSchemas,
+  selectContractDocument, selectSpecLoad, selectSpecError, selectSpecSummary, selectOperations,
+  selectSendOperations, selectExpandedOperations, selectSpecSchemas,
 } from '../../store/selectors';
-import { operationToggled, allOperationsCollapsed, specUtilityToggled } from '../../store/slices/specSlice';
+import { operationToggled, allOperationsCollapsed } from '../../store/slices/specSlice';
 import { SpecOperation } from '../sections/SpecOperation';
 import { SpecSummary } from '../sections/SpecSummary';
 import { SchemaTree } from '../sections/SchemaTree';
@@ -25,13 +25,12 @@ export interface SpecPageProps {
  */
 export function SpecPage({ service, meshHref }: SpecPageProps) {
   const dispatch = useAppDispatch();
-  const spec = useAppSelector(selectSpec);
+  const spec = useAppSelector(selectContractDocument);
   const load = useAppSelector(selectSpecLoad);
   const error = useAppSelector(selectSpecError);
   const summary = useAppSelector(selectSpecSummary);
   const operations = useAppSelector(selectOperations);
-  const utilities = useAppSelector(selectUtilityOperations);
-  const showUtility = useAppSelector(selectSpecShowUtility);
+  const sends = useAppSelector(selectSendOperations);
   const expanded = useAppSelector(selectExpandedOperations);
   const schemas = useAppSelector(selectSpecSchemas);
 
@@ -46,8 +45,8 @@ export function SpecPage({ service, meshHref }: SpecPageProps) {
   return (
     <div className="bz-page bz-spec">
       <header className="bz-page-head">
-        <h2>{spec.info?.title ?? service ?? 'Service spec'}</h2>
-        {spec.info?.version && <span className="bz-page-note">v{spec.info.version}</span>}
+        <h2>{spec.service ?? service ?? 'Service spec'}</h2>
+        {spec.serviceVersion && <span className="bz-page-note">v{spec.serviceVersion}</span>}
         {meshHref && (
           <a className="bz-spec-back" href={meshHref}>
             ← back to the mesh
@@ -55,7 +54,7 @@ export function SpecPage({ service, meshHref }: SpecPageProps) {
         )}
       </header>
 
-      {spec.info?.description && <p className="bz-spec-desc">{spec.info.description}</p>}
+      {spec.description && <p className="bz-spec-desc">{spec.description}</p>}
 
       <SpecSummary summary={summary} />
 
@@ -67,21 +66,10 @@ export function SpecPage({ service, meshHref }: SpecPageProps) {
               collapse all
             </button>
           )}
-          {utilities.length > 0 && (
-            <button type="button" onClick={() => dispatch(specUtilityToggled())}>
-              {showUtility ? 'hide' : 'show'} benzene utilities ({utilities.length})
-            </button>
-          )}
         </header>
 
         {operations.length === 0 ? (
-          <EmptyState
-            message={
-              utilities.length > 0
-                ? 'This service exposes no domain topics — only benzene utilities.'
-                : 'This service exposed no message contract.'
-            }
-          />
+          <EmptyState message="This service exposed no message contract." />
         ) : (
           operations.map((operation) => (
             <SpecOperation
@@ -93,6 +81,25 @@ export function SpecPage({ service, meshHref }: SpecPageProps) {
           ))
         )}
       </section>
+
+      {sends.length > 0 && (
+        <section>
+          <header className="bz-spec-section-head">
+            <h3>Sends</h3>
+          </header>
+          {/* What this service depends on, not what it offers: topics another party defines. A
+              legacy document folded these into its events, where they cannot be told apart. */}
+          <p className="bz-page-note">Messages this service sends to topics other services define.</p>
+          {sends.map((operation) => (
+            <SpecOperation
+              key={operation.id}
+              operation={operation}
+              expanded={expanded.includes(operation.id)}
+              onToggle={(id) => dispatch(operationToggled(id))}
+            />
+          ))}
+        </section>
+      )}
 
       {schemas.length > 0 && (
         <section>

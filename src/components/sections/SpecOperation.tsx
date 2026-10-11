@@ -18,8 +18,11 @@ export interface SpecOperationProps {
  * reader has already used.
  */
 
+const NO_PAYLOAD = 'no payload';
+
 /**
- * One thing a service can do.
+ * One thing a service does on the wire: a request it serves, an event it publishes, or a message it
+ * sends to a topic someone else defines.
  *
  * Collapsed, it is a line a reader can scan: how to reach it, what goes in, what comes out. Expanded,
  * it is the payload contract. That split is the whole design — a service with forty topics is
@@ -28,8 +31,12 @@ export interface SpecOperationProps {
  * Expansion is a prop, not local state, so a link can arrive with an operation already open.
  */
 export function SpecOperation({ operation, expanded, onToggle }: SpecOperationProps) {
-  const { kind, topic, version, httpMappings, input, output, example } = operation;
+  const { kind, topic, version, httpMappings, input, output, example, exampleSource } = operation;
   const isEvent = kind === 'event';
+  const isSend = kind === 'send';
+  // A request's or send's `output` is null when the document declares no response — which the
+  // Contract Document defines as *no payload* (a send: one-way). Said, never drawn as a dash.
+  const outputLabel = output ? schemaLabel(output) : NO_PAYLOAD;
 
   return (
     <article className="bz-op" data-kind={kind} data-expanded={expanded}>
@@ -42,6 +49,8 @@ export function SpecOperation({ operation, expanded, onToggle }: SpecOperationPr
         <span className="bz-op-badges">
           {isEvent ? (
             <span className="bz-op-kind" data-kind="event">event</span>
+          ) : isSend ? (
+            <span className="bz-op-kind" data-kind="send">send</span>
           ) : httpMappings.length > 0 ? (
             httpMappings.map((h) => (
               <span key={`${h.method} ${h.path}`} className="bz-op-kind" data-kind="verb">
@@ -54,13 +63,14 @@ export function SpecOperation({ operation, expanded, onToggle }: SpecOperationPr
           )}
         </span>
         <span className="bz-op-topic">{topic}</span>
-        {version && <Chip>handler {version}</Chip>}
+        {/* A send's version is the one it writes into `benzene-version`, not a handler of its own. */}
+        {version && <Chip>{isSend ? `version ${version}` : `handler ${version}`}</Chip>}
         <span className="bz-op-io">
           {isEvent ? (
             schemaLabel(input)
           ) : (
             <>
-              {schemaLabel(input)} <span className="bz-op-arrow">→</span> {schemaLabel(output)}
+              {schemaLabel(input)} <span className="bz-op-arrow">→</span> {outputLabel}
             </>
           )}
         </span>
@@ -84,22 +94,30 @@ export function SpecOperation({ operation, expanded, onToggle }: SpecOperationPr
 
           <div className="bz-op-grid">
             <div>
-              <h4>{isEvent ? 'Message' : 'Request'}</h4>
+              <h4>{isEvent ? 'Message' : isSend ? 'Sends' : 'Request'}</h4>
               {input ? <SchemaTree schema={input} /> : <p className="bz-empty">No payload.</p>}
             </div>
             {!isEvent && (
               <div>
-                <h4>Response</h4>
-                {output ? <SchemaTree schema={output} /> : <p className="bz-empty">No payload.</p>}
+                <h4>{isSend ? 'Reply' : 'Response'}</h4>
+                {output ? (
+                  <SchemaTree schema={output} />
+                ) : (
+                  <p className="bz-empty">{isSend ? 'No payload — one-way, nothing comes back.' : 'No payload.'}</p>
+                )}
               </div>
             )}
           </div>
 
-          {example !== undefined && (
-            <div className="bz-op-example">
-              <h4>{isEvent ? 'Example message' : 'Example request'}</h4>
-              {/* The service's own example where it supplied one, generated from the schema where it
-                  did not — either way it is the document's, not this UI's invention. */}
+          {exampleSource !== null && (
+            <div className="bz-op-example" data-source={exampleSource}>
+              <h4>{isEvent || isSend ? 'Example message' : 'Example request'}</h4>
+              {/* The author's own example where the document carries one. Otherwise a sample this
+                  viewer generated from the schema — and said so, because producers no longer
+                  synthesize examples, and a generated one must never read as the service's. */}
+              {exampleSource === 'generated' && (
+                <p className="bz-op-example-note">Generated from the schema by this viewer — the service supplied no example.</p>
+              )}
               <pre>{JSON.stringify(example, null, 2)}</pre>
             </div>
           )}

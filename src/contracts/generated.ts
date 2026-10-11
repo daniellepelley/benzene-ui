@@ -2,7 +2,7 @@
  * GENERATED FILE — do not edit by hand. Run `npm run generate:contracts`.
  *
  * Inferred from the sample artifacts in `contracts/artifacts/`, vendored from the specification
- * repo at commit d7aed44057302707fb0a56158af5fed259c9908b.
+ * repo at commit spec-0.2.0.
  *
  * These types are a FLOOR, not a ceiling. The spec's conformance fixtures are test cases rather than
  * JSON Schema, so a field no sample exercises cannot be inferred, and a field that is null in every
@@ -271,25 +271,22 @@ export interface FleetViewWindow {
 }
 
 export interface ServiceSpec {
-  openapi: string;
-  info: ServiceSpecInfo;
-  tags?: ServiceSpecTagsItem[];
+  schemaDialect?: string;
+  service?: string;
+  serviceVersion?: string;
+  versionScheme?: string;
+  description?: string;
   messageEndpoint?: string;
   transports?: string[];
+  contractHash?: string;
+  registrationHash?: string;
   requests: ServiceSpecRequestsItem[];
   events: ServiceSpecEventsItem[];
+  sends?: ServiceSpecSendsItem[];
   components: SpecComponents;
-}
-
-export interface ServiceSpecInfo {
-  title: string;
-  description?: string;
-  version: string;
-}
-
-export interface ServiceSpecTagsItem {
-  name: string;
-  description: string;
+  openapi?: string;
+  info?: ServiceSpecInfo;
+  tags?: ServiceSpecTagsItem[];
 }
 
 export interface ServiceSpecRequestsItem {
@@ -297,7 +294,7 @@ export interface ServiceSpecRequestsItem {
   version?: string;
   httpMappings?: ServiceSpecRequestsItemHttpMappingsItem[];
   request: JsonSchema;
-  response: JsonSchema;
+  response?: JsonSchema;
   example?: unknown;
   reserved?: boolean;
 }
@@ -309,9 +306,27 @@ export interface ServiceSpecRequestsItemHttpMappingsItem {
 
 export interface ServiceSpecEventsItem {
   topic: string;
-  version?: string;
   message: JsonSchema;
+  version?: string;
   example?: unknown;
+}
+
+export interface ServiceSpecSendsItem {
+  topic: string;
+  version?: string;
+  request: JsonSchema;
+  response?: JsonSchema;
+}
+
+export interface ServiceSpecInfo {
+  title: string;
+  description?: string;
+  version: string;
+}
+
+export interface ServiceSpecTagsItem {
+  name: string;
+  description: string;
 }
 
 export interface ServiceSnapshot {

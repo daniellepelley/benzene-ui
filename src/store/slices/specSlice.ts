@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/tool
 import type { MeshApi, LoadState } from './estateSlice';
 import type { ServiceSpec } from '../../contracts';
 import { asWireResponse, problemMessage, successOf } from '../../data/envelope';
+import { readContractDocument } from '../../contracts/contractDocument';
 
 /**
  * One service's own spec document — what it says it can do, in its own words.
@@ -16,11 +17,13 @@ export interface SpecState {
   error: string | null;
   /** The service the loaded spec belongs to, so a stale render can be told from a fresh one. */
   service: string | null;
+  /**
+   * What the service published, as published — either document shape (`contracts/contractDocument.ts`
+   * reads both). Store the contract, not a reading of it: the selectors derive the reading.
+   */
   spec: ServiceSpec | null;
   /** Which operation the reader has opened. View state, so deep links and tests both work. */
   expanded: string[];
-  /** Whether Benzene's own reserved topics are in view. Off by default, as everywhere else. */
-  showUtility: boolean;
 }
 
 const initialState: SpecState = {
@@ -29,7 +32,23 @@ const initialState: SpecState = {
   service: null,
   spec: null,
   expanded: [],
-  showUtility: false,
+};
+
+/**
+ * Admits a parsed document to the slice, or refuses it with a reason.
+ *
+ * The Contract Document's one hard rule for a consumer: a `schemaDialect` it does not know is
+ * rejected (contract-document.md §1), never rendered — every schema in it would be misread. A
+ * document of either known shape is stored as published; anything else unfamiliar is stored too, and
+ * the reader shows what it can of it.
+ */
+const admitted = (source: string, document: unknown): ServiceSpec => {
+  try {
+    readContractDocument(document);
+  } catch (error) {
+    throw new Error(`${source} published a spec this viewer cannot read: ${(error as Error).message}`);
+  }
+  return document as ServiceSpec;
 };
 
 /**
@@ -46,13 +65,15 @@ export const loadSpec = createAsyncThunk<
 >('spec/load', async (service, { extra }) => {
   const snapshot = await extra.getService(service);
   if (!snapshot.specJson) return { service, spec: null };
+  let parsed: unknown;
   try {
-    return { service, spec: JSON.parse(snapshot.specJson) as ServiceSpec };
+    parsed = JSON.parse(snapshot.specJson) as unknown;
   } catch {
     // The aggregator stores whatever the service published, verbatim. A service serving YAML, or
     // HTML from a misrouted proxy, is a legible failure — not a crash.
     throw new Error(`${service} published a spec that is not JSON`);
   }
+  return { service, spec: admitted(service, parsed) };
 });
 
 /**
@@ -97,8 +118,8 @@ export const loadSpecFromUrl = createAsyncThunk<{ service: string; spec: Service
     if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed)) {
       throw new Error(`${url} did not answer with a JSON spec document`);
     }
-    const spec = parsed as ServiceSpec;
-    return { service: spec.info?.title ?? url, spec };
+    const spec = admitted(url, parsed);
+    return { service: readContractDocument(spec).service ?? url, spec };
   },
 );
 
@@ -113,9 +134,6 @@ const specSlice = createSlice({
     },
     allOperationsCollapsed(state) {
       state.expanded = [];
-    },
-    specUtilityToggled(state) {
-      state.showUtility = !state.showUtility;
     },
   },
   extraReducers: (builder) => {
@@ -156,5 +174,5 @@ const specSlice = createSlice({
   },
 });
 
-export const { operationToggled, allOperationsCollapsed, specUtilityToggled } = specSlice.actions;
+export const { operationToggled, allOperationsCollapsed } = specSlice.actions;
 export default specSlice.reducer;

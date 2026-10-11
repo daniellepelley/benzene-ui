@@ -1273,11 +1273,17 @@ export const selectServiceAbout = createSelector(
     let description: string | null = null;
     let version: string | null = null;
     try {
-      const spec = JSON.parse(snapshot.specJson ?? 'null') as { info?: { description?: string; version?: string } } | null;
-      description = spec?.info?.description ?? null;
-      version = spec?.info?.version ?? null;
+      const spec = JSON.parse(snapshot.specJson ?? 'null') as unknown;
+      if (spec) {
+        // The one reader of either document shape: `description`/`serviceVersion`, else the legacy
+        // `info.*`.
+        const doc = readContractDocument(spec);
+        description = doc.description;
+        version = doc.serviceVersion;
+      }
     } catch {
-      // Not JSON, or a shape without an info block. The rest of the panel still renders.
+      // Not JSON, a shape with neither, or a dialect this build cannot read. The rest of the panel
+      // still renders.
     }
 
     const drift =
@@ -2074,125 +2080,184 @@ export const selectFlowsForService = createSelector(
 
 // ── Service spec ────────────────────────────────────────────────────────────────────────────────
 
-import type { ServiceSpecRequestsItem, ServiceSpecEventsItem, JsonSchema } from '../contracts';
+import type { JsonSchema } from '../contracts';
+import { readContractDocument, inlineRefs, refName, type ContractDocument } from '../contracts/contractDocument';
 
 export const selectSpecLoad = (s: RootState) => s.spec.load;
 export const selectSpecError = (s: RootState) => s.spec.error;
 export const selectSpec = (s: RootState) => s.spec.spec;
-export const selectSpecShowUtility = (s: RootState) => s.spec.showUtility;
 export const selectExpandedOperations = (s: RootState) => s.spec.expanded;
 
-/** One operation on a service, request/response or event, in the shape the card renders. */
+/**
+ * The loaded document, read through the one reader both document shapes go through
+ * (`contracts/contractDocument.ts`). The slice stores what the service published; this is the
+ * reading of it, so every spec selector below sees the same thing whichever shape arrived.
+ *
+ * `null` only when nothing is loaded: a document the reader refuses (an unknown `schemaDialect`)
+ * never reaches the slice — the load fails and says why.
+ */
+export const selectContractDocument = createSelector([selectSpec], (spec): ContractDocument | null => {
+  if (!spec) return null;
+  try {
+    return readContractDocument(spec);
+  } catch {
+    return null;
+  }
+});
+
+/**
+ * One thing a service does on the wire, in the shape the card renders: a request it serves, an
+ * event it publishes, or a message it sends to a topic someone else defines.
+ */
 export interface SpecOperationModel {
-  /** Stable within a document: topic plus version plus kind, so two versions do not collide. */
+  /** Stable within a document: kind plus topic plus version, so two versions do not collide. */
   id: string;
-  kind: 'request' | 'event';
+  kind: 'request' | 'event' | 'send';
   topic: string;
   version: string | null;
-  reserved: boolean;
   httpMappings: { method: string; path: string }[];
-  /** Request/response for a request; message for an event. */
+  /** The request (request, send) or message (event), `$ref`s inlined for reading. */
   input: JsonSchema | null;
+  /**
+   * The response (request) or reply (send), `$ref`s inlined. `null` is an ABSENT response, which
+   * the Contract Document defines as *no payload* — distinct from `{}`, a payload of any shape.
+   */
   output: JsonSchema | null;
+  /** The example to show, if any. */
   example: unknown;
+  /**
+   * Where `example` came from. `document` is the author's own; `generated` is this viewer's sample
+   * from the schema — the spec no longer has producers synthesize one, so a generated example is
+   * labelled as the viewer's, never passed off as the service's. `null` is no example at all.
+   */
+  exampleSource: 'document' | 'generated' | null;
 }
 
-/** A schema's display name — its title, its array-of-title, or the shape word itself. */
+/** A schema's display name — its title, its component name, its array-of-name, or the shape word. */
 export const schemaLabel = (schema: JsonSchema | null | undefined): string => {
   if (!schema) return '—';
   if (typeof schema.title === 'string') return schema.title;
+  const ref = refName(schema.$ref);
+  if (ref !== null) return ref;
   if (schema.type === 'array') {
     const items = Array.isArray(schema.items) ? schema.items[0] : schema.items;
-    const inner = items && typeof items.title === 'string' ? items.title : (items?.type ?? 'item');
+    const inner = items && typeof items.title === 'string' ? items.title : (refName(items?.$ref) ?? items?.type ?? 'item');
     return `${String(inner)}[]`;
   }
-  return typeof schema.type === 'string' ? schema.type : 'object';
+  if (typeof schema.type === 'string') return schema.type;
+  // `{}` is "any payload" in a Contract Document; calling it `object` would be a claim it does not make.
+  return schema.properties ? 'object' : 'any';
 };
 
 const operationId = (kind: string, topic: string, version: string | null) =>
   `${kind}:${topic}${version ? `@${version}` : ''}`;
 
-const requestOperation = (r: ServiceSpecRequestsItem): SpecOperationModel => ({
-  id: operationId('request', r.topic, r.version || null),
-  kind: 'request',
-  topic: r.topic,
-  version: r.version || null,
-  reserved: r.reserved === true,
-  httpMappings: r.httpMappings ?? [],
-  input: r.request ?? null,
-  output: r.response ?? null,
-  example: r.example,
-});
+/** The author's example where there is one, else a sample this viewer generates from the schema. */
+const exampleFor = (
+  doc: ContractDocument,
+  entry: { hasExample?: boolean; example?: unknown },
+  input: JsonSchema | null,
+): Pick<SpecOperationModel, 'example' | 'exampleSource'> => {
+  if (entry.hasExample) return { example: entry.example, exampleSource: 'document' };
+  // `{}` says "any payload": there is nothing to sample, and a made-up string would be a claim.
+  if (!input || Object.keys(input).length === 0) return { example: undefined, exampleSource: null };
+  return { example: exampleFromSchema(input, doc.schemas), exampleSource: 'generated' };
+};
 
-const eventOperation = (e: ServiceSpecEventsItem): SpecOperationModel => ({
-  id: operationId('event', e.topic, e.version || null),
-  kind: 'event',
-  topic: e.topic,
-  version: e.version || null,
-  reserved: false,
-  httpMappings: [],
-  input: e.message ?? null,
-  output: null,
-  example: e.example,
-});
+const operationsOf = (doc: ContractDocument) => {
+  const inline = (schema: JsonSchema | null) => inlineRefs(schema, doc.schemas);
+  const requests = doc.requests.map((r): SpecOperationModel => ({
+    id: operationId('request', r.topic, r.version),
+    kind: 'request',
+    topic: r.topic,
+    version: r.version,
+    httpMappings: r.httpMappings,
+    input: inline(r.request),
+    output: inline(r.response),
+    ...exampleFor(doc, r, r.request),
+  }));
+  const events = doc.events.map((e): SpecOperationModel => ({
+    id: operationId('event', e.topic, e.version),
+    kind: 'event',
+    topic: e.topic,
+    version: e.version,
+    httpMappings: [],
+    input: inline(e.message),
+    output: null,
+    ...exampleFor(doc, e, e.message),
+  }));
+  const sends = doc.sends.map((s): SpecOperationModel => ({
+    id: operationId('send', s.topic, s.version),
+    kind: 'send',
+    topic: s.topic,
+    version: s.version,
+    httpMappings: [],
+    input: inline(s.request),
+    output: inline(s.response),
+    ...exampleFor(doc, {}, s.request),
+  }));
+  return { requests, events, sends };
+};
+
+const selectOperationGroups = createSelector([selectContractDocument], (doc) =>
+  doc ? operationsOf(doc) : { requests: [], events: [], sends: [] },
+);
 
 /**
- * The service's domain operations — requests first, then events.
+ * What the service offers — requests first, then the events it publishes. Both are part of what a
+ * client of this service depends on (its `contractHash`).
  *
- * Reserved topics are held back rather than mixed in. Every Benzene service carries the same
- * handful of utility topics, and a reader opening a spec is asking what *this* service does; the
- * utilities are the answer to a different question and are available on request.
+ * Benzene's own `benzene:` topics never appear: the reader drops them from either document shape,
+ * because they are defined once by the spec and are not this service's contract.
  */
-export const selectOperations = createSelector(
-  [selectSpec, selectSpecShowUtility],
-  (spec, showUtility): SpecOperationModel[] => {
-    if (!spec) return [];
-    // Defensive on purpose: `requests`/`events` are required by the contract, but a service on an
-    // older Benzene — or anything else answering benzene:spec — can publish a document without
-    // them, and a viewer that white-screens on an unfamiliar spec is worse than one that shows
-    // what it can. Absent is rendered as "nothing exposed", which is what it means.
-    const requests = (spec.requests ?? []).map(requestOperation);
-    const events = (spec.events ?? []).map(eventOperation);
-    const all = [...requests, ...events];
-    return showUtility ? all : all.filter((op) => !op.reserved);
-  },
-);
+export const selectOperations = createSelector([selectOperationGroups], (groups): SpecOperationModel[] => [
+  ...groups.requests,
+  ...groups.events,
+]);
 
-/** The reserved operations, counted so their absence can be stated rather than hidden. */
-export const selectUtilityOperations = createSelector([selectSpec], (spec): SpecOperationModel[] =>
-  (spec?.requests ?? []).map(requestOperation).filter((op) => op.reserved),
-);
+/**
+ * What the service sends to topics other parties define — its dependencies, which a client of it
+ * cannot observe. A section of its own because they answer a different question from the
+ * operations: not "what can I call?" but "what does this call?". Always empty for a legacy
+ * document, whose sends were folded into `events` and cannot be told apart.
+ */
+export const selectSendOperations = createSelector([selectOperationGroups], (groups) => groups.sends);
 
 export interface SpecSummaryModel {
   topics: number;
   httpMapped: number;
   events: number;
+  sends: number;
   schemas: number;
-  utilities: number;
   transports: string[];
   /** Present when the service exposes a BenzeneMessage-over-HTTP endpoint — the send capability. */
   messageEndpoint: string | null;
+  /** The document's own `contractHash`, as served. Absent from a legacy document. */
+  contractHash: string | null;
 }
 
 /** The counts across the top. Derived, so the header and the sections cannot disagree. */
-export const selectSpecSummary = createSelector([selectSpec], (spec): SpecSummaryModel | null => {
-  if (!spec) return null;
-  const domain = (spec.requests ?? []).filter((r) => r.reserved !== true);
+export const selectSpecSummary = createSelector([selectContractDocument], (doc): SpecSummaryModel | null => {
+  if (!doc) return null;
   return {
-    topics: domain.length,
-    httpMapped: domain.filter((r) => (r.httpMappings ?? []).length > 0).length,
-    events: (spec.events ?? []).length,
-    schemas: Object.keys((spec.components?.schemas ?? {}) as Record<string, unknown>).length,
-    utilities: (spec.requests ?? []).length - domain.length,
-    transports: spec.transports ?? [],
-    messageEndpoint: spec.messageEndpoint ?? null,
+    topics: doc.requests.length,
+    httpMapped: doc.requests.filter((r) => r.httpMappings.length > 0).length,
+    events: doc.events.length,
+    sends: doc.sends.length,
+    schemas: Object.keys(doc.schemas).length,
+    transports: doc.transports,
+    messageEndpoint: doc.messageEndpoint,
+    contractHash: doc.contractHash,
   };
 });
 
-/** Named schemas from the document's component bag, for the reference section. */
-export const selectSpecSchemas = createSelector([selectSpec], (spec) =>
-  Object.entries((spec?.components?.schemas ?? {}) as Record<string, JsonSchema>)
-    .map(([name, schema]) => ({ name, schema }))
+/**
+ * Named schemas from the document's component bag, for the reference section. Each is shown with
+ * its `$ref`s inlined, except a ref back to itself (or round a cycle), which stays a named ref.
+ */
+export const selectSpecSchemas = createSelector([selectContractDocument], (doc) =>
+  Object.entries(doc?.schemas ?? {})
+    .map(([name, schema]) => ({ name, schema: inlineRefs(schema, doc!.schemas, [name]) ?? schema }))
     .sort((a, b) => a.name.localeCompare(b.name)),
 );
 

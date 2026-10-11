@@ -639,6 +639,8 @@ input, select, textarea {
 .bz-op-http li { display: flex; gap: 0.4rem; align-items: baseline; }
 .bz-op-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; }
 .bz-op-grid h4, .bz-op-example h4 { font-size: var(--bz-fs-xs); margin: 0.5rem 0 0.25rem; color: var(--bz-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.bz-spec-hash { overflow-wrap: anywhere; }
+.bz-op-example-note { font-size: var(--bz-fs-2xs); color: var(--bz-muted); font-style: italic; margin: 0 0 0.25rem; }
 .bz-op-example pre { background: var(--bz-code-bg); border: 1px solid var(--bz-border); border-radius: var(--bz-radius); padding: 0.6rem; overflow-x: auto; font-size: var(--bz-fs-xs); margin: 0; }
 
 /* ── Estate stats ──────────────────────────────────────────────────────────────────────────────
@@ -1096,7 +1098,7 @@ button.bz-stat:focus-visible { outline: 2px solid var(--bz-accent); outline-offs
   padding: 1px 6px; border-radius: var(--bz-radius-sm);
   background: var(--bz-surface-2); color: var(--bz-fg); border: 1px solid var(--bz-border-soft);
 }
-.bz-op-kind[data-kind='event'], .bz-op-kind[data-kind='msg'] { color: var(--bz-muted); font-style: italic; }
+.bz-op-kind[data-kind='event'], .bz-op-kind[data-kind='msg'], .bz-op-kind[data-kind='send'] { color: var(--bz-muted); font-style: italic; }
 
 /* ── PRINT ─────────────────────────────────────────────────────────────────────────────────────
    A mesh screen is evidence: it gets pasted into a ticket, a review pack, a steering deck. Shadows

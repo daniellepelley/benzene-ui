@@ -8,8 +8,8 @@ export interface SpecSummaryProps {
 /**
  * The service in five numbers, plus how to reach it.
  *
- * Domain topics only — the reserved utilities every Benzene service carries would inflate every
- * count identically and tell the reader nothing about *this* service. `messageEndpoint` is the one
+ * Its own topics only — Benzene's `benzene:` utilities are never part of a Contract Document's
+ * lists, and the reader drops them from a legacy document that listed them. `messageEndpoint` is the one
  * that changes what a reader can do rather than what they know: it is how the mesh UI's composer
  * feature-detects whether this service can be sent a message at all.
  */
@@ -20,10 +20,8 @@ export function SpecSummary({ summary }: SpecSummaryProps) {
     { key: 'topics', value: summary.topics, label: summary.topics === 1 ? 'Topic' : 'Topics', accent: true },
     { key: 'http', value: summary.httpMapped, label: 'HTTP-mapped' },
     { key: 'events', value: summary.events, label: summary.events === 1 ? 'Event' : 'Events' },
+    { key: 'sends', value: summary.sends, label: summary.sends === 1 ? 'Send' : 'Sends' },
     { key: 'schemas', value: summary.schemas, label: 'Schemas' },
-    ...(summary.utilities > 0
-      ? [{ key: 'utilities', value: summary.utilities, label: 'Utilities' }]
-      : []),
   ];
 
   return (
@@ -52,6 +50,14 @@ export function SpecSummary({ summary }: SpecSummaryProps) {
           <span className="bz-spec-reach-row">
             <span className="bz-spec-reach-k">Message endpoint</span>
             <code>{summary.messageEndpoint}</code>
+          </span>
+        )}
+        {summary.contractHash && (
+          // The served hash a generated client's embedded one is compared against (§6.1). In full,
+          // not shortened behind a hover: it is what gets pasted into a drift report.
+          <span className="bz-spec-reach-row">
+            <span className="bz-spec-reach-k">Contract hash</span>
+            <code className="bz-spec-hash">{summary.contractHash}</code>
           </span>
         )}
       </div>

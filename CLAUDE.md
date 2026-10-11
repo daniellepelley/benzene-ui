@@ -25,8 +25,8 @@ actions and assert on output, never simulate clicks to drive state.
 `dist/index.html` inlines all JS and CSS and makes **zero external requests**. `Benzene.Mesh.Ui`
 embeds it and serves it from inside a running service — no CDN, no static hosting. CI asserts this.
 Consequences: no code splitting, no dynamic import, no runtime CDN anything, and bundle size is a
-budget (currently ~377 KB for the mesh UI — grown stepwise from 250 KB as the Test Console, schema agreement, dispatch and the Setup page landed — and
-272 KB for the spec viewer, against the 274 KB and 955-line hand-written pages they replace).
+budget (currently ~381 KB for the mesh UI — grown stepwise from 250 KB as the Test Console, schema agreement, dispatch and the Setup page landed — and
+277 KB for the spec viewer, against the 274 KB and 955-line hand-written pages they replace).
 
 ## The collector is a Benzene service, not a REST API
 
@@ -100,6 +100,11 @@ Seven, and the separation is load-bearing:
 - `spec` — one service's own spec document, fetched on demand. Separate from `catalog` because the
   catalog is the aggregator's cross-service view and this is a single service's self-description:
   different source, different lifetime, different failure mode.
+  The slice stores the document **as published**; `readContractDocument`
+  (`src/contracts/contractDocument.ts`) is the only reader, and it reads both shapes in the wild —
+  the Contract Document (`schemaDialect`, `service`, `sends`, the two hashes) and the legacy
+  `openapi`/`info`/`reserved` document. Never read `info.*` or `openapi` anywhere else; never list a
+  `benzene:` entry; refuse an unknown `schemaDialect`.
 - `view` — everything the user has done to the view: page, selection, filter, expansion, the live
   window, and whether benzene's own utility traffic counts toward the traffic surfaces.
 

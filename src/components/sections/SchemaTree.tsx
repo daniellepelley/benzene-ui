@@ -189,7 +189,7 @@ export function SchemaTree({
 
   const properties = childrenOf(schema);
   if (!properties) {
-    return <p className="bz-schema-scalar">{String(schema.type ?? 'any')}</p>;
+    return <p className="bz-schema-scalar">{typeOf(schema)}</p>;
   }
   const required = requiredOf(schema);
   const baselineChildren = baseline ? childrenOf(baseline) : undefined;

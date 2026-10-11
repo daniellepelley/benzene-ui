@@ -18,12 +18,17 @@ export const requiredOf = (schema: JsonSchema) =>
   new Set((schema.required ?? (isObject(schema.items) ? schema.items.required : undefined)) ?? []);
 
 export const typeOf = (schema: JsonSchema): string => {
+  // A `$ref` still standing after the contract-document reader inlined the rest is a recursive type
+  // cut short (or an unknown component): name it, so the reader can find it under Schemas.
+  if (typeof schema.$ref === 'string') return schema.$ref.slice(schema.$ref.lastIndexOf('/') + 1);
   const base = Array.isArray(schema.type) ? schema.type.join(' | ') : (schema.type ?? 'any');
+  // OpenAPI 3.0's `nullable` is part of the type a reader has to handle, so it reads as one.
+  const nullable = schema.nullable === true ? ' | null' : '';
   // `array` alone tells a reader nothing they cannot see from the indentation. Swagger and the
   // AsyncAPI viewer both fold the item type into the type itself, so one glance answers "a list of
   // what?" — which is the question the bare word raises and does not answer.
-  if (base === 'array' && isObject(schema.items)) return `array[${typeOf(schema.items)}]`;
-  return base;
+  if (base === 'array' && isObject(schema.items)) return `array[${typeOf(schema.items)}]${nullable}`;
+  return `${base}${nullable}`;
 };
 
 /**

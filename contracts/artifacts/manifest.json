@@ -5,24 +5,24 @@
       "name": "orders-api",
       "status": "healthy",
       "contractDrift": false,
-      "specUrl": "https://orders-api.example/spec?type=benzene",
-      "healthUrl": "https://orders-api.example/healthcheck",
+      "specUrl": "https://orders-api.example/benzene/spec?type=benzene",
+      "healthUrl": "https://orders-api.example/benzene/health",
       "owningTeam": "Fulfilment"
     },
     {
       "name": "payments-api",
       "status": "unhealthy",
       "contractDrift": true,
-      "specUrl": "https://payments-api.example/spec?type=benzene",
-      "healthUrl": "https://payments-api.example/healthcheck",
+      "specUrl": "https://payments-api.example/benzene/spec?type=benzene",
+      "healthUrl": "https://payments-api.example/benzene/health",
       "owningTeam": "Payments"
     },
     {
       "name": "shipping-api",
       "status": "unreachable",
       "contractDrift": false,
-      "specUrl": "https://shipping-api.example/spec?type=benzene",
-      "healthUrl": "https://shipping-api.example/healthcheck",
+      "specUrl": "https://shipping-api.example/benzene/spec?type=benzene",
+      "healthUrl": "https://shipping-api.example/benzene/health",
       "owningTeam": "Logistics"
     }
   ]

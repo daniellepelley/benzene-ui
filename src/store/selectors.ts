@@ -320,12 +320,12 @@ const SUCCESS_STATUSES = new Set(['ok', 'created', 'accepted', 'updated', 'delet
 /**
  * The failure vocabulary this build knows, from `docs/specification/wire-contracts.md` §3.
  *
- * Kept explicitly so a status that is in NEITHER set can be recognised as unrecognised. The spec
- * permits a receiver with no `isSuccessful` signal to classify an application-defined status as a
- * failure — and the usage feed carries no such signal — but permission to assume the worst is not
- * permission to present the assumption as a measurement. A feed using an application-defined status
- * rendered as a confident "100.0% failed", which on a deploy-decision screen is the most damaging
- * possible reading of an unknown.
+ * Kept explicitly so a status that is in NEITHER set can be recognised as unrecognised. The usage
+ * feed's rows carry a status but no `isSuccessful` (the signal an envelope receiver classifies by,
+ * wire-contracts §1.2), so the vocabulary is the only classifier there is, and an application-defined
+ * status falls outside it. Counting it as a failure is the safe direction — but an assumption is not
+ * a measurement. A feed using an application-defined status rendered as a confident "100.0% failed",
+ * which on a deploy-decision screen is the most damaging possible reading of an unknown.
  */
 const KNOWN_FAILURE_STATUSES = new Set([
   'validation-error', 'not-found', 'unauthorised', 'unauthorized', 'forbidden', 'conflict',

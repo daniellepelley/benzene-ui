@@ -17,7 +17,7 @@ const meta = {
   args: {
     specViewHref: 'mesh-spec-ui.html?service=orders-api',
     rawSpecHref: 'https://orders-api.example/benzene/spec',
-    healthHref: 'https://orders-api.example/healthcheck',
+    healthHref: 'https://orders-api.example/benzene/health',
   },
 } satisfies Meta<typeof ServiceLinks>;
 export default meta;
@@ -30,7 +30,7 @@ export const SpecViewOnly: Story = { args: { rawSpecHref: null, healthHref: null
 
 /** A hostile or malformed URL was refused upstream, so its link simply is not offered. */
 export const UnsafeUrlsRefused: Story = {
-  args: { rawSpecHref: null, healthHref: 'https://orders-api.example/healthcheck' },
+  args: { rawSpecHref: null, healthHref: 'https://orders-api.example/benzene/health' },
 };
 
 export const Nothing: Story = { args: { specViewHref: null, rawSpecHref: null, healthHref: null } };

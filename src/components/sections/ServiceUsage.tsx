@@ -103,9 +103,9 @@ export function ServiceUsage({ usage, showUtility, onToggleUtility, onSetup, win
                 : ' over a period this feed does not state'}
             </span>
           </p>
-          {/* The spec lets a receiver with no `isSuccessful` signal treat an application-defined
-              status as a failure, and the usage feed carries no such signal — but permission to
-              assume the worst is not permission to render the assumption as a measurement. */}
+          {/* The usage feed's rows carry no `isSuccessful`, so an application-defined status can only
+              be counted as a failure — the safe direction, but an assumption, and an assumption is
+              not to be rendered as a measurement. */}
           {unrecognised > 0 && (
             <p className="bz-usage-note">
               {unrecognised.toLocaleString()} of these are in statuses this build does not recognise.

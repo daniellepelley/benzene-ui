@@ -109,9 +109,9 @@ export const sendComposed = createAsyncThunk<
 /**
  * The header a Benzene service reads a payload version off.
  *
- * `benzene-version` is the canonical name in the specification's ordered fallback list
- * (`benzene-version` → `version` → `x-version`); it is the one implementations WRITE, so it is the
- * one to write here. See `docs/specification/versioning.md` §2.
+ * `benzene-version` is the one version header (`docs/specification/versioning.md` §2): a bare
+ * `version` or `x-version` header is an ordinary header and selects nothing. A service may rename it
+ * in one place, which is why the seeded header stays editable.
  */
 const VERSION_HEADER = 'benzene-version';
 
@@ -127,12 +127,12 @@ const VERSION_HEADER = 'benzene-version';
  * Seeded into the visible textarea rather than injected at send time on purpose. Everything else on
  * this screen shows the reader exactly what will be sent; a header that appears only in flight would
  * be the one thing on the page they cannot check, on the one screen whose entire job is producing
- * evidence. It also stays editable, which matters because a service may be configured to read a
- * different header name (the fallback list is configurable per §2.1) and the tester needs to be able
- * to say so.
+ * evidence. It also stays editable, which matters because a service may rename its version header
+ * (in one place, versioning.md §2) and the tester needs to be able to say so.
  *
- * A versionless topic seeds nothing: per §2.2 an absent version header means "the topic's default
- * version", which is exactly right, and writing `benzene-version: null` would be worse than silence.
+ * A versionless topic seeds nothing: a message with no version goes to the topic's default handler
+ * (core-concepts §2), which is exactly right, and writing `benzene-version: null` would be worse than
+ * silence.
  */
 function seedHeaders(version: string | null): string {
   return version ? `${JSON.stringify({ [VERSION_HEADER]: version }, null, 2)}` : '{}';

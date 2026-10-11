@@ -76,10 +76,10 @@ export function UsagePanel({ traffic, entries = [], windowLabel, version = null,
       {/* The feed carries no version on its rows, so this total covers the whole topic. Printing it
           unqualified under a version heading tells a reader that version is carrying traffic it may
           not be carrying at all — and on a page that can simultaneously say nothing consumes it. */}
-      {/* A failure count that is partly a guess must say so. The spec lets a receiver with no
-          `isSuccessful` signal treat an application-defined status as a failure, and the usage feed
-          carries no such signal — but permission to assume the worst is not permission to render the
-          assumption as a measurement, least of all on a screen someone deploys from. */}
+      {/* A failure count that is partly a guess must say so. The usage feed's rows carry no
+          `isSuccessful`, so an application-defined status can only be counted as a failure — the
+          safe direction, but an assumption, and an assumption is not to be rendered as a
+          measurement, least of all on a screen someone deploys from. */}
       {traffic.unrecognised > 0 && (
         <p className="bz-usage-note">
           {traffic.unrecognised.toLocaleString()} of these are in statuses this build does not

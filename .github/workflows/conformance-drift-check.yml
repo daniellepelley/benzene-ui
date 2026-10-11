@@ -1,0 +1,103 @@
+name: conformance-drift-check
+
+# The language-neutral conformance fixtures are OWNED by the cross-language `benzene` repo
+# (docs/specification/conformance/). This repo vendors the mesh fixtures its tests read:
+#
+#   snapshot  contracts/
+#   pin       contracts/SPEC_VERSION
+#
+# The pin names the spec release the snapshot was taken from: a tag such as `spec-0.1.0`, or -
+# while catching up partway through a release - a benzene commit. See "Spec releases and pinning"
+# in benzene's docs/specification/conformance/README.md.
+#
+# Two jobs, deliberately different in weight:
+#
+#   pinned (blocking)        The snapshot must be byte-identical to the fixtures at the pinned
+#                            release. This repo vendors a deliberate subset, so a
+#                            canonical fixture absent here is fine; a vendored one
+#                            that differs is not. Nothing done in benzene can turn
+#                            this red: this repo moves its pin when it chooses to.
+#   behind-latest (warning)  Annotates the run when a newer spec-* release exists, so being
+#                            behind is visible rather than silent. It never fails.
+#
+# contracts/artifacts/ is not vendored from benzene - those are this repo's own sample
+# mesh artifacts - so only the top-level *.json files are checked.
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 6 * * 1'   # weekly: surfaces a new spec release in the behind-latest job
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FIXTURES: contracts
+  PIN: contracts/SPEC_VERSION
+  SPEC_REPO: https://github.com/daniellepelley/Benzene.git
+
+jobs:
+  pinned:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch the fixtures at the pinned spec release
+        run: |
+          set -euo pipefail
+          pinned=$(tr -d '[:space:]' < "$PIN")
+          git init -q /tmp/benzene
+          git -C /tmp/benzene remote add origin "$SPEC_REPO"
+          if ! git -C /tmp/benzene fetch -q --depth 1 origin "$pinned"; then
+            echo "::error file=$PIN::'$pinned' is not a tag or commit of the benzene repo"
+            exit 1
+          fi
+          mkdir -p /tmp/canonical
+          git -C /tmp/benzene archive FETCH_HEAD docs/specification/conformance \
+            | tar -x -C /tmp/canonical --strip-components=3
+          echo "Pinned to $pinned ($(git -C /tmp/benzene rev-parse 'FETCH_HEAD^{commit}'))"
+
+      - name: Diff the snapshot against the pinned release
+        run: |
+          set -euo pipefail
+          fail=0
+          for f in "$FIXTURES"/*.json; do
+            name=$(basename "$f")
+            if [ ! -f "/tmp/canonical/$name" ]; then
+              echo "::error file=$f::$name is not in the pinned spec release"
+              fail=1
+            elif ! diff -u "/tmp/canonical/$name" "$f" > /tmp/diff.txt; then
+              echo "::error file=$f::$name differs from the pinned spec release"
+              cat /tmp/diff.txt
+              fail=1
+            fi
+          done
+          if [ "$fail" -ne 0 ]; then
+            echo ""
+            echo "The snapshot is not the release $PIN names. Re-vendor from that release:"
+            echo "  cp <benzene at that release>/docs/specification/conformance/<each vendored file> $FIXTURES/"
+            exit 1
+          fi
+          echo "Snapshot matches the pinned spec release ($(ls "$FIXTURES"/*.json | wc -l) fixtures)."
+
+  behind-latest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Warn when a newer spec release exists
+        run: |
+          set -euo pipefail
+          pinned=$(tr -d '[:space:]' < "$PIN")
+          latest=$(git ls-remote --tags --refs "$SPEC_REPO" 'spec-*' | sed 's#.*refs/tags/##' | sort -V | tail -n 1)
+          if [ -z "$latest" ]; then
+            echo "::warning::No spec-* release exists in benzene yet."
+          elif [ "$pinned" = "$latest" ]; then
+            echo "Pinned to the latest spec release, $latest."
+          else
+            echo "::warning file=$PIN::Pinned to $pinned; the latest spec release is $latest. Moving forward is this repo's call: implement it, re-vendor, and write $latest into $PIN."
+          fi

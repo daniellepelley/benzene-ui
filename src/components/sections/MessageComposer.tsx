@@ -1,4 +1,5 @@
-import type { ComposeResult, SendState } from '../../store/slices/composeSlice';
+import { composeOutcomeOf, type ComposeOutcome, type ComposeResult, type SendState } from '../../store/slices/composeSlice';
+import type { Rag } from '../../contracts';
 import type { TopicsTopicsItem } from '../../contracts';
 import { versionLabel } from '../../store/selectors';
 import { EmptyState } from '../primitives/EmptyState';
@@ -132,8 +133,24 @@ export function MessageComposer({
       {result && (
         <section className="bz-compose-result">
           <h4>
-            Response <Badge rag={isOk(result.statusCode) ? 'green' : 'red'}>{result.statusCode}</Badge>
+            Response{' '}
+            <Badge rag={OUTCOME_RAG[composeOutcomeOf(result)]}>
+              {result.httpStatus != null ? `HTTP ${result.httpStatus}` : result.statusCode || 'no status'}
+            </Badge>
           </h4>
+          {/* Said in the visible plane, not a hover: whether this response is evidence of success is
+              the one thing this screen exists to establish. */}
+          {result.httpStatus != null ? (
+            <p className="bz-compose-note">
+              The target answered HTTP {result.httpStatus} without a Benzene envelope, so this is its
+              carrier's status, not a handler's result.
+            </p>
+          ) : composeOutcomeOf(result) === 'unclassified' && (
+            <p className="bz-compose-note">
+              The response did not say whether it succeeded (it carried no <code>isSuccessful</code>),
+              and this console does not guess from the status text.
+            </p>
+          )}
           <pre>{pretty(result.body)}</pre>
         </section>
       )}
@@ -141,8 +158,12 @@ export function MessageComposer({
   );
 }
 
-const isOk = (status: string) =>
-  ['ok', 'created', 'accepted', 'updated', 'deleted', 'ignored'].includes(status);
+/**
+ * Green and red come from the response's own `isSuccessful` and from nothing else (wire-contracts
+ * §1.2): an application-defined status means nothing to a list of known words, and a known word
+ * on a result that says it failed is a failure. No signal is amber — a reason to look, not to relax.
+ */
+const OUTCOME_RAG: Record<ComposeOutcome, Rag> = { succeeded: 'green', failed: 'red', unclassified: 'amber' };
 
 /** Pretty-print if it parses, otherwise show it verbatim — a non-JSON body is still worth reading. */
 function pretty(body: string): string {

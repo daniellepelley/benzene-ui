@@ -3,6 +3,7 @@ import type { MeshApi } from '../store/slices/estateSlice';
 import { MeshFetchError } from '../store/slices/estateSlice';
 import type { ComposeResult } from '../store/slices/composeSlice';
 import { MeshDispatchBlockedError } from '../store/slices/composeSlice';
+import { asWireResponse, parseJson, problemMessage, successOf, type WireResponse } from './envelope';
 
 /**
  * Resolves an artifact path against the manifest's location, then the page.
@@ -38,17 +39,46 @@ async function getJson<T>(path: string, manifestUrl?: string): Promise<T> {
   return (await response.json()) as T;
 }
 
-async function postJson<T>(
-  path: string, body: unknown, extraHeaders: Record<string, string> = {},
-): Promise<T> {
+/** The response body as JSON, or undefined when there is none or it is not JSON. */
+async function readJson(response: Response): Promise<unknown> {
+  try {
+    return (await response.json()) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * POSTs one Benzene envelope and returns the envelope that answered it — whatever the HTTP status.
+ *
+ * The envelope endpoint answers 200 for every envelope it processed, and the outcome is in the
+ * envelope (transport-bindings §1), so a non-2xx status is not the failure signal when the body is
+ * an envelope: an older service that still answers a failed envelope with, say, 404 is read exactly
+ * like a current one answering 200. Only an answer that is NOT an envelope is a failed fetch, and
+ * then the HTTP status is all there is to report — a carrier failure (a malformed envelope, 400;
+ * authentication the HTTP host enforces before reading the envelope, 401/403), or an endpoint that is
+ * not a Benzene envelope endpoint. An `unauthorized` from the pipeline's own auth middleware is a
+ * processed envelope like any other, and arrives as one.
+ * See `./envelope.ts`.
+ */
+async function postEnvelope(
+  path: string,
+  envelope: { topic: string; headers: Record<string, string>; body: string },
+  extraHeaders: Record<string, string> = {},
+): Promise<WireResponse> {
   const response = await fetch(resolveUrl(path), {
     method: 'POST',
     headers: { 'content-type': 'application/json', accept: 'application/json', ...extraHeaders },
     credentials: 'same-origin',
-    body: JSON.stringify(body),
+    body: JSON.stringify(envelope),
   });
+  const answer = asWireResponse(await readJson(response));
+  if (answer) return answer;
   if (!response.ok) throw failed(response, path);
-  return (await response.json()) as T;
+  throw new MeshFetchError(
+    `${response.status} ${response.statusText} for ${path} was not a Benzene envelope`,
+    response.status,
+  );
 }
 
 /**
@@ -121,42 +151,45 @@ export async function postLogout(endpoint: string): Promise<LogoutResult> {
  * changing. `body` is a JSON *string* inside the envelope, and the response body is too — that is the
  * contract, not an accident of this client.
  *
- * A non-`ok` status is an application-level failure carried in a 200 response, so the HTTP status
- * alone is not enough to know whether the query worked.
+ * Whether the query worked is the answering envelope's `isSuccessful`, and nothing else: not the
+ * HTTP status (a processed envelope is a 200 whatever its outcome), and not the `statusCode` text
+ * (wire-contracts §1.2 — a receiver must not reclassify from it). An envelope that carries no
+ * `isSuccessful` has not said the query worked, so its body is not read as though it had.
  */
 async function meshQuery<T>(endpoint: string, topic: string, body: unknown): Promise<T> {
-  const envelope = await postJson<{ statusCode: string; body?: string }>(endpoint, {
+  const envelope = await postEnvelope(endpoint, {
     topic,
     headers: {},
     body: JSON.stringify(body ?? {}),
   });
-  if (envelope.statusCode !== 'ok') {
+  if (successOf(envelope) !== true) {
     // READER-FACING. This string reaches the chrome, so it must not be a wire topic and a raw status
     // token: "benzene:mesh:query:fleet answered undefined" is a stack trace wearing a sentence's
     // clothes, and it was the first thing a reader saw when the live plane faltered (R7). The topic
     // stays out of it entirely — it names an internal contract the reader has no use for — and an
     // absent status is reported as absent rather than as the word "undefined".
+    const status = envelope.statusCode ? ` (${envelope.statusCode})` : '';
     throw new Error(
-      envelope.statusCode
-        ? `the live plane refused the request (${envelope.statusCode})`
-        : 'the live plane answered without a status',
+      successOf(envelope) === false
+        ? `the live plane refused the request${status}`
+        : `the live plane answered without saying whether the request succeeded${status}`,
     );
   }
-  return JSON.parse(envelope.body ?? '{}') as T;
+  return JSON.parse(envelope.body || '{}') as T;
 }
 
 /**
  * Dispatches a `mesh:dispatch` message to `endpoint` and returns the target service's own response.
  *
  * `benzene:mesh:dispatch` answers over the same wire envelope every mesh query does, but its outer
- * envelope status means something different: it reports whether the *mesh itself* would even attempt
- * the send (`ok`, or `forbidden`/`bad-request`/`not-found`/`not-implemented` — see
+ * envelope's outcome means something different: it reports whether the *mesh itself* would even
+ * attempt the send (`ok`, or `forbidden`/`bad-request`/`not-found`/`not-implemented` — see
  * `Benzene.Mesh.Dispatch.MeshDispatchMessageHandler`), never the target service's own outcome. That
- * lives one layer in, as the `MeshDispatchResult` JSON the outer `ok` envelope's `body` carries. So a
- * non-`ok` outer status is not "the send failed" — usually it is a safety gate (most commonly
+ * lives one layer in, as the `MeshDispatchResult` JSON the outer envelope's `body` carries. So an
+ * outer `isSuccessful: false` is not "the send failed" — usually it is a safety gate (most commonly
  * `MeshDispatchGate`'s Production check) refusing to even try, and the composer needs to say that
- * distinctly rather than folding it into "the target returned an error", which the inner
- * `ComposeResult.statusCode` already covers.
+ * distinctly rather than folding it into "the target returned an error", which the inner result
+ * already covers.
  */
 async function dispatchMessage(
   endpoint: string,
@@ -166,38 +199,81 @@ async function dispatchMessage(
   // that fires a payload into a real handler. A cross-site form cannot set a custom header, and a
   // cross-origin fetch that sets one is preflighted. Hardcoded for the same reason: a configurable
   // CSRF token is a CSRF token somebody configures wrongly.
-  const envelope = await postJson<{ statusCode: string; body?: string }>(endpoint, {
+  const envelope = await postEnvelope(endpoint, {
     topic: 'benzene:mesh:dispatch',
     headers: {},
     body: JSON.stringify(request),
   }, { 'X-Benzene-Dispatch': '1' });
 
-  if (envelope.statusCode !== 'ok') {
+  const attempted = successOf(envelope);
+  if (attempted === false) {
     throw new MeshDispatchBlockedError(describeBlockedDispatch(envelope), envelope.statusCode);
   }
+  if (attempted === null) {
+    // Neither "sent" nor "blocked" can be claimed from an answer that never said which it was.
+    throw new Error(
+      `The mesh answered ${envelope.statusCode || 'without a status'} without saying whether it attempted the dispatch.`,
+    );
+  }
 
-  return JSON.parse(envelope.body ?? '{}') as ComposeResult;
+  return composeResultOf(parseJson(envelope.body));
 }
 
 /**
- * The blocked/refused envelope's `body` is whatever the failing `IBenzeneResult`'s message
- * serializes to — not guaranteed to be a `RawStringMessage`-shaped JSON string the way a successful
- * dispatch's body is, so this reads it defensively rather than assuming one shape.
+ * The blocked/refused envelope's `body` is the failing result's problem document (wire-contracts
+ * §1.3) — or, from an older collector, whatever its message serialized to — so this reads it
+ * defensively rather than assuming one shape.
  */
-function describeBlockedDispatch(envelope: { statusCode: string; body?: string }): string {
-  const raw = envelope.body?.trim();
-  if (!raw) return `The mesh refused this dispatch (${envelope.statusCode}).`;
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (typeof parsed === 'string') return parsed;
-    if (parsed && typeof parsed === 'object' && 'message' in parsed) {
-      const message = (parsed as { message?: unknown }).message;
-      if (typeof message === 'string') return message;
+function describeBlockedDispatch(envelope: WireResponse): string {
+  return problemMessage(envelope.body) ?? `The mesh refused this dispatch (${envelope.statusCode}).`;
+}
+
+/** An HTTP status code standing in for a Benzene status — the shape an HTTP-carried dispatch reports. */
+const HTTP_STATUS = /^[1-5]\d\d$/;
+
+/**
+ * The target's own result, out of the `MeshDispatchResult` a dispatch answered with.
+ *
+ * `benzene:mesh:dispatch` is Provisional and its response shape is not pinned (wire-contracts §7),
+ * so this accepts the shapes collectors actually send:
+ *
+ * - `{ statusCode, isSuccessful?, headers, body }` with a Benzene status — the target's envelope,
+ *   relayed. `isSuccessful` is kept when present and never invented when absent.
+ * - `{ statusCode: "<HTTP code>", body: "<raw response body>" }` — a dispatcher that passed the HTTP
+ *   answer straight through (`HttpMeshServiceDispatcher` before spec 0.2). When that body is an
+ *   envelope, the envelope is the target's result whatever the HTTP status was. When it is not, the
+ *   carrier failed (or the target is no Benzene envelope endpoint) and the HTTP status is the only
+ *   fact there is — so it is reported as such, success meaning a 2xx (wire-contracts §4.1's reverse
+ *   table, the fallback the spec gives for a body that is not an envelope).
+ */
+function composeResultOf(raw: unknown): ComposeResult {
+  const r = (raw != null && typeof raw === 'object' ? raw : {}) as {
+    statusCode?: unknown; isSuccessful?: unknown; headers?: unknown; body?: unknown;
+  };
+  const statusCode = r.statusCode == null ? '' : String(r.statusCode);
+  const body = typeof r.body === 'string' ? r.body : r.body == null ? '' : JSON.stringify(r.body);
+  const headers = (r.headers != null && typeof r.headers === 'object' ? r.headers : {}) as Record<string, string>;
+
+  if (HTTP_STATUS.test(statusCode)) {
+    const inner = asWireResponse(parseJson(body));
+    if (inner) {
+      return {
+        statusCode: inner.statusCode,
+        ...(typeof inner.isSuccessful === 'boolean' ? { isSuccessful: inner.isSuccessful } : {}),
+        body: inner.body ?? '',
+        headers: inner.headers ?? {},
+      };
     }
-  } catch {
-    // Not JSON — the raw text itself is the message.
+    const httpStatus = Number(statusCode);
+    return { statusCode, isSuccessful: httpStatus >= 200 && httpStatus < 300, body, headers, httpStatus };
   }
-  return raw;
+
+  return {
+    statusCode,
+    ...(typeof r.isSuccessful === 'boolean' ? { isSuccessful: r.isSuccessful } : {}),
+    body,
+    headers,
+  };
 }
 
 export interface MeshApiOptions {

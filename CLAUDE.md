@@ -31,10 +31,13 @@ budget (currently ~374 KB for the mesh UI — grown stepwise from 250 KB as the 
 ## The collector is a Benzene service, not a REST API
 
 Every query to it is a message on a topic, inside the wire envelope: `POST {topic, headers, body}`
-where `body` is a JSON *string*, answered by `{statusCode, body}` where that is a JSON string too. A
-non-`ok` status is an application failure carried in a 200. The window is sent in the wire's
-relative-time grammar (`now-15m`), never as a resolved instant — the server resolves it against its
-own clock, so a skewed client still asks for the window it means.
+where `body` is a JSON *string*, answered by `{statusCode, isSuccessful, headers, body}` where that is
+a JSON string too. Whether it worked is `isSuccessful` and nothing else — never the HTTP status (a
+processed envelope is a 200 whatever its outcome; an older service's non-2xx with an envelope body is
+read the same way) and never the `statusCode` text. Only an answer with no envelope in it is reported
+by its HTTP status: a carrier failure. `src/data/envelope.ts` holds both rules. The window is sent
+in the wire's relative-time grammar (`now-15m`), never as a resolved instant — the server resolves it
+against its own clock, so a skewed client still asks for the window it means.
 
 ## Contracts
 

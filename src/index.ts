@@ -4,4 +4,5 @@ export * from './components';
 export * from './store';
 export * from './store/routing';
 export * from './data/meshApi';
+export * from './data/envelope';
 export type * from './contracts';

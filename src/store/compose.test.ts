@@ -4,7 +4,7 @@ import { loadCatalog } from './slices/catalogSlice';
 import {
   composeOpened, versionSelected, bodyEdited, headersEdited, transportSelected,
   sendConfirmationToggled, sendComposed, MeshDispatchBlockedError,
-  RAW_TRANSPORT,
+  RAW_TRANSPORT, composeOutcomeOf,
 } from './slices/composeSlice';
 import { selectComposeValidity, selectTransportsForTopic, selectTopicVersions, selectExampleBody } from './selectors';
 import { fakeMeshApi } from '../test/fakeMeshApi';
@@ -286,5 +286,32 @@ describe('a response never outlives the request it describes', () => {
     const store = await sent();
     store.dispatch(transportSelected('http'));
     expect(store.getState().compose.result).toBeNull();
+  });
+});
+
+/**
+ * The console's green or red is evidence somebody signs off on, so it says only what the response's
+ * own `isSuccessful` says (wire-contracts §1.2) — never what a list of status words would guess.
+ */
+describe('what a response is evidence of', () => {
+  it('follows isSuccessful, whatever the status text', () => {
+    expect(composeOutcomeOf({ statusCode: 'queued-for-review', isSuccessful: true, body: '', headers: {} }))
+      .toBe('succeeded');
+    expect(composeOutcomeOf({ statusCode: 'ok', isSuccessful: false, body: '', headers: {} })).toBe('failed');
+  });
+
+  it('is unclassified, not success, when the response carried no isSuccessful', () => {
+    expect(composeOutcomeOf({ statusCode: 'ok', body: '', headers: {} })).toBe('unclassified');
+  });
+
+  it('keeps the signal on the stored result', async () => {
+    const store = await ready({
+      sendMessage: async () => ({ statusCode: 'queued-for-review', isSuccessful: true, body: '{}', headers: {} }),
+    });
+    store.dispatch(composeOpened({ service: 's', topic: 'a', exampleBody: '{}', transports: [RAW_TRANSPORT] }));
+
+    await store.dispatch(sendComposed({ service: 's', topic: 'a', headers: {}, body: '{}' }));
+
+    expect(composeOutcomeOf(store.getState().compose.result!)).toBe('succeeded');
   });
 });

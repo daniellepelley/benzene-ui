@@ -15,7 +15,7 @@ import { ServicePage } from './ServicePage';
 import { TopicPage } from './TopicPage';
 import { IssuePage } from './IssuePage';
 import { TestConsolePage } from './TestConsolePage';
-import { sendConfirmationToggled } from '../../store/slices/composeSlice';
+import { sendConfirmationToggled, sendComposed } from '../../store/slices/composeSlice';
 import type { ReactElement } from 'react';
 
 const loaded = async (withFleet = false) => {
@@ -385,6 +385,45 @@ describe('TestConsolePage', () => {
  * Three defects a QA engineer found by treating the Test Console as the runbook step its own header
  * says it is. All three produce evidence that looks true and is not.
  */
+/**
+ * The response badge follows the stored result's `isSuccessful` — the rendering half of the rule the
+ * store tests pin (compose.test.ts, "what a response is evidence of").
+ */
+describe('the Test Console response', () => {
+  const sentWith = async (result: import('../../store/slices/composeSlice').ComposeResult) => {
+    const store = createStore(fakeMeshApi({ sendMessage: async () => result }));
+    await store.dispatch(loadCatalog());
+    show(store, <TestConsolePage service="orders-api" topic="payment:capture" />);
+    act(() => store.dispatch(sendConfirmationToggled()));
+    await act(async () => {
+      await store.dispatch(sendComposed({ service: 'orders-api', topic: 'payment:capture', headers: {}, body: '{}' }));
+    });
+    return store;
+  };
+
+  it('is green for an application-defined status the service calls a success', async () => {
+    await sentWith({ statusCode: 'queued-for-review', isSuccessful: true, body: '{}', headers: {} });
+    expect(screen.getByText('queued-for-review')).toHaveAttribute('data-rag', 'green');
+  });
+
+  it('is red for a known word on a result that says it failed', async () => {
+    await sentWith({ statusCode: 'ok', isSuccessful: false, body: '{}', headers: {} });
+    expect(screen.getByText('ok', { selector: '.bz-badge' })).toHaveAttribute('data-rag', 'red');
+  });
+
+  it('says so, in amber, when the response carried no isSuccessful', async () => {
+    await sentWith({ statusCode: 'ok', body: '{}', headers: {} });
+    expect(screen.getByText('ok', { selector: '.bz-badge' })).toHaveAttribute('data-rag', 'amber');
+    expect(screen.getByText(/does not guess from the status text/)).toBeInTheDocument();
+  });
+
+  it('names the HTTP status when no envelope came back', async () => {
+    await sentWith({ statusCode: '401', isSuccessful: false, httpStatus: 401, body: 'Unauthorized', headers: {} });
+    expect(screen.getByText('HTTP 401')).toHaveAttribute('data-rag', 'red');
+    expect(screen.getByText(/carrier's status, not a handler's result/)).toBeInTheDocument();
+  });
+});
+
 describe('the Test Console as a runbook step', () => {
   it('seeds the version and the payload on a deep link, not just when clicked into', async () => {
     // The effect used to run once against a catalogue that had not arrived, and never again — the

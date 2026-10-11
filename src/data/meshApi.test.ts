@@ -155,56 +155,187 @@ describe('artifact fetches carry their status', () => {
   });
 });
 
+/** A fetch that answers with `body` as JSON and the given HTTP status. */
+const answering = (body: unknown, status = 200, statusText = 'OK') => {
+  const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => ({
+    ok: status >= 200 && status < 300,
+    status,
+    statusText,
+    json: async () => {
+      if (typeof body === 'string') throw new SyntaxError('Unexpected token');
+      return body;
+    },
+  }));
+  vi.stubGlobal('fetch', fetchMock);
+  return fetchMock;
+};
+
+/**
+ * Spec 0.2 (transport-bindings §1, D17): the envelope endpoint answers 200 for every envelope it
+ * processed, and the outcome is the envelope's `isSuccessful`. A non-2xx status speaks only when no
+ * envelope came back.
+ */
+describe('querying the live plane', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const fleet = { generatedAt: '2026-10-11T09:00:00Z', services: [], topics: [], traces: [], issues: [] };
+  const query = () => createMeshApi({ fleetEndpoint: '/benzene/invoke' }).getFleet!({ window: { from: 'now-15m' } });
+
+  it('reads the view out of a successful envelope', async () => {
+    const fetchMock = answering({ statusCode: 'ok', isSuccessful: true, headers: {}, body: JSON.stringify(fleet) });
+
+    await expect(query()).resolves.toEqual(fleet);
+    const [, init] = fetchMock.mock.calls[0]!;
+    expect(JSON.parse(init!.body as string).topic).toBe('benzene:mesh:query:fleet');
+  });
+
+  it('reports a failed envelope that arrived as a 200 as a failure', async () => {
+    // The 200 is the carrier saying it processed the envelope — not that the query worked.
+    answering({ statusCode: 'not-found', isSuccessful: false, headers: {}, body: '{"title":"Not Found"}' });
+    await expect(query()).rejects.toThrow('the live plane refused the request (not-found)');
+  });
+
+  it('still reads an older collector that answers a failed envelope with a non-2xx status', async () => {
+    answering({ statusCode: 'not-found', isSuccessful: false, body: '{}' }, 404, 'Not Found');
+    await expect(query()).rejects.toThrow('the live plane refused the request (not-found)');
+  });
+
+  it('classifies by isSuccessful, never by the status text', async () => {
+    // An application-defined status the collector calls a success is a success...
+    answering({ statusCode: 'served-from-cache', isSuccessful: true, body: JSON.stringify(fleet) });
+    await expect(query()).resolves.toEqual(fleet);
+    vi.unstubAllGlobals();
+
+    // ...and `ok` on a result that says it failed is a failure.
+    answering({ statusCode: 'ok', isSuccessful: false, body: '{}' });
+    await expect(query()).rejects.toThrow('refused the request (ok)');
+  });
+
+  it('does not read a body as an answer when the envelope never said it succeeded', async () => {
+    answering({ statusCode: 'ok', body: JSON.stringify(fleet) });
+    await expect(query()).rejects.toThrow('without saying whether the request succeeded (ok)');
+  });
+
+  it('reports a carrier failure by its HTTP status when no envelope came back', async () => {
+    // Authentication the host enforces before it reads the envelope: there is no envelope to read.
+    answering('Unauthorized', 401, 'Unauthorized');
+    const failed = query();
+    await expect(failed).rejects.toBeInstanceOf(MeshFetchError);
+    await expect(failed).rejects.toMatchObject({ status: 401 });
+  });
+
+  it('reports a 200 that is not an envelope as not an envelope', async () => {
+    answering('<html>', 200, 'OK');
+    await expect(query()).rejects.toThrow('was not a Benzene envelope');
+  });
+});
+
 describe('sending a test message', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
+  const send = () =>
+    createMeshApi({ dispatchEndpoint: '/benzene/invoke' })
+      .sendMessage!({ service: 'orders-api', topic: 'order:create', headers: {}, body: '{}' });
+
   it('POSTs a benzene:mesh:dispatch envelope carrying the service, topic, headers and body', async () => {
-    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => ({
-      ok: true,
-      json: async () => ({ statusCode: 'ok', body: JSON.stringify({ statusCode: 'created', body: '{"id":"1"}', headers: {} }) }),
-    }));
-    vi.stubGlobal('fetch', fetchMock);
+    const fetchMock = answering({
+      statusCode: 'ok',
+      isSuccessful: true,
+      body: JSON.stringify({ statusCode: 'created', isSuccessful: true, body: '{"id":"1"}', headers: {} }),
+    });
 
     const api = createMeshApi({ dispatchEndpoint: '/benzene/invoke' });
     const result = await api.sendMessage!({ service: 'orders-api', topic: 'order:create', headers: { a: 'b' }, body: '{}' });
 
-    expect(result).toEqual({ statusCode: 'created', body: '{"id":"1"}', headers: {} });
+    expect(result).toEqual({ statusCode: 'created', isSuccessful: true, body: '{"id":"1"}', headers: {} });
     const [, init] = fetchMock.mock.calls[0]!;
     const posted = JSON.parse(init!.body as string);
     expect(posted.topic).toBe('benzene:mesh:dispatch');
     expect(JSON.parse(posted.body)).toEqual({ service: 'orders-api', topic: 'order:create', headers: { a: 'b' }, body: '{}' });
+    expect(init!.headers).toMatchObject({ 'X-Benzene-Dispatch': '1' });
   });
 
   it('throws MeshDispatchBlockedError, not a generic failure, when the mesh refuses the dispatch', async () => {
     // Most commonly MeshDispatchGate's Production check — a safety gate working as intended, which
-    // the composer needs to tell apart from "the target service returned an error".
-    vi.stubGlobal('fetch', vi.fn(async () => ({
-      ok: true,
-      json: async () => ({
-        statusCode: 'forbidden',
-        body: JSON.stringify('Mesh dispatch is disabled in this environment.'),
-      }),
-    })));
+    // the composer needs to tell apart from "the target service returned an error". Since spec 0.2
+    // it arrives as a 200 carrying a problem document; the reason is its `detail`.
+    answering({
+      statusCode: 'forbidden',
+      isSuccessful: false,
+      body: JSON.stringify({ title: 'Forbidden', detail: 'Mesh dispatch is disabled in this environment.', benzeneStatus: 'forbidden' }),
+    });
 
-    const api = createMeshApi({ dispatchEndpoint: '/benzene/invoke' });
-    const send = api.sendMessage!({ service: 'orders-api', topic: 'order:create', headers: {}, body: '{}' });
+    await expect(send()).rejects.toBeInstanceOf(MeshDispatchBlockedError);
+    await expect(send()).rejects.toThrow('Mesh dispatch is disabled in this environment.');
+  });
 
-    await expect(send).rejects.toBeInstanceOf(MeshDispatchBlockedError);
-    await expect(send).rejects.toThrow('Mesh dispatch is disabled in this environment.');
+  it('still reads a refusal an older collector sent with a non-2xx status', async () => {
+    answering({
+      statusCode: 'forbidden',
+      isSuccessful: false,
+      body: JSON.stringify('Mesh dispatch is disabled in this environment.'),
+    }, 403, 'Forbidden');
+
+    await expect(send()).rejects.toBeInstanceOf(MeshDispatchBlockedError);
+    await expect(send()).rejects.toThrow('Mesh dispatch is disabled in this environment.');
   });
 
   it('describes a blocked dispatch even when the reason is not JSON', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({
-      ok: true,
-      json: async () => ({ statusCode: 'not-found', body: "No service named 'unknown' is registered in the mesh." }),
-    })));
+    answering({ statusCode: 'not-found', isSuccessful: false, body: "No service named 'unknown' is registered in the mesh." });
+    await expect(send()).rejects.toThrow("No service named 'unknown' is registered in the mesh.");
+  });
 
-    const api = createMeshApi({ dispatchEndpoint: '/benzene/invoke' });
-    const send = api.sendMessage!({ service: 'unknown', topic: 'order:create', headers: {}, body: '{}' });
+  it('claims neither sent nor blocked when the mesh never said whether it tried', async () => {
+    answering({ statusCode: 'ok', body: '{}' });
+    const sent = send();
+    await expect(sent).rejects.not.toBeInstanceOf(MeshDispatchBlockedError);
+    await expect(send()).rejects.toThrow('without saying whether it attempted the dispatch');
+  });
 
-    await expect(send).rejects.toThrow("No service named 'unknown' is registered in the mesh.");
+  it('a host-level 401 is a failed send, not a blocked one', async () => {
+    answering('Unauthorized', 401, 'Unauthorized');
+    const sent = send();
+    await expect(sent).rejects.toBeInstanceOf(MeshFetchError);
+    await expect(sent).rejects.toMatchObject({ status: 401 });
+  });
+
+  describe('the target’s result', () => {
+    const relayed = (inner: unknown) =>
+      answering({ statusCode: 'ok', isSuccessful: true, body: JSON.stringify(inner) });
+
+    it('keeps an absent isSuccessful absent rather than guessing it from the status', async () => {
+      relayed({ statusCode: 'ok', body: '{}', headers: {} });
+      const result = await send();
+      expect(result.isSuccessful).toBeUndefined();
+      expect(result.statusCode).toBe('ok');
+    });
+
+    it('reads the target’s envelope out of an HTTP-relayed answer, whatever the HTTP status', async () => {
+      // HttpMeshServiceDispatcher before spec 0.2 relayed the HTTP code as the status and the raw
+      // response as the body. The body is the target's envelope, and the envelope is the outcome:
+      // a 200 here is not a success, and an older target's 404 is not the reason.
+      const envelope = { statusCode: 'not-found', isSuccessful: false, headers: {}, body: '{"title":"Not Found"}' };
+      relayed({ statusCode: '200', body: JSON.stringify(envelope) });
+      expect(await send()).toEqual({ statusCode: 'not-found', isSuccessful: false, body: '{"title":"Not Found"}', headers: {} });
+      vi.unstubAllGlobals();
+
+      relayed({ statusCode: '404', body: JSON.stringify({ ...envelope, statusCode: 'not-found' }) });
+      const old = await send();
+      expect(old.statusCode).toBe('not-found');
+      expect(old.httpStatus).toBeUndefined();
+    });
+
+    it('surfaces the HTTP status when the target answered without an envelope', async () => {
+      // A carrier failure: no envelope was processed, so the HTTP status is the only fact there is.
+      relayed({ statusCode: '401', body: 'Unauthorized' });
+      expect(await send()).toEqual({
+        statusCode: '401', isSuccessful: false, httpStatus: 401, body: 'Unauthorized', headers: {},
+      });
+    });
   });
 });
 

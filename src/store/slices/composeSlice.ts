@@ -17,10 +17,30 @@ export type SendState = 'idle' | 'sending' | 'sent' | 'failed' | 'blocked';
 export const RAW_TRANSPORT = 'raw';
 
 export interface ComposeResult {
+  /** The target's Benzene status — displayed as given, never classified from. */
   statusCode: string;
+  /**
+   * The target's own success signal (wire-contracts §1.2), when its answer carried one. The console
+   * classifies from this alone: an answer without it is shown as unclassified, never guessed from
+   * `statusCode` text.
+   */
+  isSuccessful?: boolean;
   body: string;
   headers: Record<string, string>;
+  /**
+   * Set only when the target's answer was NOT a Benzene envelope and an HTTP status is all there is
+   * — a carrier failure (a malformed envelope, 400; authentication the host enforced before reading
+   * the envelope, 401/403) or an endpoint that is no envelope endpoint. A processed envelope carries
+   * its outcome itself, whatever HTTP status it arrived with, so this is absent then.
+   */
+  httpStatus?: number;
 }
+
+/** What the console can honestly say about a result: only what its `isSuccessful` says. */
+export type ComposeOutcome = 'succeeded' | 'failed' | 'unclassified';
+
+export const composeOutcomeOf = (result: ComposeResult): ComposeOutcome =>
+  result.isSuccessful === true ? 'succeeded' : result.isSuccessful === false ? 'failed' : 'unclassified';
 
 /**
  * Thrown by `MeshApi.sendMessage` when the mesh itself refused the dispatch (`Benzene.Mesh.Dispatch`'s

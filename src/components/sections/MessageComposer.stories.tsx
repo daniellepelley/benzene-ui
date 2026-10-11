@@ -33,8 +33,14 @@ export const MultipleVersions: Story = { args: { versions: [v({ version: '' }), 
 export const InvalidBody: Story = { args: { bodyJson: '{ not json', bodyValid: false, canSend: false } };
 export const InvalidHeaders: Story = { args: { headersJson: 'nope', headersValid: false, canSend: false } };
 export const Sending: Story = { args: { send: 'sending', canSend: false } };
-export const Succeeded: Story = { args: { send: 'sent', result: { statusCode: 'created', body: '{"id":"9f2"}', headers: {} } } };
-export const Failed: Story = { args: { send: 'failed', error: 'Timed out reaching the target service.', result: { statusCode: 'bad-request', body: '{"errors":["orderId is required"]}', headers: {} } } };
+export const Succeeded: Story = { args: { send: 'sent', result: { statusCode: 'created', isSuccessful: true, body: '{"id":"9f2"}', headers: {} } } };
+export const Failed: Story = { args: { send: 'failed', error: 'Timed out reaching the target service.', result: { statusCode: 'bad-request', isSuccessful: false, body: '{"errors":["orderId is required"]}', headers: {} } } };
+/** An application-defined status the service itself calls a success — green from `isSuccessful`, not from the word. */
+export const ApplicationStatus: Story = { args: { send: 'sent', result: { statusCode: 'queued-for-review', isSuccessful: true, body: '{}', headers: {} } } };
+/** A response with no `isSuccessful`: amber, and said so, rather than guessed from the status text. */
+export const Unclassified: Story = { args: { send: 'sent', result: { statusCode: 'ok', body: '{}', headers: {} } } };
+/** No envelope came back, only an HTTP status: the carrier failed before any handler ran. */
+export const CarrierFailure: Story = { args: { send: 'sent', result: { statusCode: '401', isSuccessful: false, httpStatus: 401, body: 'Unauthorized', headers: {} } } };
 export const Blocked: Story = { args: { send: 'blocked', error: 'Mesh dispatch is disabled in this environment. It invokes a service\'s real handler with the supplied payload (real side-effects execute), so it is off in Production unless MeshDispatchOptions.AllowInProduction is explicitly set.', canSend: false } };
 export const ReadOnlyMesh: Story = { args: { onSend: undefined } };
 export const NoComposableVersion: Story = { args: { versions: [] } };

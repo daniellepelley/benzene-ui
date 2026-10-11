@@ -55,12 +55,12 @@ const store = lib.createStore({
   getUsage: async () => ({ generatedAtUtc: '', windowStartUtc: '', windowEndUtc: '', entries: [] }),
 });
 const state = store.getState();
-for (const slice of ['estate', 'view', 'fleet', 'catalog', 'annotations', 'compose', 'capabilities']) {
+for (const slice of ['estate', 'view', 'fleet', 'catalog', 'compose', 'capabilities']) {
   if (!(slice in state)) fail(`the store is missing its ${slice} slice`);
 }
-// No collector and no annotation endpoint were supplied, so both capabilities must be false —
+// No collector and no dispatch endpoint were supplied, so both capabilities must be false —
 // proof the capability derivation survived the build rather than defaulting to permissive.
-if (state.capabilities.fleet !== false || state.capabilities.annotate !== false) {
+if (state.capabilities.fleet !== false || state.capabilities.invoke !== false) {
   fail('capabilities did not derive from the injected API');
 }
 pass('the store builds and derives its capabilities');

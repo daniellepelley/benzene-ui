@@ -79,7 +79,7 @@ build into a page — two entries in one build inline each other's code into bot
 
 ## State slices
 
-Eight, and the separation is load-bearing:
+Seven, and the separation is load-bearing:
 
 - `estate` — what services **declare** (the aggregator's manifest and snapshots).
 - `fleet` — what the collector has **observed**, stored as the `FleetView` wire contract itself
@@ -93,9 +93,8 @@ Eight, and the separation is load-bearing:
 - `catalog` — topics, topology and usage. Published together by one aggregator run and meaningless
   apart, so they load together and go stale together. Loading *settles* rather than races: one
   missing artifact must not blank the other two.
-- `annotations` — discussion threads. The only read-**write** data, hence its own slice.
 - `compose` — the "try it" message workflow: selection, draft, in-flight request, result.
-- `capabilities` — what this mesh can actually do (`fleet`, `annotate`, `invoke`), derived from the
+- `capabilities` — what this mesh can actually do (`fleet`, `invoke`, `refresh`), derived from the
   API once at store creation. **Optional endpoints are state.** A component must never inspect the
   API object to decide what to render; if it did, "the UI is a function of the store" would be a lie.
 - `spec` — one service's own spec document, fetched on demand. Separate from `catalog` because the

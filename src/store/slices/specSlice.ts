@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import type { MeshApi, LoadState } from './estateSlice';
 import type { ServiceSpec } from '../../contracts';
+import { asWireResponse, problemMessage, successOf } from '../../data/envelope';
 
 /**
  * One service's own spec document — what it says it can do, in its own words.
@@ -59,15 +60,44 @@ export const loadSpec = createAsyncThunk<
  *
  * The same viewer serves both. In the mesh it reads the aggregator's stored snapshot, so the service
  * never has to serve HTML or open CORS; pointed at a URL it renders any conforming spec document —
- * a file on disk, a service's own `benzene:spec` response, a build artifact in CI. One page, because
- * the *reading* is identical and only the fetch differs, and two pages would drift.
+ * a file on disk, a service's own `GET /benzene/spec?type=benzene` (the `benzene:spec` topic's
+ * default route), a build artifact in CI. One page, because the *reading* is identical and only the
+ * fetch differs, and two pages would drift.
+ *
+ * The body is read whatever the status, by the same rules as every other Benzene answer
+ * (`data/envelope.ts`): a saved or relayed response *envelope* is unwrapped and judged by its own
+ * `isSuccessful`, and a failure says why — the problem document's `detail` (`not-implemented` for a
+ * `type` or `format` the service does not serve, wire-contracts §7) — rather than only a status line.
  */
 export const loadSpecFromUrl = createAsyncThunk<{ service: string; spec: ServiceSpec | null }, string>(
   'spec/loadFromUrl',
   async (url) => {
     const response = await fetch(url, { headers: { accept: 'application/json' } });
-    if (!response.ok) throw new Error(`${response.status} ${response.statusText} fetching the spec`);
-    const spec = (await response.json()) as ServiceSpec;
+    const text = await response.text().catch(() => '');
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text) as unknown;
+    } catch {
+      parsed = undefined;
+    }
+
+    const envelope = asWireResponse(parsed);
+    if (envelope) {
+      if (successOf(envelope) !== true) {
+        const reason = problemMessage(envelope.body);
+        throw new Error(`The spec request answered ${envelope.statusCode || 'without a status'}${reason ? `: ${reason}` : ''}`);
+      }
+      parsed = JSON.parse(envelope.body || 'null') as unknown;
+    } else if (!response.ok) {
+      // Only a JSON problem document gives a reason; an HTML error page's markup is not one.
+      const reason = parsed === undefined ? null : problemMessage(text);
+      throw new Error(`${response.status} ${response.statusText} fetching the spec${reason ? `: ${reason}` : ''}`);
+    }
+
+    if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error(`${url} did not answer with a JSON spec document`);
+    }
+    const spec = parsed as ServiceSpec;
     return { service: spec.info?.title ?? url, spec };
   },
 );

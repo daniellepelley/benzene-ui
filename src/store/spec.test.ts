@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createStore } from './store';
-import { loadSpec, operationToggled, specUtilityToggled, allOperationsCollapsed } from './slices/specSlice';
+import { loadSpec, loadSpecFromUrl, operationToggled, specUtilityToggled, allOperationsCollapsed } from './slices/specSlice';
 import {
   selectOperations, selectUtilityOperations, selectSpecSummary, selectSpecSchemas, schemaLabel,
 } from './selectors';
@@ -174,5 +174,61 @@ describe('a spec this viewer does not understand', () => {
     const store = await loadedFrom({ requests: [], events: [] });
     expect(store.getState().spec.load).toBe('ready');
     expect(selectSpecSummary(store.getState())).not.toBeNull();
+  });
+});
+
+/**
+ * The standalone viewer's fetch reads the body whatever the status, like every other Benzene answer
+ * (data/envelope.ts): a failure says why, and a response envelope is judged by its `isSuccessful`.
+ */
+describe('a spec fetched from a URL', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const serving = (body: string, status = 200, statusText = 'OK') =>
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: status >= 200 && status < 300, status, statusText, text: async () => body })));
+
+  const fetched = async (url = '/benzene/spec?type=benzene') => {
+    const store = createStore(fakeMeshApi());
+    await store.dispatch(loadSpecFromUrl(url));
+    return store.getState().spec;
+  };
+
+  it('renders the document the default route serves', async () => {
+    serving(JSON.stringify(spec));
+    const state = await fetched();
+    expect(state.load).toBe('ready');
+    expect(state.spec).toEqual(spec);
+  });
+
+  it('says why a service refused, from its problem document', async () => {
+    // An unsupported `type` is `not-implemented` (wire-contracts §7), never a different document.
+    serving(JSON.stringify({ title: 'Not Implemented', status: 501, detail: 'type "graphql" is not served', benzeneStatus: 'not-implemented' }), 501, 'Not Implemented');
+    const state = await fetched('/benzene/spec?type=graphql');
+    expect(state.load).toBe('failed');
+    expect(state.error).toBe('501 Not Implemented fetching the spec: type "graphql" is not served');
+  });
+
+  it('does not quote an HTML error page as a reason', async () => {
+    serving('<html><body>gateway error</body></html>', 502, 'Bad Gateway');
+    expect((await fetched()).error).toBe('502 Bad Gateway fetching the spec');
+  });
+
+  it('unwraps a successful response envelope', async () => {
+    serving(JSON.stringify({ statusCode: 'ok', isSuccessful: true, headers: {}, body: JSON.stringify(spec) }));
+    expect((await fetched()).spec).toEqual(spec);
+  });
+
+  it('judges an envelope by isSuccessful, not by the HTTP 200 it arrived in', async () => {
+    serving(JSON.stringify({ statusCode: 'not-implemented', isSuccessful: false, headers: {}, body: JSON.stringify({ title: 'Not Implemented', benzeneStatus: 'not-implemented' }) }));
+    const state = await fetched();
+    expect(state.load).toBe('failed');
+    expect(state.error).toBe('The spec request answered not-implemented: Not Implemented');
+  });
+
+  it('reports a body that is not a JSON document', async () => {
+    serving('<html></html>');
+    expect((await fetched('/x')).error).toBe('/x did not answer with a JSON spec document');
   });
 });

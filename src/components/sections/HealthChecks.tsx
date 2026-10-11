@@ -33,6 +33,11 @@ const formatValue = (value: unknown): string => {
  *
  * Detail is rendered only for a non-ok check. A passing check needs no explanation; a warning or a
  * failure needs the "why", and the check's own data bag is where the actionable discriminators live.
+ *
+ * The verdict is the payload's own `isHealthy` (wire-contracts §5), read as given and never
+ * recomputed from the checks or from a status: the health topics answer `ok` whenever the checks
+ * ran, and the HTTP route's 503 only mirrors `isHealthy`. A payload without it states no verdict, so
+ * none is shown.
  */
 export function HealthChecks({ snapshot }: HealthChecksProps) {
   if (!snapshot) return <EmptyState message="No snapshot has been fetched for this service yet." tone="unknown" />;
@@ -50,7 +55,7 @@ export function HealthChecks({ snapshot }: HealthChecksProps) {
    * could not support. Same defect as an unreadable feed reported as an empty estate, one level
    * down.
    */
-  const health = snapshot.health as { healthChecks?: unknown } | null | undefined;
+  const health = snapshot.health as { isHealthy?: unknown; healthChecks?: unknown } | null | undefined;
   const raw = health?.healthChecks;
   const unreadable = health != null
     && (raw == null || typeof raw !== 'object' || Array.isArray(raw));
@@ -74,40 +79,51 @@ export function HealthChecks({ snapshot }: HealthChecksProps) {
     return <EmptyState message="This service published no health checks." />;
   }
 
+  const verdict = typeof health?.isHealthy === 'boolean' ? health.isHealthy : null;
+
   return (
-    <ul className="bz-health">
-      {checks.map(([name, check]) => {
-        const status = check.status ?? 'unknown';
-        const data = Object.entries(check.data ?? {});
-        return (
-          <li key={name} data-status={status}>
-            <div className="bz-health-row">
-              <StatusGlyph rag={ragFor(status)} label={status} />
-              <span className="bz-health-name">{name}</span>
-              {check.type && check.type !== name && <span className="bz-health-type">{check.type}</span>}
-              <span className="bz-health-status">{status}</span>
-              {(check.dependencies ?? []).map((d) => (
-                <Chip key={`${d.kind}:${d.name}`} title={`${d.kind} dependency`}>
-                  {d.kind} <b>{d.name}</b>
-                </Chip>
-              ))}
-            </div>
-            {status !== 'ok' &&
-              (data.length > 0 ? (
-                <dl className="bz-health-detail">
-                  {data.map(([key, value]) => (
-                    <div key={key}>
-                      <dt>{key}</dt>
-                      <dd>{formatValue(value)}</dd>
-                    </div>
-                  ))}
-                </dl>
-              ) : (
-                <p className="bz-health-detail-empty">No further detail reported by this check.</p>
-              ))}
-          </li>
-        );
-      })}
-    </ul>
+    <>
+      {verdict !== null && (
+        <p className="bz-health-verdict" data-healthy={verdict}>
+          <StatusGlyph rag={verdict ? 'green' : 'red'} />
+          {verdict ? 'Healthy' : 'Unhealthy'} — the service's own verdict (<code>isHealthy</code>). A
+          warning does not change it; only a failed check does.
+        </p>
+      )}
+      <ul className="bz-health">
+        {checks.map(([name, check]) => {
+          const status = check.status ?? 'unknown';
+          const data = Object.entries(check.data ?? {});
+          return (
+            <li key={name} data-status={status}>
+              <div className="bz-health-row">
+                <StatusGlyph rag={ragFor(status)} label={status} />
+                <span className="bz-health-name">{name}</span>
+                {check.type && check.type !== name && <span className="bz-health-type">{check.type}</span>}
+                <span className="bz-health-status">{status}</span>
+                {(check.dependencies ?? []).map((d) => (
+                  <Chip key={`${d.kind}:${d.name}`} title={`${d.kind} dependency`}>
+                    {d.kind} <b>{d.name}</b>
+                  </Chip>
+                ))}
+              </div>
+              {status !== 'ok' &&
+                (data.length > 0 ? (
+                  <dl className="bz-health-detail">
+                    {data.map(([key, value]) => (
+                      <div key={key}>
+                        <dt>{key}</dt>
+                        <dd>{formatValue(value)}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : (
+                  <p className="bz-health-detail-empty">No further detail reported by this check.</p>
+                ))}
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }

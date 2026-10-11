@@ -592,6 +592,7 @@ input, select, textarea {
 .bz-health-detail dt { color: var(--bz-muted); margin: 0; }
 .bz-health-detail dd { margin: 0; }
 .bz-health-detail-empty { margin: 0.2rem 0 0 1.4rem; font-size: var(--bz-fs-xs); color: var(--bz-muted); font-style: italic; }
+.bz-health-verdict { display: flex; gap: 0.4rem; align-items: baseline; margin: 0 0 0.4rem; font-size: var(--bz-fs-sm); }
 .bz-app-worst { display: inline-flex; align-items: center; }
 
 /* ── Flows ─────────────────────────────────────────────────────────────────────────────────────── */

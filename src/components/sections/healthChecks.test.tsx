@@ -93,3 +93,34 @@ describe('an unreadable health payload is not an absent one', () => {
     expect(screen.getByText('This service published no health checks.')).toBeInTheDocument();
   });
 });
+
+/**
+ * Spec 0.2 (wire-contracts §5, D2): the health topics answer `ok` whenever the checks ran, and the
+ * verdict is the payload's `isHealthy`. The panel shows that verdict as given — it does not
+ * recompute one from the checks, and a payload that states none gets none.
+ */
+describe('the health verdict', () => {
+  it('shows the service’s own isHealthy', () => {
+    const { container } = render(<HealthChecks snapshot={payments as unknown as ServiceSnapshot} />);
+    expect(container.querySelector('.bz-health-verdict')).toHaveAttribute('data-healthy', 'false');
+    expect(screen.getByText(/Unhealthy/)).toBeInTheDocument();
+  });
+
+  it('reads the verdict rather than deriving one from the checks', () => {
+    // A warning does not flip isHealthy (§5); a check list with one is still a healthy service.
+    const snapshot = {
+      ...(payments as unknown as ServiceSnapshot),
+      health: { isHealthy: true, healthChecks: { FraudEngine: { status: 'warning', data: { lag: '4s' } } } },
+    } as unknown as ServiceSnapshot;
+    const { container } = render(<HealthChecks snapshot={snapshot} />);
+    expect(container.querySelector('.bz-health-verdict')).toHaveAttribute('data-healthy', 'true');
+    expect(screen.getByRole('img', { name: 'warning' })).toBeInTheDocument();
+  });
+
+  it('states no verdict when the payload carries none', () => {
+    const { container } = render(
+      <HealthChecks snapshot={{ name: 'x', health: { healthChecks: { Db: { status: 'ok' } } } } as never} />,
+    );
+    expect(container.querySelector('.bz-health-verdict')).toBeNull();
+  });
+});

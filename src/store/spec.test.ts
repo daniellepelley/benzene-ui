@@ -282,18 +282,17 @@ describe('a spec this viewer does not understand', () => {
     return store;
   };
 
-  it('survives a document with no requests or events', async () => {
+  it('refuses a document in neither shape, which has no schemaDialect', async () => {
+    // contract-document.md §1 (spec 1.1): a document without schemaDialect has an unknown dialect.
     const store = await loadedFrom({ type: 'benzene', topics: { 'orders:get-all': { response: 'OrderDto[]' } } });
-
-    expect(store.getState().spec.load).toBe('ready');
-    expect(selectOperations(store.getState())).toEqual([]);
-    expect(selectSpecSummary(store.getState())).toMatchObject({ topics: 0, events: 0, sends: 0 });
+    expect(store.getState().spec.load).toBe('failed');
+    expect(store.getState().spec.spec).toBeNull();
   });
 
-  it('survives a document with no info block', async () => {
-    const store = await loadedFrom({ requests: [], events: [] });
+  it('reads a Contract Document with empty lists', async () => {
+    const store = await loadedFrom({ schemaDialect: 'openapi-3.0', service: 'orders-api', requests: [], events: [] });
     expect(store.getState().spec.load).toBe('ready');
-    expect(selectSpecSummary(store.getState())).not.toBeNull();
+    expect(selectSpecSummary(store.getState())).toMatchObject({ topics: 0, events: 0, sends: 0 });
   });
 });
 

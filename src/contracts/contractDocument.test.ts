@@ -157,9 +157,9 @@ describe('reading a legacy (spec ≤ 0.2) document', () => {
     expect(both).toMatchObject({ shape: 'contract', service: 'orders', serviceVersion: '3.0.0' });
   });
 
-  it('reads anything else as empty rather than failing', () => {
-    expect(readContractDocument({ type: 'benzene', topics: {} })).toMatchObject({ requests: [], events: [], sends: [], service: null });
-    expect(readContractDocument(null)).toMatchObject({ requests: [], events: [], sends: [] });
+  it('refuses anything else, which has no schemaDialect (contract-document §1, spec 1.1)', () => {
+    expect(() => readContractDocument({ type: 'benzene', topics: {} })).toThrow(/no schemaDialect/);
+    expect(() => readContractDocument(null)).toThrow(/no schemaDialect/);
   });
 });
 

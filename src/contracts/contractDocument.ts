@@ -126,6 +126,15 @@ export function readContractDocument(raw: unknown): ContractDocument {
 
   const info = isRecord(doc.info) ? doc.info : {};
   const shape: ContractDocumentShape = dialect === undefined && ('openapi' in doc || 'info' in doc) ? 'legacy' : 'contract';
+  // A document with no schemaDialect has an unknown dialect (§1, spec 1.1). The one exception is the
+  // legacy document, which predates the field and is recognised by its `openapi`/`info` members:
+  // this viewer still reads it, by design, so an estate mid-upgrade stays visible.
+  if (dialect === undefined && shape === 'contract') {
+    throw new ContractDocumentError(
+      'unknown-schema-dialect',
+      `The document has no schemaDialect; this viewer reads only "${SCHEMA_DIALECT}" (or a legacy openapi/info document)`,
+    );
+  }
   const components = isRecord(doc.components) && isRecord(doc.components.schemas) ? doc.components.schemas : {};
 
   return {

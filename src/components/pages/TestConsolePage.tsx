@@ -37,11 +37,6 @@ export interface TestConsolePageProps {
 export function TestConsolePage({ service, topic }: TestConsolePageProps) {
   const dispatch = useAppDispatch();
   const services = useAppSelector(selectVisibleServices);
-  // NONE, not an inline `[]` — a fresh array literal mints a new reference every render, the exact
-  // footgun selectors.ts's own NONE comment warns about, and would fail react-redux's dev-mode
-  // "did this selector return something new" check on every render where nothing is picked yet.
-  const topics = useAppSelector((s: RootState) =>
-    (service ? selectComposableTopicsForService(s, service) : NONE) as TopicsTopicsItem[]);
   // The services that HANDLE this topic. A dispatch invokes a topic ON a target, so the target must
   // be the one with the handler, never the one that emits it.
   const handlers = useAppSelector((s: RootState) =>
@@ -62,6 +57,14 @@ export function TestConsolePage({ service, topic }: TestConsolePageProps) {
   // Arriving topic-first: one handler resolves itself, several ask, none says so. Without this the
   // merged console would answer a topic-only link with an empty service picker and no explanation.
   const resolvedService = service ?? (handlers.length === 1 ? handlers[0]! : null);
+  // NONE, not an inline `[]` — a fresh array literal mints a new reference every render, the exact
+  // footgun selectors.ts's own NONE comment warns about, and would fail react-redux's dev-mode
+  // "did this selector return something new" check on every render where nothing is picked yet.
+  // The RESOLVED service's topics: on a topic-first arrival the route parameter is null, and reading
+  // it left this list empty, so the page claimed "null has no composable topic" above a working
+  // composer.
+  const topics = useAppSelector((s: RootState) =>
+    (resolvedService ? selectComposableTopicsForService(s, resolvedService) : NONE) as TopicsTopicsItem[]);
   // Only assert that a service is absent once there is a manifest to assert it against. An empty
   // list means the estate has not loaded, not that the service does not exist — the same third-state
   // rule the rest of the product follows, applied to a route parameter. Checked against the RESOLVED
@@ -178,7 +181,7 @@ export function TestConsolePage({ service, topic }: TestConsolePageProps) {
       )}
 
       {resolvedService && known && topics.length === 0 && (
-        <EmptyState message={`${service} has no composable topic — it may only carry reserved traffic.`} />
+        <EmptyState message={`${resolvedService} has no composable topic — it may only carry reserved traffic.`} />
       )}
 
       {resolvedService && known && topic && versions.length === 0 && (

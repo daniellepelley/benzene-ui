@@ -45,7 +45,7 @@
       "invocations": 148320,
       "errors": 300,
       "avgDurationMs": 14.2,
-      "statusCounts": { "ok": 148020, "internal-server-error": 300 },
+      "statusCounts": { "ok": 148020, "unexpected-error": 300 },
       "lastSeen": "2026-08-09T05:59:52Z",
       "missingFeeds": []
     },
@@ -100,7 +100,7 @@
       "classification": "exception",
       "service": "orders-api",
       "topic": "orders:create",
-      "status": "internal-server-error",
+      "status": "unexpected-error",
       "exceptionType": "System.NullReferenceException",
       "count": 300,
       "firstSeen": "2026-08-09T04:40:00Z",

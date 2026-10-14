@@ -47,7 +47,11 @@ export const WHY: Record<IssueClassification, string> = {
  * otherwise — so the reader gets a name they can search for rather than a sentence that varies.
  */
 export function issueHeadline(issue: MeshIssue): string {
-  const what = issue.exceptionType ?? issue.status;
+  // The exception names the cause and the status what the caller got (mesh.md §4.1 carries both);
+  // naming only the exception left an issue's Benzene status nowhere on the page.
+  const what = issue.exceptionType
+    ? (issue.status ? `${issue.exceptionType} (${issue.status})` : issue.exceptionType)
+    : issue.status;
   return `${what} on ${issue.topic}`;
 }
 

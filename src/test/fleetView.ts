@@ -48,7 +48,7 @@ export const meshIssue = (over: Partial<MeshIssue> = {}): MeshIssue => ({
   classification: 'exception',
   service: 'payments-api',
   topic: 'payment:capture',
-  status: 'internal-server-error',
+  status: 'unexpected-error',
   count: 1,
   firstSeen: '2026-08-09T05:00:00Z',
   lastSeen: '2026-08-09T05:59:00Z',

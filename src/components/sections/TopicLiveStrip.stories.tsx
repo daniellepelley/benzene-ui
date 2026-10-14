@@ -20,7 +20,7 @@ const meta = {
       observed: 4820,
       errors: 17,
       avgDurationMs: 14.2,
-      statusCounts: { ok: 4803, 'internal-server-error': 17 },
+      statusCounts: { ok: 4803, 'unexpected-error': 17 },
       registeredHandlers: ['orders-api'],
       observedHandlers: [], activityWired: false,
       missingFeeds: [],

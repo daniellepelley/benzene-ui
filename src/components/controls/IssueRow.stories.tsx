@@ -7,7 +7,7 @@ const base: MeshIssue = {
   classification: 'exception',
   service: 'payments-api',
   topic: 'payment:capture',
-  status: 'internal-server-error',
+  status: 'unexpected-error',
   exceptionType: 'System.NullReferenceException',
   count: 1,
   firstSeen: '2026-08-09T05:00:00Z',

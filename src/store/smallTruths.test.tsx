@@ -92,7 +92,7 @@ describe('an issue detail page states its headline once', () => {
       service: 'payments-api',
       topic: 'payment:capture',
       version: 'v1',
-      status: 'exception',
+      status: 'timeout',
       classification: 'exception',
       exceptionType: 'TimeoutException',
       count: 2205,
@@ -105,7 +105,7 @@ describe('an issue detail page states its headline once', () => {
 
     render(<Provider store={store}><IssuePage selected="fp-1" /></Provider>);
 
-    expect(screen.getAllByText('TimeoutException on payment:capture')).toHaveLength(1);
+    expect(screen.getAllByText('TimeoutException (timeout) on payment:capture')).toHaveLength(1);
     expect(screen.getAllByText('exception')).toHaveLength(1);
     // What the row carried and the header did not, kept: the sentence and the occurrence count.
     expect(screen.getByText(/The handler threw/)).toBeInTheDocument();

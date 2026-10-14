@@ -90,7 +90,7 @@ describe('FleetPage', () => {
     show(store, <FleetPage />);
 
     expect(screen.getByRole('heading', { name: 'Needs attention' })).toBeInTheDocument();
-    expect(screen.getByText('System.NullReferenceException on payment:capture')).toBeInTheDocument();
+    expect(screen.getByText('System.NullReferenceException (unexpected-error) on payment:capture')).toBeInTheDocument();
     // Two sections now hand off to a fuller list — issues and contract changes — so the assertion
     // has to name which one, or it passes on either and tests neither.
     const attention = screen.getByRole('heading', { name: 'Needs attention' }).closest('section')!;
@@ -222,7 +222,7 @@ describe('IssuePage', () => {
     show(store, <IssuePage selected="all" />);
 
     // No message on the wire — the headline is composed from the stable parts of the fingerprint.
-    expect(screen.getByText('System.NullReferenceException on payment:capture')).toBeInTheDocument();
+    expect(screen.getByText('System.NullReferenceException (unexpected-error) on payment:capture')).toBeInTheDocument();
     // The queue row and the detail card both state it; one assertion, scoped to the row.
     expect(screen.getAllByText(/12 occurrences/).length).toBeGreaterThan(0);
   });
@@ -318,6 +318,11 @@ describe('the Test Console, entered from a topic', () => {
     expect((screen.getByLabelText('Service') as HTMLSelectElement).value).toBe('payments-api');
     expect(screen.getByLabelText(/Body/)).toBeInTheDocument();
     expect(store.getState().compose.service).toBe('payments-api');
+    // The resolved service's topics, not the absent route parameter's: reading the raw `service`
+    // left the topic list empty, so the page also claimed "null has no composable topic" above a
+    // working composer.
+    expect(screen.queryByText(/has no composable topic/)).not.toBeInTheDocument();
+    expect((screen.getByLabelText('Topic') as HTMLSelectElement).value).toBe('payment:capture');
   });
 
   it('asks which service when a topic has more than one handler', async () => {

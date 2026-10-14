@@ -493,6 +493,8 @@ input, select, textarea {
 .bz-compose-problem-detail { margin: 0 0 0.5rem; }
 .bz-compose-errors { margin: 0 0 0.75rem; font-size: var(--bz-fs-sm); }
 .bz-compose-errors .bz-muted { color: var(--bz-muted); }
+.bz-issue-errors .bz-muted { color: var(--bz-muted); }
+.bz-issue-errors h3 { margin: 1rem 0 0.4rem; font-size: var(--bz-fs-md); }
 .bz-composer-send { display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; }
 .bz-composer-confirm { display: flex; align-items: flex-start; gap: 0.4rem; font-size: var(--bz-fs-sm); color: var(--bz-muted); cursor: pointer; }
 .bz-composer-confirm input { margin-top: 0.15rem; }

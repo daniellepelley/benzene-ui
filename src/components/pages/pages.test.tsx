@@ -227,6 +227,30 @@ describe('IssuePage', () => {
     expect(screen.getAllByText(/12 occurrences/).length).toBeGreaterThan(0);
   });
 
+  it('shows which field and which rule are behind an issue, in the collector’s order', async () => {
+    // mesh.md §4.1: the detail that used to need a reproduction or the logs.
+    const store = await loaded();
+    store.dispatch(fleetObserved(fleetView({
+      generatedAt: '2026-07-16T09:15:00Z',
+      issues: [meshIssue({
+        fingerprint: 'v1', classification: 'validation', status: 'validation-error', topic: 'orders:create',
+        lastSeen: '2026-07-16T09:14:00Z', count: 12,
+        errors: [{ field: '/orderId', code: 'required', count: 9 }, { code: 'TotalsDisagree', count: 3 }],
+      })],
+    })));
+    store.dispatch(clockTicked(Date.parse('2026-07-16T09:15:10Z')));
+    show(store, <IssuePage selected="v1" />);
+
+    const rows = within(screen.getByRole('table')).getAllByRole('row').slice(1);
+    expect(rows.map((r) => r.textContent)).toEqual(['/orderIdrequired9', 'whole requestTotalsDisagree3']);
+  });
+
+  it('shows no error table for an issue that carries no detail', async () => {
+    const store = await loaded(true);
+    show(store, <IssuePage selected="i1" />);
+    expect(screen.queryByRole('heading', { name: 'Errors behind it' })).not.toBeInTheDocument();
+  });
+
   it('reports an issue that has aged out of the window', async () => {
     const store = await loaded(true);
     show(store, <IssuePage selected="gone-from-window" />);

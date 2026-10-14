@@ -2,7 +2,7 @@
  * GENERATED FILE — do not edit by hand. Run `npm run generate:contracts`.
  *
  * Inferred from the sample artifacts in `contracts/artifacts/`, vendored from the specification
- * repo at commit spec-0.2.0.
+ * repo at commit spec-1.1.0.
  *
  * These types are a FLOOR, not a ceiling. The spec's conformance fixtures are test cases rather than
  * JSON Schema, so a field no sample exercises cannot be inferred, and a field that is null in every
@@ -245,6 +245,7 @@ export interface FleetViewTracesItem {
   durationMs: number;
   failed: boolean;
   topic?: string;
+  status?: string;
 }
 
 export interface FleetViewIssuesItem {
@@ -261,6 +262,13 @@ export interface FleetViewIssuesItem {
   lastSeen: string;
   exemplarTraceIds: string[];
   resolutionHint?: string;
+  errors?: FleetViewIssuesItemErrorsItem[];
+}
+
+export interface FleetViewIssuesItemErrorsItem {
+  field?: string;
+  code?: string;
+  count: number;
 }
 
 export interface FleetViewWindow {

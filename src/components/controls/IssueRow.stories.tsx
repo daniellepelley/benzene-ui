@@ -63,7 +63,7 @@ export const Dependency: Story = {
     issue: {
       ...base,
       classification: 'dependency',
-      status: 'dependency-failure',
+      status: 'service-unavailable',
       exceptionType: 'System.Net.Http.HttpRequestException',
       resolutionHint: 'dependency',
     },

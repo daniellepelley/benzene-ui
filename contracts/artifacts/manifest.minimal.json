@@ -4,8 +4,7 @@
   {
    "name": "minimal-api",
    "status": "degraded",
-   "contractDrift": false,
-   "owningTeam": "Platform"
+   "contractDrift": false
   }
  ]
 }

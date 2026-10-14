@@ -56,7 +56,7 @@
       "invocations": 9100,
       "errors": 240,
       "avgDurationMs": 88.4,
-      "statusCounts": { "ok": 8860, "dependency-failure": 240 },
+      "statusCounts": { "ok": 8860, "service-unavailable": 240 },
       "missingFeeds": ["duration"]
     }
   ],
@@ -68,7 +68,8 @@
       "startedAt": "2026-08-09T05:59:41Z",
       "durationMs": 212.7,
       "failed": true,
-      "topic": "payment:capture"
+      "topic": "payment:capture",
+      "status": "unexpected-error"
     },
     {
       "traceId": "1-68c0a1e0-2a3b4c5d6e7f8091a2b3c4d5",
@@ -87,7 +88,7 @@
       "topic": "payment:capture",
       "version": "v1",
       "transport": "sqs",
-      "status": "dependency-failure",
+      "status": "service-unavailable",
       "exceptionType": "System.Net.Http.HttpRequestException",
       "count": 240,
       "firstSeen": "2026-08-09T05:12:03Z",
@@ -105,7 +106,12 @@
       "count": 300,
       "firstSeen": "2026-08-09T04:40:00Z",
       "lastSeen": "2026-08-09T05:58:12Z",
-      "exemplarTraceIds": []
+      "exemplarTraceIds": [],
+      "errors": [
+        { "field": "/amount", "code": "range", "count": 3 },
+        { "code": "CardDeclined", "count": 1 },
+        { "field": "/currency", "count": 1 }
+      ]
     }
   ],
   "window": {

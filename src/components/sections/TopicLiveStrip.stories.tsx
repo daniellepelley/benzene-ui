@@ -82,7 +82,7 @@ export const MultipleObservedHandlers: Story = {
       observed: 9100,
       errors: 240,
       avgDurationMs: 88.4,
-      statusCounts: { ok: 8860, 'dependency-failure': 240 },
+      statusCounts: { ok: 8860, 'service-unavailable': 240 },
       registeredHandlers: ['orders-api', 'orders-worker'],
       observedHandlers: [], activityWired: false,
       missingFeeds: [],

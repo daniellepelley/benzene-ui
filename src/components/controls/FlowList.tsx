@@ -63,6 +63,11 @@ export function FlowList({ view, failingOnly, onToggleFailing, onOpenService, su
         {view.flows.map((flow) => (
           <li key={flow.traceId} data-failed={flow.failed || undefined}>
             <StatusGlyph rag={flow.failed ? 'red' : 'green'} label={flow.failed ? 'failed' : 'succeeded'} />
+            {/* How the flow ended for its caller (mesh.md §4): the first failure it carried, else its
+                first event's status. Without it a reader had to open each red row to learn whether
+                it was a validation error or an outage. Absent from a collector reading an external
+                trace store, and then nothing is guessed. */}
+            {flow.status && <Chip>{flow.status}</Chip>}
             {/* The trace id is the handle for whatever tracing backend the estate actually runs —
                 we do not know its URL, so it is presented to copy rather than linked into a guess. */}
             <code className="bz-flow-id" title="Trace id">

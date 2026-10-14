@@ -68,6 +68,30 @@ export function IssuePage({ selected }: IssuePageProps) {
           <Stamp iso={issue.firstSeen} now={now} label="first seen" /> ·{' '}
           <Stamp iso={issue.lastSeen} now={now} label="last seen" />
         </p>
+        {issue.errors && issue.errors.length > 0 && (
+          <section className="bz-issue-errors">
+            {/* Which field, which rule (mesh.md §4.1) — the answer that used to need a reproduction
+                or the logs. Counts are of errors, not failures: one failure can carry several, so
+                they do not sum to the occurrences above. The service sends at most the ten most
+                frequent, and never a message. */}
+            <h3>Errors behind it</h3>
+            <table className="bz-table">
+              <thead>
+                <tr><th>Field</th><th>Code</th><th>Count</th></tr>
+              </thead>
+              <tbody>
+                {issue.errors.map((e) => (
+                  <tr key={`${e.field ?? ''}\u0000${e.code ?? ''}`}>
+                    <td>{e.field ? <code>{e.field}</code> : <span className="bz-muted">whole request</span>}</td>
+                    <td>{e.code ? <code>{e.code}</code> : <span className="bz-muted">—</span>}</td>
+                    <td>{e.count.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="bz-page-note">Errors, not failures: one failure can carry several. The ten most frequent are kept.</p>
+          </section>
+        )}
         {issue.exemplarTraceIds.length > 0 && (
           <p className="bz-issue-exemplars">
             {/* The bridge from "what is wrong" to "what happened" — the newest traces that showed it. */}

@@ -1582,7 +1582,8 @@ export const selectRetirementView = createSelector(
 // ── Compose ─────────────────────────────────────────────────────────────────────────────────────
 
 import { exampleFromSchema, inboundSchema } from './exampleFromSchema';
-import { RAW_TRANSPORT } from './slices/composeSlice';
+import { RAW_TRANSPORT, composeOutcomeOf } from './slices/composeSlice';
+import { readProblem, resolvePointer } from '../data/envelope';
 
 /**
  * Every distinct service that HANDLES a topic, across its versions — the set `ComposePage` dispatches
@@ -1682,6 +1683,51 @@ export const selectComposeValidity = createSelector(
       canSend:
         bodyValid && headersValid && compose.send !== 'sending' && compose.confirmed
         && compose.topic != null && compose.service != null,
+    };
+  },
+);
+
+/** One row of a failed result's errors, with what the sent body held at the row's field. */
+export interface ComposeProblemRow {
+  message: string;
+  field?: string;
+  code?: string;
+  /**
+   * The sent body's value at `field`, as JSON text; `absent` when the body has nothing there; absent
+   * itself when the error names no field. A field the tester never sent is the commonest validation
+   * failure, and seeing it beside the error is the sign-off.
+   */
+  sent?: string | 'absent';
+}
+
+export interface ComposeProblem {
+  benzeneStatus?: string;
+  detail?: string;
+  title?: string;
+  rows: ComposeProblemRow[];
+}
+
+/**
+ * The failed result's problem document (wire-contracts §1.3), laid out for the console: its errors in
+ * order with `field` and `code` intact (core-concepts §12), each pointer resolved against the body
+ * that was sent. Null for a result that did not fail or whose body is no problem document. The draft
+ * is the sent body while a result is shown, because editing the draft clears the result.
+ */
+export const selectComposeProblem = createSelector(
+  [(s: RootState) => s.compose.result, (s: RootState) => s.compose.bodyJson],
+  (result, bodyJson): ComposeProblem | null => {
+    if (!result || composeOutcomeOf(result) !== 'failed') return null;
+    const problem = readProblem(result.body);
+    if (!problem) return null;
+    return {
+      ...(problem.benzeneStatus ? { benzeneStatus: problem.benzeneStatus } : {}),
+      ...(problem.detail ? { detail: problem.detail } : {}),
+      ...(problem.title ? { title: problem.title } : {}),
+      rows: problem.errors.map((error) => {
+        if (error.field === undefined) return error;
+        const at = resolvePointer(bodyJson, error.field);
+        return { ...error, sent: at.found ? JSON.stringify(at.value) : 'absent' };
+      }),
     };
   },
 );

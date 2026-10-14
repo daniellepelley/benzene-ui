@@ -3,7 +3,7 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   selectVisibleServices, selectComposableTopicsForService, selectTopicVersions,
   selectTransportsForTopic, selectExampleBody, selectComposeValidity, selectCanInvoke,
-  selectHandlerServicesForTopic, NONE,
+  selectHandlerServicesForTopic, selectComposeProblem, NONE,
 } from '../../store/selectors';
 import {
   composeOpened, versionSelected, transportSelected, bodyEdited, headersEdited,
@@ -57,6 +57,7 @@ export function TestConsolePage({ service, topic }: TestConsolePageProps) {
     (s: RootState) => (index: number) => (topic ? selectExampleBody(s, topic, index) : '{}'),
   );
   const validity = useAppSelector(selectComposeValidity);
+  const problem = useAppSelector(selectComposeProblem);
   const canSendMessages = useAppSelector(selectCanInvoke);
   // Arriving topic-first: one handler resolves itself, several ask, none says so. Without this the
   // merged console would answer a topic-only link with an empty service picker and no explanation.
@@ -198,6 +199,7 @@ export function TestConsolePage({ service, topic }: TestConsolePageProps) {
           send={compose.send}
           error={compose.error}
           result={compose.result}
+          problem={problem}
           confirmed={compose.confirmed}
           onVersion={(index) =>
             dispatch(versionSelected({

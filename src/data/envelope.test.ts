@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { asWireResponse, parseJson, problemMessage, successOf } from './envelope';
+import { asWireResponse, parseJson, problemMessage, readProblem, resolvePointer, successOf } from './envelope';
 
 describe('recognising a response envelope', () => {
   it('reads an envelope by its string statusCode', () => {
@@ -65,5 +65,61 @@ describe('the reason a failure gives', () => {
     expect(parseJson('{"a":1}')).toEqual({ a: 1 });
     expect(parseJson('<html>')).toBeUndefined();
     expect(parseJson('')).toBeUndefined();
+  });
+});
+
+describe('reading a problem document', () => {
+  it('keeps field and code intact, in order (wire-contracts §1.3, core-concepts §12)', () => {
+    const problem = readProblem(JSON.stringify({
+      type: 'https://benzene.app/problems/validation-error', title: 'Validation failed',
+      detail: 'orderId is required, quantity must be positive', benzeneStatus: 'validation-error',
+      errors: [
+        { message: 'orderId is required', field: '/orderId', code: 'required' },
+        { message: 'quantity must be positive', field: '/items/0/quantity', code: 'GreaterThanValidator' },
+      ],
+      traceHint: 'an application member, ignored',
+    }));
+    expect(problem).toEqual({
+      benzeneStatus: 'validation-error', title: 'Validation failed',
+      detail: 'orderId is required, quantity must be positive',
+      errors: [
+        { message: 'orderId is required', field: '/orderId', code: 'required' },
+        { message: 'quantity must be positive', field: '/items/0/quantity', code: 'GreaterThanValidator' },
+      ],
+    });
+  });
+
+  it('never splits detail into errors when the document carries none', () => {
+    expect(readProblem('{"detail":"a, b","benzeneStatus":"bad-request"}'))
+      .toEqual({ detail: 'a, b', benzeneStatus: 'bad-request', errors: [] });
+  });
+
+  it('drops an entry without a message, and an error with no single location keeps no field', () => {
+    expect(readProblem('{"errors":[{"field":"/x"},"legacy string",{"message":"Totals disagree","code":"cross-field"}]}'))
+      .toEqual({ errors: [{ message: 'Totals disagree', code: 'cross-field' }] });
+  });
+
+  it('is not a problem document when nothing in it is recognisable', () => {
+    expect(readProblem('{"orderId":"o-1"}')).toBeNull();
+    expect(readProblem('not json')).toBeNull();
+    expect(readProblem('')).toBeNull();
+  });
+});
+
+describe('resolving a field pointer against the body that was sent', () => {
+  const body = JSON.stringify({ customer: { 'a/b': 1, 'm~n': 2 }, items: [{ sku: 'X' }], note: null });
+
+  it('finds members, array indexes and escaped tokens (RFC 6901)', () => {
+    expect(resolvePointer(body, '/items/0/sku')).toEqual({ found: true, value: 'X' });
+    expect(resolvePointer(body, '/customer/a~1b')).toEqual({ found: true, value: 1 });
+    expect(resolvePointer(body, '/customer/m~0n')).toEqual({ found: true, value: 2 });
+    expect(resolvePointer(body, '/note')).toEqual({ found: true, value: null });
+  });
+
+  it('reports a member that is not there as not found, never as null', () => {
+    expect(resolvePointer(body, '/orderId')).toEqual({ found: false });
+    expect(resolvePointer(body, '/items/1')).toEqual({ found: false });
+    expect(resolvePointer(body, '/items/01')).toEqual({ found: false });
+    expect(resolvePointer('not json', '/x')).toEqual({ found: false });
   });
 });

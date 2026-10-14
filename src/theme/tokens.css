@@ -490,6 +490,9 @@ input, select, textarea {
 .bz-compose button:disabled { opacity: 0.5; cursor: not-allowed; }
 .bz-compose-result pre { background: var(--bz-code-bg); border: 1px solid var(--bz-border); border-radius: var(--bz-radius); padding: 0.75rem; overflow-x: auto; font-size: var(--bz-fs-sm); }
 .bz-compose-note { margin: 0 0 0.5rem; font-size: var(--bz-fs-sm); color: var(--bz-muted); }
+.bz-compose-problem-detail { margin: 0 0 0.5rem; }
+.bz-compose-errors { margin: 0 0 0.75rem; font-size: var(--bz-fs-sm); }
+.bz-compose-errors .bz-muted { color: var(--bz-muted); }
 .bz-composer-send { display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; }
 .bz-composer-confirm { display: flex; align-items: flex-start; gap: 0.4rem; font-size: var(--bz-fs-sm); color: var(--bz-muted); cursor: pointer; }
 .bz-composer-confirm input { margin-top: 0.15rem; }

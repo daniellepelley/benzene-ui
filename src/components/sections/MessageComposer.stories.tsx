@@ -34,7 +34,51 @@ export const InvalidBody: Story = { args: { bodyJson: '{ not json', bodyValid: f
 export const InvalidHeaders: Story = { args: { headersJson: 'nope', headersValid: false, canSend: false } };
 export const Sending: Story = { args: { send: 'sending', canSend: false } };
 export const Succeeded: Story = { args: { send: 'sent', result: { statusCode: 'created', isSuccessful: true, body: '{"id":"9f2"}', headers: {} } } };
-export const Failed: Story = { args: { send: 'failed', error: 'Timed out reaching the target service.', result: { statusCode: 'bad-request', isSuccessful: false, body: '{"errors":["orderId is required"]}', headers: {} } } };
+/**
+ * A send that reached the target and failed. Its body is the problem document (wire-contracts §1.3),
+ * so the console lays out each error's field, code and message, beside what the body held there.
+ */
+export const ValidationError: Story = {
+  args: {
+    send: 'sent',
+    bodyJson: '{\n  "quantity": 0\n}',
+    result: {
+      statusCode: 'validation-error', isSuccessful: false, headers: { 'content-type': 'application/problem+json' },
+      body: JSON.stringify({
+        type: 'https://benzene.app/problems/validation-error', title: 'Validation failed',
+        detail: 'orderId is required, quantity must be greater than 0', benzeneStatus: 'validation-error',
+        errors: [
+          { message: 'orderId is required', field: '/orderId', code: 'required' },
+          { message: 'quantity must be greater than 0', field: '/quantity', code: 'GreaterThanValidator' },
+        ],
+      }),
+    },
+    problem: {
+      benzeneStatus: 'validation-error', title: 'Validation failed',
+      detail: 'orderId is required, quantity must be greater than 0',
+      rows: [
+        { message: 'orderId is required', field: '/orderId', code: 'required', sent: 'absent' },
+        { message: 'quantity must be greater than 0', field: '/quantity', code: 'GreaterThanValidator', sent: '0' },
+      ],
+    },
+  },
+};
+/**
+ * A failure from a route-mapped HTTP endpoint (wire-contracts §4.1): the status is the problem
+ * document's `benzeneStatus`, an application-defined one included, not the reverse HTTP table's.
+ */
+export const HttpRouteProblem: Story = {
+  args: {
+    send: 'sent',
+    result: {
+      statusCode: 'order-locked', isSuccessful: false, headers: {},
+      body: JSON.stringify({ status: 409, benzeneStatus: 'order-locked', detail: 'Order o-17 is locked for picking' }),
+    },
+    problem: { benzeneStatus: 'order-locked', detail: 'Order o-17 is locked for picking', rows: [] },
+  },
+};
+/** The send never reached a result: the reason is the error line, and there is no response. */
+export const Failed: Story = { args: { send: 'failed', error: 'Timed out reaching the target service.', result: null } };
 /** An application-defined status the service itself calls a success — green from `isSuccessful`, not from the word. */
 export const ApplicationStatus: Story = { args: { send: 'sent', result: { statusCode: 'queued-for-review', isSuccessful: true, body: '{}', headers: {} } } };
 /** A response with no `isSuccessful`: amber, and said so, rather than guessed from the status text. */

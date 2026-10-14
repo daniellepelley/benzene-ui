@@ -83,3 +83,72 @@ export function problemMessage(body: string | null | undefined): string | null {
   }
   return parsed === undefined ? raw : null;
 }
+
+/** One entry of a problem document's `errors` (wire-contracts §1.3). */
+export interface ProblemError {
+  message: string;
+  /** JSON Pointer into the handler's request — absent for a rule with no single location. */
+  field?: string;
+  /** The producer's own rule identifier, verbatim. */
+  code?: string;
+}
+
+/** The members of a problem document (wire-contracts §1.3) this UI shows. */
+export interface Problem {
+  benzeneStatus?: string;
+  title?: string;
+  detail?: string;
+  /** Authoritative and ordered when present; empty when the document carries none. */
+  errors: ProblemError[];
+}
+
+/**
+ * A failure body read as an RFC 9457 problem document, or null when it is not one.
+ *
+ * Unknown members are ignored (§1.3's unknown-member tolerance), and so is an `errors` entry with no
+ * string `message`: an entry without the one required member is not an error this UI can show. A
+ * document without `errors` is still a problem document — `detail` then stands as one opaque
+ * message, and is never split on commas.
+ */
+export function readProblem(body: string | null | undefined): Problem | null {
+  const parsed = parseJson(body?.trim());
+  if (!isRecord(parsed)) return null;
+  const text = (key: string) => (typeof parsed[key] === 'string' && parsed[key] !== '' ? (parsed[key] as string) : undefined);
+  const errors: ProblemError[] = Array.isArray(parsed.errors)
+    ? parsed.errors.flatMap((entry): ProblemError[] => {
+        if (!isRecord(entry) || typeof entry.message !== 'string') return [];
+        return [{
+          message: entry.message,
+          ...(typeof entry.field === 'string' ? { field: entry.field } : {}),
+          ...(typeof entry.code === 'string' ? { code: entry.code } : {}),
+        }];
+      })
+    : [];
+  const problem: Problem = {
+    ...(text('benzeneStatus') ? { benzeneStatus: text('benzeneStatus') } : {}),
+    ...(text('title') ? { title: text('title') } : {}),
+    ...(text('detail') ? { detail: text('detail') } : {}),
+    errors,
+  };
+  // Some recognisable member is needed: an arbitrary JSON object is a payload, not a problem.
+  return problem.benzeneStatus || problem.detail || problem.title || errors.length > 0 ? problem : null;
+}
+
+/** What a JSON Pointer (RFC 6901) addresses in `json`: `found: false` when nothing is there. */
+export function resolvePointer(json: string, pointer: string): { found: true; value: unknown } | { found: false } {
+  let current = parseJson(json);
+  if (current === undefined) return { found: false };
+  if (pointer === '') return { found: true, value: current };
+  if (!pointer.startsWith('/')) return { found: false };
+  for (const raw of pointer.slice(1).split('/')) {
+    const token = raw.replace(/~1/g, '/').replace(/~0/g, '~');
+    if (Array.isArray(current) && /^(0|[1-9]\d*)$/.test(token) && Number(token) < current.length) {
+      current = current[Number(token)];
+    } else if (isRecord(current) && Object.prototype.hasOwnProperty.call(current, token)) {
+      current = current[token];
+    } else {
+      return { found: false };
+    }
+  }
+  return { found: true, value: current };
+}

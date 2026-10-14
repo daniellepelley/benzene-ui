@@ -3,7 +3,7 @@ import type { MeshApi } from '../store/slices/estateSlice';
 import { MeshFetchError } from '../store/slices/estateSlice';
 import type { ComposeResult } from '../store/slices/composeSlice';
 import { MeshDispatchBlockedError } from '../store/slices/composeSlice';
-import { asWireResponse, parseJson, problemMessage, successOf, type WireResponse } from './envelope';
+import { asWireResponse, parseJson, problemMessage, readProblem, successOf, type WireResponse } from './envelope';
 
 /**
  * Resolves an artifact path against the manifest's location, then the page.
@@ -265,7 +265,15 @@ function composeResultOf(raw: unknown): ComposeResult {
       };
     }
     const httpStatus = Number(statusCode);
-    return { statusCode, isSuccessful: httpStatus >= 200 && httpStatus < 300, body, headers, httpStatus };
+    const succeeded = httpStatus >= 200 && httpStatus < 300;
+    // A route-mapped HTTP failure is a handler's result too: its body is the problem document, and
+    // its `benzeneStatus` - not the reverse HTTP table - is the result's status, so an
+    // application-defined status survives the hop (wire-contracts §4.1, last paragraph).
+    const problem = succeeded ? null : readProblem(body);
+    if (problem?.benzeneStatus) {
+      return { statusCode: problem.benzeneStatus, isSuccessful: false, body, headers };
+    }
+    return { statusCode, isSuccessful: succeeded, body, headers, httpStatus };
   }
 
   return {

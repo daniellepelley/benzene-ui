@@ -336,6 +336,20 @@ describe('sending a test message', () => {
         statusCode: '401', isSuccessful: false, httpStatus: 401, body: 'Unauthorized', headers: {},
       });
     });
+
+    it('takes a route-mapped HTTP failure’s status from its problem document, not the HTTP table', async () => {
+      // wire-contracts §4.1: a handler's failure on an HTTP route is a problem document whose
+      // benzeneStatus is the result's status, so an application-defined one survives the hop - and it
+      // is a handler's result, not the carrier's, so no httpStatus is reported.
+      const problem = JSON.stringify({ status: 422, benzeneStatus: 'order-locked', detail: 'Order is locked' });
+      relayed({ statusCode: '422', body: problem });
+      expect(await send()).toEqual({ statusCode: 'order-locked', isSuccessful: false, body: problem, headers: {} });
+    });
+
+    it('keeps the HTTP status when a failure body has no benzeneStatus', async () => {
+      relayed({ statusCode: '502', body: JSON.stringify({ title: 'Bad Gateway' }) });
+      expect(await send()).toMatchObject({ statusCode: '502', isSuccessful: false, httpStatus: 502 });
+    });
   });
 });
 

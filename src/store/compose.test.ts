@@ -6,7 +6,7 @@ import {
   sendConfirmationToggled, sendComposed, MeshDispatchBlockedError,
   RAW_TRANSPORT, composeOutcomeOf,
 } from './slices/composeSlice';
-import { selectComposeValidity, selectTransportsForTopic, selectTopicVersions, selectExampleBody } from './selectors';
+import { selectComposeValidity, selectComposeProblem, selectTransportsForTopic, selectTopicVersions, selectExampleBody } from './selectors';
 import { fakeMeshApi } from '../test/fakeMeshApi';
 
 const ready = async (over = {}) => {
@@ -134,6 +134,50 @@ describe('compose', () => {
     expect(store.getState().compose.result?.statusCode).toBe('created');
     // A completed send clears the acknowledgement — the next one needs its own.
     expect(store.getState().compose.confirmed).toBe(false);
+  });
+
+  it('lays out a failed result’s errors with field and code intact, against the body that was sent', async () => {
+    // The QA sign-off for "a missing orderId is rejected with a field-level error": which field,
+    // which rule, and what the tester actually sent there - without reading raw JSON.
+    const problem = {
+      type: 'https://benzene.app/problems/validation-error', title: 'Validation failed',
+      detail: 'orderId is required, quantity must be greater than 0', benzeneStatus: 'validation-error',
+      errors: [
+        { message: 'orderId is required', field: '/orderId', code: 'required' },
+        { message: 'quantity must be greater than 0', field: '/quantity', code: 'GreaterThanValidator' },
+        { message: 'The order total does not match its lines' },
+      ],
+    };
+    const store = await ready({
+      sendMessage: async () => ({ statusCode: 'validation-error', isSuccessful: false, body: JSON.stringify(problem), headers: {} }),
+    });
+    store.dispatch(composeOpened({ service: 's', topic: 'a', exampleBody: '{"quantity":0}', transports: [RAW_TRANSPORT] }));
+    store.dispatch(sendConfirmationToggled());
+    await store.dispatch(sendComposed({ service: 's', topic: 'a', headers: {}, body: '{"quantity":0}' }));
+
+    expect(selectComposeProblem(store.getState())).toEqual({
+      benzeneStatus: 'validation-error', title: 'Validation failed',
+      detail: 'orderId is required, quantity must be greater than 0',
+      rows: [
+        { message: 'orderId is required', field: '/orderId', code: 'required', sent: 'absent' },
+        { message: 'quantity must be greater than 0', field: '/quantity', code: 'GreaterThanValidator', sent: '0' },
+        { message: 'The order total does not match its lines' },
+      ],
+    });
+  });
+
+  it('lays out no problem for a success, or for a failure whose body is no problem document', async () => {
+    const answers = [
+      { statusCode: 'created', isSuccessful: true, body: '{"detail":"not a failure"}', headers: {} },
+      { statusCode: 'unexpected-error', isSuccessful: false, body: 'boom', headers: {} },
+    ];
+    for (const answer of answers) {
+      const store = await ready({ sendMessage: async () => answer });
+      store.dispatch(composeOpened({ service: 's', topic: 'a', exampleBody: '{}', transports: [RAW_TRANSPORT] }));
+      store.dispatch(sendConfirmationToggled());
+      await store.dispatch(sendComposed({ service: 's', topic: 'a', headers: {}, body: '{}' }));
+      expect(selectComposeProblem(store.getState())).toBeNull();
+    }
   });
 
   it('renders a blocked dispatch distinctly from a failed one', async () => {

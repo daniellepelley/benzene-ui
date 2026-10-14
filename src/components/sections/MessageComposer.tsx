@@ -4,6 +4,7 @@ import type { TopicsTopicsItem } from '../../contracts';
 import { versionLabel } from '../../store/selectors';
 import { EmptyState } from '../primitives/EmptyState';
 import { Badge } from '../primitives/Badge';
+import type { ComposeProblem } from '../../store/selectors';
 
 export interface MessageComposerProps {
   versions: TopicsTopicsItem[];
@@ -18,6 +19,11 @@ export interface MessageComposerProps {
   send: SendState;
   error: string | null;
   result: ComposeResult | null;
+  /**
+   * The failed result's problem document, laid out (`selectComposeProblem`): its errors with
+   * `field` and `code` intact. Null when the result did not fail or carries no problem document.
+   */
+  problem?: ComposeProblem | null;
   /** The required "I understand this runs the real handler" acknowledgement — see `canSend`. */
   confirmed: boolean;
   onVersion: (index: number) => void;
@@ -39,7 +45,7 @@ export interface MessageComposerProps {
  */
 export function MessageComposer({
   versions, versionIndex, transports, transport, headersJson, bodyJson,
-  bodyValid, headersValid, canSend, send, error, result, confirmed,
+  bodyValid, headersValid, canSend, send, error, result, problem, confirmed,
   onVersion, onTransport, onBody, onHeaders, onConfirmToggle, onSend, onSetup,
 }: MessageComposerProps) {
   if (versions.length === 0) {
@@ -150,6 +156,34 @@ export function MessageComposer({
               The response did not say whether it succeeded (it carried no <code>isSuccessful</code>),
               and this console does not guess from the status text.
             </p>
+          )}
+          {problem && (
+            <div className="bz-compose-problem">
+              {problem.detail && <p className="bz-compose-problem-detail">{problem.detail}</p>}
+              {/* Field, code and message are the evidence a validation sign-off needs; the raw
+                  document stays below for anything this table leaves out. */}
+              {problem.rows.length > 0 && (
+                <table className="bz-table bz-compose-errors">
+                  <thead>
+                    <tr><th>Field</th><th>Code</th><th>Message</th><th>You sent</th></tr>
+                  </thead>
+                  <tbody>
+                    {problem.rows.map((row, i) => (
+                      <tr key={i}>
+                        <td>{row.field ? <code>{row.field}</code> : <span className="bz-muted">whole request</span>}</td>
+                        <td>{row.code ? <code>{row.code}</code> : <span className="bz-muted">—</span>}</td>
+                        <td>{row.message}</td>
+                        <td>
+                          {row.sent === undefined ? <span className="bz-muted">—</span>
+                            : row.sent === 'absent' ? <em>not in the body</em>
+                            : <code>{row.sent}</code>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
           )}
           <pre>{pretty(result.body)}</pre>
         </section>
